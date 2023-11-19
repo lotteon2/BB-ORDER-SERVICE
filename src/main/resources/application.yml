@@ -1,0 +1,16 @@
+server:
+  port: 8900
+spring:
+  application:
+    name: order-service
+  config:
+    activate:
+      on-profile: local, dev, local
+    import: optional:configserver:http://localhost:8888
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - "refresh"
+          - "bus-refresh"
