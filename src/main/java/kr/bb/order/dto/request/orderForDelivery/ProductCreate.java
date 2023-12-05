@@ -15,4 +15,8 @@ public class ProductCreate {
   @NotNull private String productName;
   @NotNull private Long quantity;
   @NotNull private Long price;
+
+  public long getSumOfEachProduct() {
+    return this.price * this.quantity;
+  }
 }

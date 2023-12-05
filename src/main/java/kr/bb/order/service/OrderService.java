@@ -3,6 +3,7 @@ package kr.bb.order.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import kr.bb.order.dto.request.delivery.DeliveryInsertRequestDto;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.dto.request.payment.KakaopayReadyRequestDto;
@@ -10,10 +11,13 @@ import kr.bb.order.dto.request.product.PriceCheckDto;
 import kr.bb.order.dto.request.store.CouponAndDeliveryCheckDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.OrderType;
+import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.redis.OrderInfo;
+import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
+import kr.bb.order.repository.OrderDeliveryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -50,9 +54,14 @@ public class OrderService {
 
     // 임시 주문id 및 결제준비용 dto 생성
     String tempOrderId = UUID.randomUUID().toString();
+    Boolean isSubscriptionPay = false;
     KakaopayReadyRequestDto readyRequestDto =
         KakaopayReadyRequestDto.toDto(
-            userId, tempOrderId, OrderType.ORDER_DELIVERY.toString(), requestDto);
+            userId,
+            tempOrderId,
+            OrderType.ORDER_DELIVERY.toString(),
+            requestDto,
+            isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
     KakaopayReadyResponseDto responseDto = paymentServiceClient.ready(readyRequestDto).getData();

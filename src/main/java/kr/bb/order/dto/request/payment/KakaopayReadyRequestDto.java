@@ -25,7 +25,7 @@ public class KakaopayReadyRequestDto {
   private boolean isSubscriptionPay;
 
   public static KakaopayReadyRequestDto toDto(
-      Long userId, String tempOrderId, String orderType, OrderForDeliveryRequest request) {
+      Long userId, String tempOrderId, String orderType, OrderForDeliveryRequest request, Boolean isSubscriptionPay) {
     String itemName = getItemName(request.getOrderInfoByStores());
     Long quantity = getQuantity(request.getOrderInfoByStores());
 
@@ -37,7 +37,7 @@ public class KakaopayReadyRequestDto {
         .quantity(Math.toIntExact(quantity))
         .totalAmount(Math.toIntExact(request.getSumOfActualAmount()))
         .taxFreeAMount(0)
-        .isSubscriptionPay(request.isSubscriptionPay())
+        .isSubscriptionPay(isSubscriptionPay)
         .build();
   }
 

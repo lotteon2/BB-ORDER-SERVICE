@@ -2,7 +2,6 @@ package kr.bb.order.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 
 import bloomingblooms.response.CommonResponse;
@@ -14,9 +13,11 @@ import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.exception.InvalidOrderAmountException;
+import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
+import kr.bb.order.repository.OrderDeliveryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @MockBean private PaymentServiceClient paymentServiceClient;
   @Autowired private RedisTemplate<String, OrderInfo> redisTemplate;
   @Autowired private OrderManager orderManager;
+  @Autowired private OrderDeliveryRepository orderDeliveryRepository;
+  @Autowired private DeliveryServiceClient deliveryServiceClient;
 
   @BeforeEach
   void setup() {
