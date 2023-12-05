@@ -1,4 +1,4 @@
-package kr.bb.order.entity;
+package kr.bb.order.entity.delivery;
 
 public enum OrderDeliveryStatus {
   PENDING("주문접수"),

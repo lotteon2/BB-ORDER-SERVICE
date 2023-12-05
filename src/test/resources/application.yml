@@ -1,12 +1,8 @@
-server:
-  port: 8900
 spring:
-  application:
-    name: order-service
-  config:
-    activate:
-      on-profile: local, dev, local
-    import: optional:configserver:http://localhost:8888
+  cloud:
+    config:
+      enabled: false
+  # h2 settings
   h2:
     console:
       enabled: true
@@ -20,22 +16,23 @@ spring:
     hibernate:
       ddl-auto: create
     generate-ddl: true
+    # Bean이 생성되기 전에 ddl 실행
     defer-datasource-initialization: true
     properties:
       hibernate:
         format_sql: true
   redis:
-    host: localhost
+    host: 127.0.0.1
     port: 6379
-management:
-  endpoints:
-    web:
-      exposure:
-        include:
-          - "refresh"
-          - "bus-refresh"
+
 logging:
   level:
     org:
       hibernate:
         SQL: DEBUG
+
+endpoint:
+  product-service: localhost:8900
+  delivery-service: localhost:8900
+  payment-service: localhost:8900
+  store-service: localhost:8900

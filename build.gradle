@@ -38,6 +38,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation group: 'io.github.lotteon-maven', name: 'blooming-blooms-utils', version: '0.1.5-alpha'
     runtimeOnly 'com.h2database:h2'
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    testImplementation "org.testcontainers:testcontainers:1.17.6"
+    testImplementation "org.testcontainers:junit-jupiter:1.17.6"
 }
 
 dependencyManagement {
@@ -70,14 +74,21 @@ jacocoTestCoverageVerification {
                 value = 'COVEREDRATIO'
                 minimum = 0.80
             }
-            excludes = [ "**/*Application*",
-                         "**/*generated*",
-                         "**/*Controller",
-                         "**/*mapper*",
-                         "**/*Config*",
-                         "**/*Dto*",
-                         "**/*Exception"
-            ]
+            afterEvaluate {
+                classDirectories.setFrom(
+                        files(classDirectories.files.collect{
+                            fileTree(dir:it,excludes:[
+                                    "**/*Exception.class",
+                                    "**/*Controller.class",
+                                    "**/*Dto.class",
+                                    "**/*Request.class",
+                                    "**/*Response.class",
+                                    "**/*Id.class",
+                                    "**/*Application*"
+                            ])
+                        })
+                )
+            }
         }
     }
 }
@@ -100,16 +111,16 @@ jacocoTestReport {
     }
     afterEvaluate {
         classDirectories.setFrom(
-                files(classDirectories.files.collect {
-                    fileTree(dir: it, excludes: [
-                            "**/*Application*",
-                            "**/*generated*",
-                            "**/*Controller",
-                            "**/*mapper*",
-                            "**/*Config*",
-                            "**/*Dto*",
-                            "**/*Exception"
-                    ] + Qdomains)
+                files(classDirectories.files.collect{
+                    fileTree(dir:it,excludes:[
+                            "**/*Exception.class",
+                            "**/*Controller.class",
+                            "**/*Dto.class",
+                            "**/*Request.class",
+                            "**/*Response.class",
+                            "**/*Id.class",
+                            "**/*Application*"
+                    ])
                 })
         )
     }
