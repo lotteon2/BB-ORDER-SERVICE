@@ -1,4 +1,4 @@
-package kr.bb.order.entity;
+package kr.bb.order.entity.pickup;
 
 import java.time.LocalDateTime;
 import javax.persistence.Column;

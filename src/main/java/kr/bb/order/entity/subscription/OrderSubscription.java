@@ -1,4 +1,4 @@
-package kr.bb.order.entity;
+package kr.bb.order.entity.subscription;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
