@@ -1,5 +1,6 @@
 package kr.bb.order.feign;
 
+import bloomingblooms.response.CommonResponse;
 import bloomingblooms.response.SuccessResponse;
 import java.util.List;
 import kr.bb.order.dto.request.delivery.DeliveryInsertRequestDto;
@@ -12,5 +13,5 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "deliveryServiceClient", url = "${endpoint.delivery-service}")
 public interface DeliveryServiceClient {
     @PostMapping(value = "/delivery")
-    SuccessResponse<List<Long>> createDelivery(@RequestBody List<DeliveryInsertRequestDto> dtoList);
+    CommonResponse<List<Long>> createDelivery(@RequestBody List<DeliveryInsertRequestDto> dtoList);
 }

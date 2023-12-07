@@ -14,7 +14,6 @@ import lombok.NoArgsConstructor;
 public class OrderForDeliveryRequest {
   @NotEmpty private List<OrderInfoByStore> orderInfoByStores;
   @NotEmpty private Long sumOfActualAmount;
-  @NotEmpty private boolean isSubscriptionPay;
   @NotEmpty private String ordererName;
   @NotEmpty private String ordererPhoneNumber;
   @NotEmpty private String ordererEmail;

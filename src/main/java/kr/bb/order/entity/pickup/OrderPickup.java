@@ -23,8 +23,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class OrderPickup extends BaseEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long orderPickupId;
+    private String orderPickupId;
 
     @Column(name="user_id", nullable = false)
     private Long userId;
