@@ -16,6 +16,7 @@ public class ProductCreate {
   @NotNull private String productName;
   @NotNull private Long quantity;
   @NotNull private Long price;
+  @NotNull private String productThumbnailImage;
 
   @JsonIgnore
   public long getSumOfEachProduct() {
