@@ -42,10 +42,10 @@ public class OrderDelivery extends BaseEntity {
   private Long orderDeliveryCouponAmount;
 
   @Column(name = "order_group_id", nullable = false)
-  private Long orderGroupId;
+  private String orderGroupId;
 
   public static OrderDelivery toDto(
-      Long deliveryId, Long userId, Long orderGroupId, OrderInfoByStore orderInfoByStore) {
+      Long deliveryId, Long userId, String orderGroupId, OrderInfoByStore orderInfoByStore) {
     return OrderDelivery.builder()
         .userId(userId)
         .deliveryId(deliveryId)

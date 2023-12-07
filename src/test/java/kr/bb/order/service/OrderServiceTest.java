@@ -1,33 +1,45 @@
 package kr.bb.order.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import bloomingblooms.response.CommonResponse;
 import java.util.ArrayList;
 import java.util.List;
+import kr.bb.order.dto.kafka.ProcessOrderDto;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
+import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.exception.InvalidOrderAmountException;
+import kr.bb.order.exception.PaymentExpiredException;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
+import kr.bb.order.kafka.KafkaConsumer;
+import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.repository.OrderDeliveryRepository;
+import kr.bb.order.util.OrderUtil;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @Testcontainers
@@ -40,7 +52,10 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private RedisTemplate<String, OrderInfo> redisTemplate;
   @Autowired private OrderManager orderManager;
   @Autowired private OrderDeliveryRepository orderDeliveryRepository;
-  @Autowired private DeliveryServiceClient deliveryServiceClient;
+  @MockBean private DeliveryServiceClient deliveryServiceClient;
+  @MockBean private KafkaProducer kafkaProducer;
+  @Autowired private KafkaConsumer kafkaConsumer;
+  @MockBean private OrderUtil orderUtil;
 
   @BeforeEach
   void setup() {
@@ -50,23 +65,32 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             storeServiceClient,
             paymentServiceClient,
             redisTemplate,
-            orderManager);
+            orderManager,
+            orderDeliveryRepository,
+            deliveryServiceClient,
+            kafkaProducer,
+            orderUtil);
+  }
+
+  @AfterEach
+  void teardown() {
+    redisTemplate.getConnectionFactory().getConnection().flushDb();
   }
 
   @Test
   @DisplayName("바로 주문하기")
   public void createDirectOrder() {
     Long userId = 1L;
+    String orderId = "임시orderId";
     Long sumOfActualAmount = 90500L;
     OrderForDeliveryRequest request = createOrderForDeliveryRequest(sumOfActualAmount);
 
-    Mockito.when(productServiceClient.validatePrice(any()))
-        .thenReturn(CommonResponse.success(null));
-    Mockito.when(storeServiceClient.validatePurchaseDetails(any()))
+    when(productServiceClient.validatePrice(any())).thenReturn(CommonResponse.success(null));
+    when(storeServiceClient.validatePurchaseDetails(any()))
         .thenReturn(CommonResponse.success(null));
     KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    Mockito.when(paymentServiceClient.ready(any()))
-        .thenReturn(CommonResponse.success(mockResponseDto));
+    when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
+    when(orderUtil.generateUUID()).thenReturn(orderId);
 
     KakaopayReadyResponseDto responseDto = orderService.receiveOrderForDelivery(userId, request);
 
@@ -77,27 +101,99 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @DisplayName("잘못된 결제금액으로는 주문이 불가능하다")
   public void orderCannotBeMadeToWrongAmount() {
     Long userId = 1L;
+    String orderId = "임시orderId";
     Long wrongAmount = 25000L;
     OrderForDeliveryRequest request = createOrderForDeliveryRequest(wrongAmount);
 
-    Mockito.when(productServiceClient.validatePrice(any()))
-        .thenReturn(CommonResponse.success(null));
-    Mockito.when(storeServiceClient.validatePurchaseDetails(any()))
+    when(productServiceClient.validatePrice(any())).thenReturn(CommonResponse.success(null));
+    when(storeServiceClient.validatePurchaseDetails(any()))
         .thenReturn(CommonResponse.success(null));
     KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    Mockito.when(paymentServiceClient.ready(any()))
-        .thenReturn(CommonResponse.success(mockResponseDto));
+    when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
+    when(orderUtil.generateUUID()).thenReturn(orderId);
 
     assertThatThrownBy(() -> orderService.receiveOrderForDelivery(userId, request))
         .isInstanceOf(InvalidOrderAmountException.class)
         .hasMessage("유효하지 않은 주문 금액입니다");
   }
 
+  @Test
+  @DisplayName("바로 주문하기 - 승인")
+  public void approveDirectOrder() {
+    // given
+    Long userId = 1L;
+    Long sumOfActualAmount = 90500L;
+    String orderId = "임시orderId";
+    String pgToken = "임시pgToken";
+    OrderForDeliveryRequest request = createOrderForDeliveryRequest(sumOfActualAmount);
+
+    when(productServiceClient.validatePrice(any())).thenReturn(CommonResponse.success(null));
+    when(storeServiceClient.validatePurchaseDetails(any()))
+        .thenReturn(CommonResponse.success(null));
+    KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
+    when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
+    when(orderUtil.generateUUID()).thenReturn(orderId);
+
+    orderService.receiveOrderForDelivery(userId, request);
+    kafkaProducer = mock(KafkaProducer.class);
+
+    doNothing().when(kafkaProducer).sendUseCoupon(any(ProcessOrderDto.class));
+  }
+
+  @Test
+  @DisplayName("주문 처리하기 - 승인")
+  void processOrder() throws JsonProcessingException {
+    // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
+    // given
+    Long userId = 1L;
+    String orderGroupId = "임시orderId";
+    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
+    ObjectMapper objectMapper = new ObjectMapper();
+    String message =
+        objectMapper.writeValueAsString(ProcessOrderDto.toDto(orderGroupId, orderInfoByStores));
+    OrderForDeliveryRequest requestDto = createOrderForDeliveryRequest(90500L);
+
+    OrderInfo orderInfo =
+            OrderInfo.transformDataForApi(
+                    orderGroupId, userId, "제품명 외 1개", 2, false, "tid번호", requestDto);
+    redisTemplate.opsForValue().set(orderGroupId, orderInfo);
+
+    List<Long> deliveryIds = new ArrayList<>();
+    deliveryIds.add(1L);
+    CommonResponse<List<Long>> success = CommonResponse.success(deliveryIds);
+
+    when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
+    when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
+
+    // when
+    kafkaConsumer.processOrder(message);
+
+    // then
+    List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
+    assertThat(orderDelivery).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("주문에 대한 결제는 5분 안에 이뤄져야한다.")
+  void paymentShouldBeWithinTimeLimit() throws JsonProcessingException {
+    // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
+    // given
+    String orderGroupId = "임시orderId";
+    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
+    ObjectMapper objectMapper = new ObjectMapper();
+    String message =
+        objectMapper.writeValueAsString(ProcessOrderDto.toDto(orderGroupId, orderInfoByStores));
+
+    // when, then
+    assertThatThrownBy(() -> kafkaConsumer.processOrder(message))
+        .isInstanceOf(PaymentExpiredException.class)
+        .hasMessage("결제 시간이 만료되었습니다. 다시 시도해주세요.");
+  }
+
   public OrderForDeliveryRequest createOrderForDeliveryRequest(Long sumOfActualAmount) {
     return OrderForDeliveryRequest.builder()
         .orderInfoByStores(createOrderInfoByStores())
         .sumOfActualAmount(sumOfActualAmount)
-        .isSubscriptionPay(false)
         .ordererName("주문자 이름")
         .ordererPhoneNumber("주문자 전화번호")
         .ordererEmail("주문자 이메일")

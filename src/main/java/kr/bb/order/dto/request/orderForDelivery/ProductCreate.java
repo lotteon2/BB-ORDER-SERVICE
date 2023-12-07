@@ -1,5 +1,6 @@
 package kr.bb.order.dto.request.orderForDelivery;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +17,7 @@ public class ProductCreate {
   @NotNull private Long quantity;
   @NotNull private Long price;
 
+  @JsonIgnore
   public long getSumOfEachProduct() {
     return this.price * this.quantity;
   }
