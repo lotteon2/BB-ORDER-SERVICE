@@ -8,10 +8,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PriceCheckDto {
-    private Long productId;
+    private String productId;
     private Long price;
 
-    public static PriceCheckDto toDto(Long productId, Long price){
+    public static PriceCheckDto toDto(String productId, Long price){
         return PriceCheckDto.builder()
                 .productId(productId)
                 .price(price)
