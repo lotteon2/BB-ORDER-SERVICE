@@ -3,7 +3,6 @@ package kr.bb.order.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import kr.bb.order.dto.kafka.ProcessOrderDto;
 import kr.bb.order.dto.request.delivery.DeliveryInsertRequestDto;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
@@ -12,9 +11,12 @@ import kr.bb.order.dto.request.payment.KakaopayApproveRequestDto;
 import kr.bb.order.dto.request.payment.KakaopayReadyRequestDto;
 import kr.bb.order.dto.request.product.PriceCheckDto;
 import kr.bb.order.dto.request.store.CouponAndDeliveryCheckDto;
+import kr.bb.order.dto.request.store.ProcessOrderDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
+import kr.bb.order.entity.OrderProduct;
 import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
+import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.exception.PaymentExpiredException;
 import kr.bb.order.feign.DeliveryServiceClient;
@@ -23,6 +25,8 @@ import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.repository.OrderDeliveryRepository;
+import kr.bb.order.repository.OrderGroupRepository;
+import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.util.OrderUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -42,6 +46,8 @@ public class OrderService {
   private final DeliveryServiceClient deliveryServiceClient;
   private final KafkaProducer kafkaProducer;
   private final OrderUtil orderUtil;
+  private final OrderProductRepository orderProductRepository;
+  private final OrderGroupRepository orderGroupRepository;
 
   @Transactional
   public KakaopayReadyResponseDto receiveOrderForDelivery(
@@ -64,6 +70,7 @@ public class OrderService {
     // 임시 주문id 및 결제준비용 dto 생성
     String tempOrderId = orderUtil.generateUUID();
     boolean isSubscriptionPay = false;
+
     KakaopayReadyRequestDto readyRequestDto =
         KakaopayReadyRequestDto.toDto(
             userId,
@@ -80,7 +87,13 @@ public class OrderService {
     int quantity = readyRequestDto.getQuantity();
     OrderInfo orderInfo =
         OrderInfo.transformDataForApi(
-            tempOrderId, userId, itemName, quantity, isSubscriptionPay, responseDto.getTid(), requestDto);
+            tempOrderId,
+            userId,
+            itemName,
+            quantity,
+            isSubscriptionPay,
+            responseDto.getTid(),
+            requestDto);
     redisTemplate.opsForValue().set(tempOrderId, orderInfo);
 
     return responseDto;
@@ -93,12 +106,12 @@ public class OrderService {
     if (orderInfo == null) throw new PaymentExpiredException();
 
     orderInfo.setPgToken(pgToken);
+    redisTemplate.opsForValue().set(orderId, orderInfo);
     redisTemplate.expire(orderId, 300, TimeUnit.SECONDS);
 
     ProcessOrderDto processOrderDto =
         ProcessOrderDto.toDto(orderId, orderInfo.getOrderInfoByStores());
     kafkaProducer.sendUseCoupon(processOrderDto);
-
   }
 
   @Transactional
@@ -112,17 +125,40 @@ public class OrderService {
     List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
 
     // payment-service 결제 승인 요청
-    KakaopayApproveRequestDto approveRequestDto = KakaopayApproveRequestDto.toDto(orderInfo, OrderType.ORDER_DELIVERY.toString());
+    KakaopayApproveRequestDto approveRequestDto =
+        KakaopayApproveRequestDto.toDto(orderInfo, OrderType.ORDER_DELIVERY.toString());
     paymentServiceClient.approve(approveRequestDto).getData();
+    OrderGroup orderGroup =
+            OrderGroup.builder()
+                    .orderGroupId(processOrderDto.getOrderGroupId())
+                    .userId(orderInfo.getUserId())
+                    .build();
+    orderGroupRepository.save(orderGroup);
 
-    // 주문상태 완료로 변경
+    // 주문 정보 저장
     for (int i = 0; i < deliveryIds.size(); i++) {
+      // 1. 주문_배송 entity
+      String orderDeliveryId = orderUtil.generateUUID();
       OrderDelivery orderDelivery =
-              OrderDelivery.toDto(
-                      deliveryIds.get(i), orderInfo.getUserId(),
-                      processOrderDto.getOrderGroupId(),
-                      orderInfo.getOrderInfoByStores().get(i));
-      orderDeliveryRepository.save(orderDelivery);
+          OrderDelivery.toEntity(
+                  orderDeliveryId,
+              deliveryIds.get(i),
+                  orderGroup,
+              orderInfo.getOrderInfoByStores().get(i));
+      OrderDelivery savedOrderDelivery = orderDeliveryRepository.save(orderDelivery);
+
+      // 2. 주문_상품 entity
+      List<OrderProduct> orderProducts = new ArrayList<>();
+      for (OrderInfoByStore orderInfoByStore : orderInfo.getOrderInfoByStores()) {
+        for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
+          orderProducts.add(
+              ProductCreate.toEntity(
+                  savedOrderDelivery.getOrderDeliveryId(),
+                  OrderType.ORDER_DELIVERY.toString(),
+                  productCreate));
+        }
+      }
+      orderProductRepository.saveAll(orderProducts);
     }
   }
 
@@ -130,7 +166,7 @@ public class OrderService {
     List<PriceCheckDto> list = new ArrayList<>();
     for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
       for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
-        Long productId = productCreate.getProductId();
+        String productId = productCreate.getProductId();
         Long price = productCreate.getPrice();
         PriceCheckDto dto = PriceCheckDto.toDto(productId, price);
         list.add(dto);
