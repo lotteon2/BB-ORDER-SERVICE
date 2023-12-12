@@ -4,28 +4,35 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.entity.common.BaseEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.DynamicInsert;
+import org.hibernate.annotations.DynamicUpdate;
 
+@Getter
 @Entity
 @Builder
 @Table(name = "order_delivery")
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrderDelivery extends BaseEntity {
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long orderDeliveryId;
+  @Id private String orderDeliveryId;
 
-  @Column(name = "user_id", nullable = false)
-  private Long userId;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "order_group_id")
+  private OrderGroup orderGroup;
+
+  @Column(name = "store_id", nullable = false)
+  private Long storeId;
 
   @Column(name = "delivery_id", nullable = false)
   private Long deliveryId;
@@ -41,18 +48,19 @@ public class OrderDelivery extends BaseEntity {
   @Column(name = "order_delivery_coupon_amount", nullable = false)
   private Long orderDeliveryCouponAmount;
 
-  @Column(name = "order_group_id", nullable = false)
-  private String orderGroupId;
-
-  public static OrderDelivery toDto(
-      Long deliveryId, Long userId, String orderGroupId, OrderInfoByStore orderInfoByStore) {
+  public static OrderDelivery toEntity(
+      String orderDeliveryId,
+      Long deliveryId,
+      OrderGroup orderGroup,
+      OrderInfoByStore orderInfoByStore) {
     return OrderDelivery.builder()
-        .userId(userId)
+        .orderDeliveryId(orderDeliveryId)
+        .orderGroup(orderGroup)
+        .storeId(orderInfoByStore.getStoreId())
         .deliveryId(deliveryId)
         .orderDeliveryStatus(OrderDeliveryStatus.PENDING)
         .orderDeliveryTotalAmount(orderInfoByStore.getTotalAmount())
         .orderDeliveryCouponAmount(orderInfoByStore.getCouponAmount())
-        .orderGroupId(orderGroupId)
         .build();
   }
 }

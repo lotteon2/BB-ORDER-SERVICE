@@ -11,12 +11,13 @@ import static org.mockito.Mockito.when;
 import bloomingblooms.response.CommonResponse;
 import java.util.ArrayList;
 import java.util.List;
-import kr.bb.order.dto.kafka.ProcessOrderDto;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
+import kr.bb.order.dto.request.store.ProcessOrderDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
+import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.exception.InvalidOrderAmountException;
 import kr.bb.order.exception.PaymentExpiredException;
@@ -27,6 +28,8 @@ import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.kafka.KafkaConsumer;
 import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.repository.OrderDeliveryRepository;
+import kr.bb.order.repository.OrderGroupRepository;
+import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.util.OrderUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,6 +59,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @MockBean private KafkaProducer kafkaProducer;
   @Autowired private KafkaConsumer kafkaConsumer;
   @MockBean private OrderUtil orderUtil;
+  @Autowired private OrderProductRepository orderProductRepository;
+  @Autowired private OrderGroupRepository orderGroupRepository;
 
   @BeforeEach
   void setup() {
@@ -69,7 +74,9 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             orderDeliveryRepository,
             deliveryServiceClient,
             kafkaProducer,
-            orderUtil);
+            orderUtil,
+            orderProductRepository,
+            orderGroupRepository);
   }
 
   @AfterEach
@@ -78,7 +85,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   }
 
   @Test
-  @DisplayName("바로 주문하기")
+  @DisplayName("바로 주문하기 - 준비단계")
   public void createDirectOrder() {
     Long userId = 1L;
     String orderId = "임시orderId";
@@ -118,7 +125,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   }
 
   @Test
-  @DisplayName("바로 주문하기 - 승인")
+  @DisplayName("바로 주문하기 - 승인단계")
   public void approveDirectOrder() {
     // given
     Long userId = 1L;
@@ -141,12 +148,16 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   }
 
   @Test
-  @DisplayName("주문 처리하기 - 승인")
+  @DisplayName("주문 처리하기 - 승인단계")
   void processOrder() throws JsonProcessingException {
     // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
     // given
     Long userId = 1L;
     String orderGroupId = "임시orderId";
+    String orderDeliveryId = "임시가게주문id";
+
+    orderGroupRepository.save(OrderGroup.builder().orderGroupId(orderGroupId).userId(userId).build());
+
     List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
     ObjectMapper objectMapper = new ObjectMapper();
     String message =
@@ -154,8 +165,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     OrderForDeliveryRequest requestDto = createOrderForDeliveryRequest(90500L);
 
     OrderInfo orderInfo =
-            OrderInfo.transformDataForApi(
-                    orderGroupId, userId, "제품명 외 1개", 2, false, "tid번호", requestDto);
+        OrderInfo.transformDataForApi(
+            orderGroupId, userId, "제품명 외 1개", 2, false, "tid번호", requestDto);
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
     List<Long> deliveryIds = new ArrayList<>();
@@ -164,12 +175,13 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
     when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
+    when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
 
     // when
     kafkaConsumer.processOrder(message);
 
     // then
-    List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
+    List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroup_OrderGroupId(orderGroupId);
     assertThat(orderDelivery).hasSize(1);
   }
 
@@ -213,7 +225,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     OrderInfoByStore orderInfoByStore =
         OrderInfoByStore.builder()
             .storeId(1L)
-            .storeId(1L)
+            .storeName("가게이름")
             .products(productList)
             .totalAmount(90000L)
             .deliveryCost(3500L)
@@ -229,17 +241,19 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     List<ProductCreate> list = new ArrayList<>();
     list.add(
         ProductCreate.builder()
-            .productId(1L)
+            .productId("1")
             .productName("상품명")
             .quantity(2L)
             .price(35000L)
+            .productThumbnailImage("썸네일이미지url")
             .build());
     list.add(
         ProductCreate.builder()
-            .productId(2L)
+            .productId("2")
             .productName("상품명")
             .quantity(1L)
             .price(20000L)
+            .productThumbnailImage("썸네일이미지url")
             .build());
     return list;
   }

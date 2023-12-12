@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class OrderInfoByStore {
   private Long storeId;
+  private String storeName;
   private List<ProductCreate> products;
   private Long totalAmount;
   private Long deliveryCost;

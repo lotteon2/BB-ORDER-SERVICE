@@ -23,15 +23,19 @@ public class OrderProduct extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long orderProductId;
     @NotNull
+    private String orderId;
+    @NotNull
     private String orderType;
     @NotNull
-    private Long productId;
+    private String productId;
     @NotNull
     private Long orderProductPrice;
     @NotNull
     private Long orderProductQuantity;
+    @Builder.Default
     @NotNull
-    private Boolean reviewIsWritten;
+    private ReviewStatus reviewIsWritten = ReviewStatus.DISABLED;
+    @Builder.Default
     @NotNull
-    private Boolean cardIsWritten;
+    private CardStatus cardIsWritten = CardStatus.ABLE;
 }
