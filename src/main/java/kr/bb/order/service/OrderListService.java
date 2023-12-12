@@ -11,8 +11,9 @@ import kr.bb.order.dto.response.order.OrderDeliveryDetailsDto;
 import kr.bb.order.dto.response.order.OrderDeliveryGroupInfoDto;
 import kr.bb.order.dto.response.order.OrderDeliveryInfoDto;
 import kr.bb.order.dto.response.order.OrderDeliveryPageInfoDto;
-import kr.bb.order.entity.OrderProduct;
+import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.delivery.OrderDelivery;
+import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.exception.FeignClientException;
 import kr.bb.order.exception.common.ErrorCode;
@@ -20,6 +21,7 @@ import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
+import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,12 +37,13 @@ public class OrderListService {
   private final PaymentServiceClient paymentServiceClient;
   private final ProductServiceClient productServiceClient;
   private final OrderProductRepository orderProductRepository;
+  private final OrderPickupRepository orderPickupRepository;
 
   @Transactional
-  public OrderDeliveryPageInfoDto getOrderDeliveryListForUser(Long userId, Pageable pageable) {
+  public OrderDeliveryPageInfoDto getOrderDeliveryListForUser(Long userId, Pageable pageable, OrderDeliveryStatus orderDeliveryStatus) {
     // pageable만큼의 orderGroup을 최신 날짜순으로 가져온다.
     Page<OrderGroup> orderGroupsPerPage =
-        orderGroupRepository.findByUserIdSortedByCreatedAtDesc(userId, pageable);
+        orderGroupRepository.findByUserIdAndOrderDeliveryStatusSortedByCreatedAtDesc(userId, pageable, orderDeliveryStatus);
     List<OrderGroup> orderGroupsList = orderGroupsPerPage.getContent();
 
     Long totalCnt = (long) orderGroupsPerPage.getTotalPages();
@@ -63,9 +66,9 @@ public class OrderListService {
         orderGroupsList.stream().map(OrderGroup::getOrderGroupId).collect(Collectors.toList());
 
     // List<OrderDelivery> 에 속한 모든 List<OrderProduct> 찾기.
-    List<OrderProduct> orderProducts = orderProductRepository.findAllByOrderIds(orderIds);
+    List<OrderDeliveryProduct> orderDeliveryProducts = orderProductRepository.findAllByOrderIds(orderIds);
     List<String> productIds =
-        orderProducts.stream().map(OrderProduct::getProductId).collect(Collectors.toList());
+        orderDeliveryProducts.stream().map(OrderDeliveryProduct::getProductId).collect(Collectors.toList());
 
     // product-service로 정보 요청 (각 상품의 정보를 받아온다)
     List<ProductInfoDto> productInfoDtos =
@@ -89,16 +92,17 @@ public class OrderListService {
         // 가게별 주문 찾기
         String orderDeliveryId = orderDelivery.getOrderDeliveryId();
         // 주문상품 정보 찾기
-        List<OrderProduct> filteredOrderProducts =
-            orderProducts.stream()
+        List<OrderDeliveryProduct> filteredOrderDeliveryProducts =
+            orderDeliveryProducts.stream()
                 .filter(
                     orderProduct -> Objects.equals(orderProduct.getOrderId(), orderDeliveryId)).collect(
                             Collectors.toList());
         // 1차 wrapping
-        List<OrderDeliveryDetailsDto> orderDeliveryDetailDtos = OrderDeliveryDetailsDto.toDto(productIds, productInfoDtos, filteredOrderProducts);
+        List<OrderDeliveryDetailsDto> orderDeliveryDetailDtos = OrderDeliveryDetailsDto.toDto(productIds, productInfoDtos,
+                filteredOrderDeliveryProducts);
         // 2차 wrapping
         OrderDeliveryInfoDto orderDeliveryInfoDto =
-                OrderDeliveryInfoDto.toDto(orderDeliveryId, orderDeliveries, orderProducts,
+                OrderDeliveryInfoDto.toDto(orderDeliveryId, orderDeliveries, orderDeliveryProducts,
                         orderDeliveryDetailDtos);
         orderDeliveryInfoDtos.add(orderDeliveryInfoDto);
       }
@@ -119,4 +123,11 @@ public class OrderListService {
             .orders(orderDeliveryGroupInfoDtos)
             .build();
   }
+
+//  public OrderDeliveryPageInfoForSeller getOrderDeliveryListForSeller(@RequestHeader Long userId, Pageable pageable){
+//    orderPickupRepository.findByStoreIdSortedByCreatedAtDesc(userId, pageable);
+//
+//  }
+
+
 }

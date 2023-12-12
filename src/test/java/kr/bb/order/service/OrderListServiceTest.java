@@ -12,6 +12,7 @@ import kr.bb.order.dto.request.payment.PaymentInfoDto;
 import kr.bb.order.dto.request.product.ProductInfoDto;
 import kr.bb.order.dto.response.order.OrderDeliveryPageInfoDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
+import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
@@ -56,11 +57,10 @@ public class OrderListServiceTest {
         .thenReturn(CommonResponse.success(paymentInfoDtos));
 
     OrderDeliveryPageInfoDto orderDeliveryPageInfoDto =
-        orderListService.getOrderDeliveryListForUser(userId, pageable);
+        orderListService.getOrderDeliveryListForUser(userId, pageable, OrderDeliveryStatus.PENDING);
 
     assertThat(orderDeliveryPageInfoDto.getTotalCnt().equals(1L)).isTrue();
     assertThat(orderDeliveryPageInfoDto.getOrders().get(0).getOrderGroupId().equals("그룹주문id")).isTrue();
-
   }
 
   OrderDelivery createOrderDelivery(OrderGroup orderGroup) {

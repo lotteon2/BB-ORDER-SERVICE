@@ -2,7 +2,9 @@ package kr.bb.order.controller.restcontroller;
 
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.response.order.OrderDeliveryPageInfoDto;
+import kr.bb.order.dto.response.order.OrderDeliveryPageInfoForSeller;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
+import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.service.OrderListService;
 import kr.bb.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -34,16 +36,25 @@ public class OrderRestController {
 
   @GetMapping("/approve/{partnerOrderId}/{partnerUserId}")
   public ResponseEntity<Void> processOrder(
-      @PathVariable("partnerOrderId") String orderId, @PathVariable("partnerUserId") Long userId, @RequestParam("pg_token") String pgToken) {
+      @PathVariable("partnerOrderId") String orderId,
+      @PathVariable("partnerUserId") Long userId,
+      @RequestParam("pg_token") String pgToken) {
     orderService.createOrderForDelivery(orderId, userId, pgToken);
     return ResponseEntity.ok().build();
   }
 
   @GetMapping("/delivery")
-  public ResponseEntity<OrderDeliveryPageInfoDto> getOrderDeliveryListForUser(@RequestHeader Long userId, @PageableDefault(page = 0, size = 5)
-          Pageable pageable){
+  public ResponseEntity<OrderDeliveryPageInfoDto> getOrderDeliveryListForUser(
+      @RequestHeader Long userId, @PageableDefault(page = 0, size = 5) Pageable pageable, @RequestParam("sort") String status) {
 
-    OrderDeliveryPageInfoDto orderDeliveryPageInfoDto = orderListService.getOrderDeliveryListForUser(userId, pageable);
+    OrderDeliveryStatus orderDeliveryStatus = null;
+    try{
+      orderDeliveryStatus = OrderDeliveryStatus.valueOf(status);
+    }catch(IllegalArgumentException e){
+      throw new RuntimeException("올바르지 않은 정렬값 입니다");
+    }
+    OrderDeliveryPageInfoDto orderDeliveryPageInfoDto =
+        orderListService.getOrderDeliveryListForUser(userId, pageable, orderDeliveryStatus);
     return ResponseEntity.ok().body(orderDeliveryPageInfoDto);
   }
 }

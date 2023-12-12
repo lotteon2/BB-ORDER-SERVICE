@@ -14,18 +14,16 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name="order_product")
+@Table(name="order_pickup_product")
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class OrderProduct extends BaseEntity {
+public class OrderPickupProduct extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long orderProductId;
+    private Long orderPickupProductId;
     @NotNull
     private String orderId;
-    @NotNull
-    private String orderType;
     @NotNull
     private String productId;
     @NotNull
