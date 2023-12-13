@@ -21,5 +21,5 @@ public interface PaymentServiceClient {
   CommonResponse<Void> approve(@RequestBody KakaopayApproveRequestDto approveRequestDto);
 
   @GetMapping(value = "/payments/{orderId}")
-  CommonResponse<List<PaymentInfoDto>> getPaymentInfo(@RequestParam List<String> orderIds);
+  CommonResponse<List<PaymentInfoDto>> getPaymentInfo(@RequestParam List<String> orderGroupIds);
 }

@@ -53,8 +53,10 @@ public class OrderRestController {
     }catch(IllegalArgumentException e){
       throw new RuntimeException("올바르지 않은 정렬값 입니다");
     }
-    OrderDeliveryPageInfoDto orderDeliveryPageInfoDto =
-        orderListService.getOrderDeliveryListForUser(userId, pageable, orderDeliveryStatus);
+
+    OrderDeliveryPageInfoDto orderDeliveryPageInfoDto = orderListService.getUserOrderDeliveryList(
+            userId, pageable, orderDeliveryStatus);
+
     return ResponseEntity.ok().body(orderDeliveryPageInfoDto);
   }
 }

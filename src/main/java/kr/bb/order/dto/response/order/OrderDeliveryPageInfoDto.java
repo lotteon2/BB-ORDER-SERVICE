@@ -12,5 +12,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class OrderDeliveryPageInfoDto {
     private Long totalCnt;
-    private List<OrderDeliveryGroupInfoDto> orders;
+    private List<OrderDeliveryGroupDto> orders;
+
+    public static OrderDeliveryPageInfoDto toDto(Long totalCnt, List<OrderDeliveryGroupDto> orders){
+        return OrderDeliveryPageInfoDto.builder()
+                .totalCnt(totalCnt)
+                .orders(orders)
+                .build();
+    }
 }

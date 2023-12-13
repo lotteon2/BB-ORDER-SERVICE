@@ -1,5 +1,7 @@
 package kr.bb.order.entity.delivery;
 
+import java.util.List;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -8,15 +10,15 @@ import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
+import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.common.BaseEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.DynamicInsert;
-import org.hibernate.annotations.DynamicUpdate;
 
 @Getter
 @Entity
@@ -30,6 +32,9 @@ public class OrderDelivery extends BaseEntity {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "order_group_id")
   private OrderGroup orderGroup;
+
+  @OneToMany(mappedBy = "orderDelivery", cascade = CascadeType.PERSIST, orphanRemoval = true)
+  private List<OrderDeliveryProduct> orderDeliveryProducts;
 
   @Column(name = "store_id", nullable = false)
   private Long storeId;
@@ -62,5 +67,13 @@ public class OrderDelivery extends BaseEntity {
         .orderDeliveryTotalAmount(orderInfoByStore.getTotalAmount())
         .orderDeliveryCouponAmount(orderInfoByStore.getCouponAmount())
         .build();
+  }
+
+  public void setOrderGroup(OrderGroup orderGroup) {
+    this.orderGroup = orderGroup;
+  }
+
+  public void setOrderDeliveryProduct(List<OrderDeliveryProduct> orderDeliveryProducts) {
+    this.orderDeliveryProducts = orderDeliveryProducts;
   }
 }

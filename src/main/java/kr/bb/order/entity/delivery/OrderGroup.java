@@ -1,7 +1,5 @@
 package kr.bb.order.entity.delivery;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -22,12 +20,15 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "order_group")
 public class OrderGroup extends BaseEntity {
-    @Id
-    private String orderGroupId;
+  @Id private String orderGroupId;
 
-    @Column(name="user_id", nullable = false)
-    private Long userId;
+  @Column(name = "user_id", nullable = false)
+  private Long userId;
 
-    @OneToMany(mappedBy = "orderGroup", cascade = CascadeType.PERSIST, orphanRemoval = true)
-    private List<OrderDelivery> orderDeliveryList;
+  @OneToMany(mappedBy = "orderGroup", cascade = CascadeType.PERSIST, orphanRemoval = true)
+  private List<OrderDelivery> orderDeliveryList;
+
+  public void setOrderDeliveryList(List<OrderDelivery> orderDeliveryList){
+    this.orderDeliveryList = orderDeliveryList;
+  }
 }

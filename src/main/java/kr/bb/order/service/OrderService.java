@@ -13,7 +13,7 @@ import kr.bb.order.dto.request.product.PriceCheckDto;
 import kr.bb.order.dto.request.store.CouponAndDeliveryCheckDto;
 import kr.bb.order.dto.request.store.ProcessOrderDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
-import kr.bb.order.entity.OrderProduct;
+import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.delivery.OrderGroup;
@@ -129,10 +129,10 @@ public class OrderService {
         KakaopayApproveRequestDto.toDto(orderInfo, OrderType.ORDER_DELIVERY.toString());
     paymentServiceClient.approve(approveRequestDto).getData();
     OrderGroup orderGroup =
-            OrderGroup.builder()
-                    .orderGroupId(processOrderDto.getOrderGroupId())
-                    .userId(orderInfo.getUserId())
-                    .build();
+        OrderGroup.builder()
+            .orderGroupId(processOrderDto.getOrderGroupId())
+            .userId(orderInfo.getUserId())
+            .build();
     orderGroupRepository.save(orderGroup);
 
     // 주문 정보 저장
@@ -141,24 +141,20 @@ public class OrderService {
       String orderDeliveryId = orderUtil.generateUUID();
       OrderDelivery orderDelivery =
           OrderDelivery.toEntity(
-                  orderDeliveryId,
+              orderDeliveryId,
               deliveryIds.get(i),
-                  orderGroup,
+              orderGroup,
               orderInfo.getOrderInfoByStores().get(i));
       OrderDelivery savedOrderDelivery = orderDeliveryRepository.save(orderDelivery);
 
       // 2. 주문_상품 entity
-      List<OrderProduct> orderProducts = new ArrayList<>();
+      List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
       for (OrderInfoByStore orderInfoByStore : orderInfo.getOrderInfoByStores()) {
         for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
-          orderProducts.add(
-              ProductCreate.toEntity(
-                  savedOrderDelivery.getOrderDeliveryId(),
-                  OrderType.ORDER_DELIVERY.toString(),
-                  productCreate));
+          orderDeliveryProducts.add(ProductCreate.toEntity(productCreate));
         }
       }
-      orderProductRepository.saveAll(orderProducts);
+      orderProductRepository.saveAll(orderDeliveryProducts);
     }
   }
 
