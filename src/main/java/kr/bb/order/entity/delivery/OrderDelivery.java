@@ -1,5 +1,6 @@
 package kr.bb.order.entity.delivery;
 
+import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -34,7 +35,7 @@ public class OrderDelivery extends BaseEntity {
   private OrderGroup orderGroup;
 
   @OneToMany(mappedBy = "orderDelivery", cascade = CascadeType.PERSIST, orphanRemoval = true)
-  private List<OrderDeliveryProduct> orderDeliveryProducts;
+  private List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
 
   @Column(name = "store_id", nullable = false)
   private Long storeId;
@@ -71,6 +72,7 @@ public class OrderDelivery extends BaseEntity {
 
   public void setOrderGroup(OrderGroup orderGroup) {
     this.orderGroup = orderGroup;
+    orderGroup.getOrderDeliveryList().add(this);
   }
 
   public void setOrderDeliveryProduct(List<OrderDeliveryProduct> orderDeliveryProducts) {

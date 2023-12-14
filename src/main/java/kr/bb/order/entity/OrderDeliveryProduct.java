@@ -1,6 +1,8 @@
 package kr.bb.order.entity;
 
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -26,11 +28,20 @@ public class OrderDeliveryProduct extends BaseEntity {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long orderProductId;
+
   @NotNull private String productId;
   @NotNull private Long orderProductPrice;
   @NotNull private Long orderProductQuantity;
-  @Builder.Default @NotNull private ReviewStatus reviewIsWritten = ReviewStatus.DISABLED;
-  @Builder.Default @NotNull private CardStatus cardIsWritten = CardStatus.ABLE;
+
+  @Builder.Default
+  @Enumerated(EnumType.STRING)
+  @NotNull
+  private ReviewStatus reviewStatus = ReviewStatus.DISABLED;
+
+  @Builder.Default
+  @Enumerated(EnumType.STRING)
+  @NotNull
+  private CardStatus cardStatus = CardStatus.ABLE;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "order_delivery_id")
@@ -38,5 +49,6 @@ public class OrderDeliveryProduct extends BaseEntity {
 
   public void setOrderDelivery(OrderDelivery orderDelivery) {
     this.orderDelivery = orderDelivery;
+    orderDelivery.getOrderDeliveryProducts().add(this);
   }
 }

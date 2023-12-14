@@ -116,7 +116,7 @@ public class OrderService {
 
   @Transactional
   public void processOrder(ProcessOrderDto processOrderDto) {
-    // redis에서 order 정보 가져오기
+    // TODO: rollback 처리하기
     OrderInfo orderInfo = redisTemplate.opsForValue().get(processOrderDto.getOrderGroupId());
     if (orderInfo == null) throw new PaymentExpiredException();
 
@@ -133,7 +133,7 @@ public class OrderService {
             .orderGroupId(processOrderDto.getOrderGroupId())
             .userId(orderInfo.getUserId())
             .build();
-    orderGroupRepository.save(orderGroup);
+    OrderGroup savedOrderGroup =  orderGroupRepository.save(orderGroup);
 
     // 주문 정보 저장
     for (int i = 0; i < deliveryIds.size(); i++) {
@@ -145,13 +145,18 @@ public class OrderService {
               deliveryIds.get(i),
               orderGroup,
               orderInfo.getOrderInfoByStores().get(i));
+      // 연관관계 매핑 : 편의 메서드 적용
+      orderDelivery.setOrderGroup(savedOrderGroup);
       OrderDelivery savedOrderDelivery = orderDeliveryRepository.save(orderDelivery);
 
       // 2. 주문_상품 entity
       List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
       for (OrderInfoByStore orderInfoByStore : orderInfo.getOrderInfoByStores()) {
         for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
-          orderDeliveryProducts.add(ProductCreate.toEntity(productCreate));
+          OrderDeliveryProduct orderDeliveryProduct = ProductCreate.toEntity(productCreate);
+          // 연관관계 매핑 : 편의 메서드 적용
+          orderDeliveryProduct.setOrderDelivery(savedOrderDelivery);
+          orderDeliveryProducts.add(orderDeliveryProduct);
         }
       }
       orderProductRepository.saveAll(orderDeliveryProducts);
