@@ -134,7 +134,6 @@ public class OrderService {
             .userId(orderInfo.getUserId())
             .build();
     OrderGroup savedOrderGroup =  orderGroupRepository.save(orderGroup);
-
     // 주문 정보 저장
     for (int i = 0; i < deliveryIds.size(); i++) {
       // 1. 주문_배송 entity
@@ -146,7 +145,7 @@ public class OrderService {
               orderGroup,
               orderInfo.getOrderInfoByStores().get(i));
       // 연관관계 매핑 : 편의 메서드 적용
-      orderDelivery.setOrderGroup(savedOrderGroup);
+      orderDelivery.setOrderGroup(orderGroup);
       OrderDelivery savedOrderDelivery = orderDeliveryRepository.save(orderDelivery);
 
       // 2. 주문_상품 entity
@@ -155,10 +154,11 @@ public class OrderService {
         for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
           OrderDeliveryProduct orderDeliveryProduct = ProductCreate.toEntity(productCreate);
           // 연관관계 매핑 : 편의 메서드 적용
-          orderDeliveryProduct.setOrderDelivery(savedOrderDelivery);
+          orderDeliveryProduct.setOrderDelivery(orderDelivery);
           orderDeliveryProducts.add(orderDeliveryProduct);
         }
       }
+
       orderProductRepository.saveAll(orderDeliveryProducts);
     }
   }

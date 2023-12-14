@@ -26,6 +26,7 @@ public class OrderGroup extends BaseEntity {
   @Column(name = "user_id", nullable = false)
   private Long userId;
 
+  @Builder.Default
   @OneToMany(mappedBy = "orderGroup", cascade = CascadeType.PERSIST, orphanRemoval = true)
   private List<OrderDelivery> orderDeliveryList = new ArrayList<>();
 

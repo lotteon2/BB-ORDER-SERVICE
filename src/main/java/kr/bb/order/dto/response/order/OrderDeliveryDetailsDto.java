@@ -49,8 +49,8 @@ public class OrderDeliveryDetailsDto {
               .totalAmount(
                   orderProductMap.get(productId).getOrderProductPrice()
                       * orderProductMap.get(productId).getOrderProductQuantity())
-              .reviewIsWritten(orderProductMap.get(productId).getReviewIsWritten())
-              .cardIsWritten(orderProductMap.get(productId).getCardIsWritten())
+              .reviewIsWritten(orderProductMap.get(productId).getReviewStatus())
+              .cardIsWritten(orderProductMap.get(productId).getCardStatus())
               .build());
     }
     return list;

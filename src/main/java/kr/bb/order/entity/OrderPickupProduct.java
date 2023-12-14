@@ -1,6 +1,8 @@
 package kr.bb.order.entity;
 
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -30,10 +32,14 @@ public class OrderPickupProduct extends BaseEntity {
     private Long orderProductPrice;
     @NotNull
     private Long orderProductQuantity;
+
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @NotNull
     private ReviewStatus reviewIsWritten = ReviewStatus.DISABLED;
+
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @NotNull
     private CardStatus cardIsWritten = CardStatus.ABLE;
 }

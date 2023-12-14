@@ -7,16 +7,20 @@ import static org.mockito.Mockito.when;
 import bloomingblooms.response.CommonResponse;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.persistence.EntityManager;
 import kr.bb.order.dto.request.payment.PaymentInfoDto;
 import kr.bb.order.dto.request.product.ProductInfoDto;
-import kr.bb.order.dto.response.order.OrderDeliveryGroupDto;
+import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
 import kr.bb.order.dto.response.order.OrderDeliveryPageInfoDto;
+import kr.bb.order.dto.response.order.OrderDeliveryPageInfoForSeller;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
+import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.repository.OrderDeliveryRepository;
@@ -38,38 +42,14 @@ public class OrderListServiceTest {
   @Autowired private OrderGroupRepository orderGroupRepository;
   @MockBean private PaymentServiceClient paymentServiceClient;
   @MockBean private ProductServiceClient productServiceClient;
+  @MockBean private DeliveryServiceClient deliveryServiceClient;
   @Autowired private EntityManager em;
 
   @Test
-  @DisplayName("주문 목록 조회")
+  @DisplayName("주문 목록 조회 - 회원")
   public void userCanReadHisOrderDeliveryList() {
     Long userId = 1L;
     String orderGroupId = "그룹주문id";
-    // 부모 영속화
-    OrderGroup orderGroup = OrderGroup.builder().orderGroupId(orderGroupId).userId(userId).build();
-    em.persist(orderGroup);
-
-    // 자식 생성, 자식-부모 set, 자식 영속화
-    List<OrderDelivery> orderDeliveryList = createOrderDelivery();
-    for (OrderDelivery orderDelivery : orderDeliveryList) {
-      orderDelivery.setOrderGroup(orderGroup);
-      em.persist(orderDelivery);
-    }
-    // 부모-자식 set
-    orderGroup.setOrderDeliveryList(orderDeliveryList);
-
-    // 자식 생성, 자식-부모 set, 자식 영속화
-    createOrderDeliveryProduct(orderDeliveryList);
-
-    for (OrderDelivery orderDelivery : orderDeliveryList) {
-      for (OrderDeliveryProduct orderDeliveryProduct : orderDelivery.getOrderDeliveryProducts()) {
-        orderDeliveryProduct.setOrderDelivery(orderDelivery);
-        em.persist(orderDeliveryProduct);
-      }
-      orderDelivery.setOrderDeliveryProduct(orderDelivery.getOrderDeliveryProducts());
-    }
-
-    em.flush();
 
     Pageable pageable = PageRequest.of(0, 5);
 
@@ -88,12 +68,38 @@ public class OrderListServiceTest {
     assertThat(orderDeliveryPageInfoDto.getOrders().get(0).getKey().equals("그룹주문id")).isTrue();
   }
 
+  @Test
+  @DisplayName("주문 목록 조회 - 가게")
+  public void sellerCanReadHisOrderDeliveryList(){
+    Pageable pageable = PageRequest.of(0, 2);
+    OrderDeliveryStatus status = OrderDeliveryStatus.PENDING;
+    Long storeId = 1L;
+    String groupId = "그룹주문id";
+
+    List<ProductInfoDto> productInfoDtos = createProductInfoList();
+    when(productServiceClient.getProductInfo(any()))
+            .thenReturn(CommonResponse.success(productInfoDtos));
+
+    List<PaymentInfoDto> paymentInfoDtos = createPaymentInfoList(groupId);
+    when(paymentServiceClient.getPaymentInfo(any()))
+            .thenReturn(CommonResponse.success(paymentInfoDtos));
+
+    Map<Long, DeliveryInfoDto> deliveryInfoMap = createDeliveryInfoMap();
+    when(deliveryServiceClient.getDeliveryInfo(
+            any())).thenReturn(CommonResponse.success((deliveryInfoMap)));
+
+    OrderDeliveryPageInfoForSeller infoForSeller = orderListService.getOrderDeliveryListForSeller(pageable, status, storeId);
+
+    assertThat(infoForSeller.getOrders().size()).isEqualTo(1);
+  }
+
+
   List<OrderDelivery> createOrderDelivery() {
     List<OrderDelivery> orderDeliveryList = new ArrayList<>();
 
     OrderDelivery orderDelivery =
         OrderDelivery.builder()
-            .orderDeliveryId("가게주문id")
+            .orderDeliveryId("가게주문id2")
             .storeId(1L)
             .deliveryId(1L)
             .orderDeliveryTotalAmount(39800L)
@@ -141,5 +147,17 @@ public class OrderListServiceTest {
       orderDeliveryProducts.add(orderDeliveryProduct);
       orderDelivery.setOrderDeliveryProduct(orderDeliveryProducts);
     }
+  }
+
+  Map<Long, DeliveryInfoDto> createDeliveryInfoMap(){
+    Map<Long, DeliveryInfoDto> map = new HashMap<>();
+    DeliveryInfoDto deliveryInfoDto = DeliveryInfoDto.builder()
+            .zipcode("우편번호")
+            .roadName("도로명주소")
+            .addressDetail("상세주소")
+            .deliveryRequest("배송요청사항")
+            .build();
+    map.put(1L, deliveryInfoDto);
+    return map;
   }
 }

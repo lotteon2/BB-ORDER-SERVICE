@@ -34,6 +34,7 @@ public class OrderDelivery extends BaseEntity {
   @JoinColumn(name = "order_group_id")
   private OrderGroup orderGroup;
 
+  @Builder.Default
   @OneToMany(mappedBy = "orderDelivery", cascade = CascadeType.PERSIST, orphanRemoval = true)
   private List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
 

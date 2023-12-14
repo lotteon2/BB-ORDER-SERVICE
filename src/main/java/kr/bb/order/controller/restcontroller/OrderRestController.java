@@ -47,16 +47,29 @@ public class OrderRestController {
   public ResponseEntity<OrderDeliveryPageInfoDto> getOrderDeliveryListForUser(
       @RequestHeader Long userId, @PageableDefault(page = 0, size = 5) Pageable pageable, @RequestParam("sort") String status) {
 
-    OrderDeliveryStatus orderDeliveryStatus = null;
-    try{
-      orderDeliveryStatus = OrderDeliveryStatus.valueOf(status);
-    }catch(IllegalArgumentException e){
-      throw new RuntimeException("올바르지 않은 정렬값 입니다");
-    }
+    OrderDeliveryStatus orderDeliveryStatus = parseOrderDeliveryStatus(status);
 
     OrderDeliveryPageInfoDto orderDeliveryPageInfoDto = orderListService.getUserOrderDeliveryList(
             userId, pageable, orderDeliveryStatus);
-
     return ResponseEntity.ok().body(orderDeliveryPageInfoDto);
   }
+
+  @GetMapping("/store/delivery")
+  public ResponseEntity<OrderDeliveryPageInfoForSeller> getOrderDeliveryListForSeller(
+      @PageableDefault(page = 0, size = 5) Pageable pageable, @RequestParam("sort") String status, @RequestParam("storeId") Long storeId) {
+
+    OrderDeliveryStatus orderDeliveryStatus = parseOrderDeliveryStatus(status);
+
+    OrderDeliveryPageInfoForSeller orderDeliveryPageInfoForSeller = orderListService.getOrderDeliveryListForSeller(pageable, orderDeliveryStatus, storeId);
+    return ResponseEntity.ok().body(orderDeliveryPageInfoForSeller);
+  }
+
+  public OrderDeliveryStatus parseOrderDeliveryStatus(String status) {
+    try {
+      return OrderDeliveryStatus.valueOf(status);
+    } catch (IllegalArgumentException e) {
+      throw new RuntimeException("올바르지 않은 정렬값 입니다: " + status);
+    }
+  }
+
 }

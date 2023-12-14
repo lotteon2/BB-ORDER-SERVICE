@@ -1,14 +1,23 @@
 package kr.bb.order.service;
 
+import bloomingblooms.response.CommonResponse;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import kr.bb.order.dto.request.payment.PaymentInfoDto;
 import kr.bb.order.dto.request.product.ProductInfoDto;
+import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
+import kr.bb.order.dto.response.order.OrderDeliveryDetailsForSeller;
 import kr.bb.order.dto.response.order.OrderDeliveryGroupDto;
+import kr.bb.order.dto.response.order.OrderDeliveryInfoForSeller;
 import kr.bb.order.dto.response.order.OrderDeliveryPageInfoDto;
+import kr.bb.order.dto.response.order.OrderDeliveryPageInfoForSeller;
+import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
+import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.repository.OrderDeliveryRepository;
@@ -28,13 +37,7 @@ public class OrderListService {
   private final OrderDeliveryRepository orderDeliveryRepository;
   private final PaymentServiceClient paymentServiceClient;
   private final ProductServiceClient productServiceClient;
-  private final OrderProductRepository orderProductRepository;
-
-  //  public OrderDeliveryPageInfoForSeller getOrderDeliveryListForSeller(@RequestHeader Long
-  // userId, Pageable pageable, String status, Long storeId){
-  //    orderPickupRepository.findByStoreIdSortedByCreatedAtDesc(userId, pageable);
-  //
-  //  }
+  private final DeliveryServiceClient deliveryServiceClient;
 
   public OrderDeliveryPageInfoDto getUserOrderDeliveryList(
       Long userId, Pageable pageable, OrderDeliveryStatus orderDeliveryStatus) {
@@ -62,13 +65,55 @@ public class OrderListService {
     return OrderDeliveryPageInfoDto.toDto(totalCnt, orderDeliveryGroupDtos);
   }
 
+  public OrderDeliveryPageInfoForSeller getOrderDeliveryListForSeller(
+          Pageable pageable, OrderDeliveryStatus status, Long storeId) {
+    Page<OrderDelivery> orderDeliveriesPerPage =
+        orderDeliveryRepository.findByStoreIdSortedByCreatedAtDesc(storeId, pageable, status);
+
+    Long totalCnt = (long) orderDeliveriesPerPage.getTotalPages();
+
+    List<String> orderGroupIds =
+        orderDeliveriesPerPage.stream()
+            .map(orderDelivery -> orderDelivery.getOrderGroup().getOrderGroupId())
+            .collect(Collectors.toList());
+
+    // product, payment, delivery-service feign 요청
+    List<String> productIds = orderDeliveriesPerPage.getContent().stream().flatMap(orderDelivery -> orderDelivery.getOrderDeliveryProducts().stream()).map(OrderDeliveryProduct::getProductId).collect(
+            Collectors.toList());
+    List<ProductInfoDto> productInfoDto = productServiceClient.getProductInfo(productIds).getData();
+    Map<String, ProductInfoDto> productIdMap = productInfoDto.stream()
+            .collect(Collectors.toMap(ProductInfoDto::getProductId, dto -> dto));
+
+    List<PaymentInfoDto> paymentInfo = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
+    Map<String, PaymentInfoDto> paymentInfoMap = paymentInfo.stream().collect(Collectors.toMap(PaymentInfoDto::getOrderGroupId, dto->dto));
+
+    List<Long> deliveryIds = orderDeliveriesPerPage.stream().map(OrderDelivery::getDeliveryId).collect(
+            Collectors.toList());
+    Map<Long, DeliveryInfoDto> deliveryInfoMap = deliveryServiceClient.getDeliveryInfo(
+            deliveryIds).getData();
+
+
+    List<OrderDeliveryInfoForSeller> infoDtoList = new ArrayList<>();
+    for(OrderDelivery orderDelivery : orderDeliveriesPerPage.getContent()){
+      List<OrderDeliveryDetailsForSeller> detailsDtoList = new ArrayList<>();
+      for(OrderDeliveryProduct orderDeliveryProduct : orderDelivery.getOrderDeliveryProducts()){
+        OrderDeliveryDetailsForSeller details = OrderDeliveryDetailsForSeller.toDto(orderDeliveryProduct, productIdMap);
+        detailsDtoList.add(details);
+      }
+      OrderDeliveryInfoForSeller infoDto = OrderDeliveryInfoForSeller.toDto(orderDelivery, detailsDtoList,
+              paymentInfoMap, deliveryInfoMap);
+      infoDtoList.add(infoDto);
+    }
+    return OrderDeliveryPageInfoForSeller.toDto(totalCnt, infoDtoList);
+  }
+
   // 각 주문그룹id의 첫번째 상품id만 추출하기
   List<String> getProductIds(List<OrderGroup> orderGroupsList) {
     return orderGroupsList.stream()
-            .flatMap(orderGroup -> orderGroup.getOrderDeliveryList().stream())
-            .map(OrderDelivery::getOrderDeliveryProducts)
-            .map(orderDeliveryProducts -> orderDeliveryProducts.get(0).getProductId())
-            .collect(Collectors.toList());
+        .flatMap(orderGroup -> orderGroup.getOrderDeliveryList().stream())
+        .map(OrderDelivery::getOrderDeliveryProducts)
+        .map(orderDeliveryProducts -> orderDeliveryProducts.get(0).getProductId())
+        .collect(Collectors.toList());
   }
 
   List<String> getOrderGroupIds(List<OrderGroup> orderGroupList) {
