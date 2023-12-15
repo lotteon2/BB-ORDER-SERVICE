@@ -1,4 +1,4 @@
-package kr.bb.order.dto.response.order;
+package kr.bb.order.dto.response.order.list;
 
 import java.util.Map;
 import kr.bb.order.dto.request.product.ProductInfoDto;

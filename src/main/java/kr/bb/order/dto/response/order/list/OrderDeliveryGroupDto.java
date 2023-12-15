@@ -1,4 +1,4 @@
-package kr.bb.order.dto.response.order;
+package kr.bb.order.dto.response.order.list;
 
 import java.util.ArrayList;
 import java.util.List;
