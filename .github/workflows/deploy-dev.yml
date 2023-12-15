@@ -1,9 +1,11 @@
+name: develop deployment
 on:
   push:
     branches:
       - 'develop'
 jobs:
-  build-and-push-docker-image:
+  deployment:
+    environment: develop
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -15,9 +17,10 @@ jobs:
         with:
           username: ${{ secrets.DEV_DOCKER_ID }}
           password: ${{ secrets.DEV_DOCKER_PW }}
-      - name: Build and push
+      - name: deploy
         id: docker_build
         uses: docker/build-push-action@v2
         with:
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: nowgnas/bb:order
