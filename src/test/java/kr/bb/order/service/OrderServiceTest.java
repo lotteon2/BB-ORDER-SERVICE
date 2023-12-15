@@ -148,15 +148,13 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   }
 
   @Test
-  @DisplayName("주문 처리하기 - 승인단계")
+  @DisplayName("바로 주문하기 - 처리단계")
   void processOrder() throws JsonProcessingException {
     // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
     // given
     Long userId = 1L;
     String orderGroupId = "임시orderId";
     String orderDeliveryId = "임시가게주문id";
-
-    orderGroupRepository.save(OrderGroup.builder().orderGroupId(orderGroupId).userId(userId).build());
 
     List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
     ObjectMapper objectMapper = new ObjectMapper();
@@ -179,9 +177,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     // when
     kafkaConsumer.processOrder(message);
-
     // then
-    List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroup_OrderGroupId(orderGroupId);
+    List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
     assertThat(orderDelivery).hasSize(1);
   }
 

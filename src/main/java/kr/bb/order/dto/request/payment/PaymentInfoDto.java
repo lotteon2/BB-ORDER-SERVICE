@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PaymentInfoDto {
-    private String orderId;
+    private String orderGroupId;
     private Long paymentActualAmount;
     private LocalDateTime createdAt;
 }

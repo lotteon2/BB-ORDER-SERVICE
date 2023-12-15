@@ -34,6 +34,9 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       group-id: order-service
+  sql:
+    init:
+      encoding: utf-8
 logging:
   level:
     org:

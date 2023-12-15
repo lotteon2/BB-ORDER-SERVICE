@@ -5,17 +5,18 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
+@ToString
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderDeliveryPageInfoDto {
+public class OrderDeliveryPageInfoForSeller {
     private Long totalCnt;
-    private List<OrderDeliveryGroupDto> orders;
-
-    public static OrderDeliveryPageInfoDto toDto(Long totalCnt, List<OrderDeliveryGroupDto> orders){
-        return OrderDeliveryPageInfoDto.builder()
+    private List<OrderDeliveryInfoForSeller> orders;
+    public static OrderDeliveryPageInfoForSeller toDto(Long totalCnt, List<OrderDeliveryInfoForSeller> orders){
+        return OrderDeliveryPageInfoForSeller.builder()
                 .totalCnt(totalCnt)
                 .orders(orders)
                 .build();

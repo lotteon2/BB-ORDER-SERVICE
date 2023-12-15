@@ -13,7 +13,7 @@ import kr.bb.order.dto.request.product.PriceCheckDto;
 import kr.bb.order.dto.request.store.CouponAndDeliveryCheckDto;
 import kr.bb.order.dto.request.store.ProcessOrderDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
-import kr.bb.order.entity.OrderProduct;
+import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.delivery.OrderGroup;
@@ -116,7 +116,7 @@ public class OrderService {
 
   @Transactional
   public void processOrder(ProcessOrderDto processOrderDto) {
-    // redis에서 order 정보 가져오기
+    // TODO: rollback 처리하기
     OrderInfo orderInfo = redisTemplate.opsForValue().get(processOrderDto.getOrderGroupId());
     if (orderInfo == null) throw new PaymentExpiredException();
 
@@ -129,36 +129,37 @@ public class OrderService {
         KakaopayApproveRequestDto.toDto(orderInfo, OrderType.ORDER_DELIVERY.toString());
     paymentServiceClient.approve(approveRequestDto).getData();
     OrderGroup orderGroup =
-            OrderGroup.builder()
-                    .orderGroupId(processOrderDto.getOrderGroupId())
-                    .userId(orderInfo.getUserId())
-                    .build();
-    orderGroupRepository.save(orderGroup);
-
+        OrderGroup.builder()
+            .orderGroupId(processOrderDto.getOrderGroupId())
+            .userId(orderInfo.getUserId())
+            .build();
+    OrderGroup savedOrderGroup =  orderGroupRepository.save(orderGroup);
     // 주문 정보 저장
     for (int i = 0; i < deliveryIds.size(); i++) {
       // 1. 주문_배송 entity
       String orderDeliveryId = orderUtil.generateUUID();
       OrderDelivery orderDelivery =
           OrderDelivery.toEntity(
-                  orderDeliveryId,
+              orderDeliveryId,
               deliveryIds.get(i),
-                  orderGroup,
+              orderGroup,
               orderInfo.getOrderInfoByStores().get(i));
+      // 연관관계 매핑 : 편의 메서드 적용
+      orderDelivery.setOrderGroup(orderGroup);
       OrderDelivery savedOrderDelivery = orderDeliveryRepository.save(orderDelivery);
 
       // 2. 주문_상품 entity
-      List<OrderProduct> orderProducts = new ArrayList<>();
+      List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
       for (OrderInfoByStore orderInfoByStore : orderInfo.getOrderInfoByStores()) {
         for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
-          orderProducts.add(
-              ProductCreate.toEntity(
-                  savedOrderDelivery.getOrderDeliveryId(),
-                  OrderType.ORDER_DELIVERY.toString(),
-                  productCreate));
+          OrderDeliveryProduct orderDeliveryProduct = ProductCreate.toEntity(productCreate);
+          // 연관관계 매핑 : 편의 메서드 적용
+          orderDeliveryProduct.setOrderDelivery(orderDelivery);
+          orderDeliveryProducts.add(orderDeliveryProduct);
         }
       }
-      orderProductRepository.saveAll(orderProducts);
+
+      orderProductRepository.saveAll(orderDeliveryProducts);
     }
   }
 

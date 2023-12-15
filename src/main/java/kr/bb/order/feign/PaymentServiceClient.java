@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "paymentServiceClient", url = "${endpoint.payment-service}")
+@FeignClient(name = "paymentServiceClient")
 public interface PaymentServiceClient {
   @PostMapping(value = "/payments/ready")
   CommonResponse<KakaopayReadyResponseDto> ready(@RequestBody KakaopayReadyRequestDto readyRequestDto);
@@ -21,5 +21,5 @@ public interface PaymentServiceClient {
   CommonResponse<Void> approve(@RequestBody KakaopayApproveRequestDto approveRequestDto);
 
   @GetMapping(value = "/payments/{orderId}")
-  CommonResponse<List<PaymentInfoDto>> getPaymentInfo(@RequestParam List<String> orderIds);
+  CommonResponse<List<PaymentInfoDto>> getPaymentInfo(@RequestParam List<String> orderGroupIds);
 }

@@ -2,13 +2,12 @@ package kr.bb.order.dto.request.orderForDelivery;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import javax.validation.constraints.NotNull;
-import kr.bb.order.entity.OrderProduct;
+import kr.bb.order.entity.OrderDeliveryProduct;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.criterion.Order;
 
 @Builder
 @Getter
@@ -26,10 +25,8 @@ public class ProductCreate {
     return this.price * this.quantity;
   }
 
-  public static OrderProduct toEntity(String orderId, String orderType, ProductCreate productCreate) {
-   return OrderProduct.builder()
-        .orderId(orderId)
-        .orderType(orderType)
+  public static OrderDeliveryProduct toEntity(ProductCreate productCreate) {
+   return OrderDeliveryProduct.builder()
         .productId(productCreate.getProductId())
         .orderProductPrice(productCreate.getPrice())
         .orderProductQuantity(productCreate.getQuantity())
