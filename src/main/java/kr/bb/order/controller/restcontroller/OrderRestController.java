@@ -1,10 +1,12 @@
 package kr.bb.order.controller.restcontroller;
 
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
-import kr.bb.order.dto.response.order.OrderDeliveryPageInfoDto;
-import kr.bb.order.dto.response.order.OrderDeliveryPageInfoForSeller;
+import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
+import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
+import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.delivery.OrderDeliveryStatus;
+import kr.bb.order.service.OrderDetailsService;
 import kr.bb.order.service.OrderListService;
 import kr.bb.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderRestController {
   private final OrderService orderService;
   private final OrderListService orderListService;
+  private final OrderDetailsService orderDetailsService;
 
   @PostMapping("/delivery")
   public ResponseEntity<KakaopayReadyResponseDto> receiveOrderForDelivery(
@@ -62,6 +65,12 @@ public class OrderRestController {
 
     OrderDeliveryPageInfoForSeller orderDeliveryPageInfoForSeller = orderListService.getOrderDeliveryListForSeller(pageable, orderDeliveryStatus, storeId);
     return ResponseEntity.ok().body(orderDeliveryPageInfoForSeller);
+  }
+
+  @GetMapping("/delivery/details")
+  public ResponseEntity<OrderDeliveryGroup> getOrderDeliveryDetailsForUser(@PathVariable String orderGroupId){
+    return ResponseEntity.ok().body(orderDetailsService.getOrderDetailsForUser(
+            orderGroupId));
   }
 
   public OrderDeliveryStatus parseOrderDeliveryStatus(String status) {

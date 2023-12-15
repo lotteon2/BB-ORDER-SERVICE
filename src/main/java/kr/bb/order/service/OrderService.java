@@ -133,7 +133,8 @@ public class OrderService {
             .orderGroupId(processOrderDto.getOrderGroupId())
             .userId(orderInfo.getUserId())
             .build();
-    OrderGroup savedOrderGroup =  orderGroupRepository.save(orderGroup);
+    orderGroupRepository.save(orderGroup);
+
     // 주문 정보 저장
     for (int i = 0; i < deliveryIds.size(); i++) {
       // 1. 주문_배송 entity
@@ -146,7 +147,7 @@ public class OrderService {
               orderInfo.getOrderInfoByStores().get(i));
       // 연관관계 매핑 : 편의 메서드 적용
       orderDelivery.setOrderGroup(orderGroup);
-      OrderDelivery savedOrderDelivery = orderDeliveryRepository.save(orderDelivery);
+      orderDeliveryRepository.save(orderDelivery);
 
       // 2. 주문_상품 entity
       List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
@@ -158,7 +159,6 @@ public class OrderService {
           orderDeliveryProducts.add(orderDeliveryProduct);
         }
       }
-
       orderProductRepository.saveAll(orderDeliveryProducts);
     }
   }

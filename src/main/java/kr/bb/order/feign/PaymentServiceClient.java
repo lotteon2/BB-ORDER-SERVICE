@@ -20,6 +20,9 @@ public interface PaymentServiceClient {
   @PostMapping(value = "/payments/approve")
   CommonResponse<Void> approve(@RequestBody KakaopayApproveRequestDto approveRequestDto);
 
-  @GetMapping(value = "/payments/{orderId}")
+  @GetMapping(value = "/payments/paymentInfo")
   CommonResponse<List<PaymentInfoDto>> getPaymentInfo(@RequestParam List<String> orderGroupIds);
+
+  @GetMapping(value = "/payments/paymentDate")
+  CommonResponse<String> getPaymentDate(@RequestParam String orderGroupId);
 }
