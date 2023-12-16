@@ -111,12 +111,13 @@ public class OrderService {
 
     ProcessOrderDto processOrderDto =
         ProcessOrderDto.toDto(orderId, orderInfo.getOrderInfoByStores());
-    kafkaProducer.sendUseCoupon(processOrderDto);
+    kafkaProducer.requestOrder(processOrderDto);
   }
 
   @Transactional
   public void processOrder(ProcessOrderDto processOrderDto) {
     // TODO: rollback 처리하기
+    // TODO: 장바구니에서 왔는지 확인후(orderType) 장바구니 비우기 (카프카 보내기)
     OrderInfo orderInfo = redisTemplate.opsForValue().get(processOrderDto.getOrderGroupId());
     if (orderInfo == null) throw new PaymentExpiredException();
 
@@ -124,10 +125,6 @@ public class OrderService {
     List<DeliveryInsertRequestDto> dtoList = DeliveryInsertRequestDto.toDto(orderInfo);
     List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
 
-    // payment-service 결제 승인 요청
-    KakaopayApproveRequestDto approveRequestDto =
-        KakaopayApproveRequestDto.toDto(orderInfo, OrderType.ORDER_DELIVERY.toString());
-    paymentServiceClient.approve(approveRequestDto).getData();
     OrderGroup orderGroup =
         OrderGroup.builder()
             .orderGroupId(processOrderDto.getOrderGroupId())
@@ -161,6 +158,11 @@ public class OrderService {
       }
       orderProductRepository.saveAll(orderDeliveryProducts);
     }
+
+    // payment-service 결제 승인 요청
+    KakaopayApproveRequestDto approveRequestDto =
+            KakaopayApproveRequestDto.toDto(orderInfo, OrderType.ORDER_DELIVERY.toString());
+    paymentServiceClient.approve(approveRequestDto).getData();
   }
 
   public List<PriceCheckDto> createPriceCheckDto(List<OrderInfoByStore> orderInfoByStores) {

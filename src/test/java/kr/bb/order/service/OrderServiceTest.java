@@ -17,7 +17,6 @@ import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.dto.request.store.ProcessOrderDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
-import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.exception.InvalidOrderAmountException;
 import kr.bb.order.exception.PaymentExpiredException;
@@ -144,7 +143,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     orderService.receiveOrderForDelivery(userId, request);
     kafkaProducer = mock(KafkaProducer.class);
 
-    doNothing().when(kafkaProducer).sendUseCoupon(any(ProcessOrderDto.class));
+    doNothing().when(kafkaProducer).requestOrder(any(ProcessOrderDto.class));
   }
 
   @Test
@@ -192,6 +191,14 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     ObjectMapper objectMapper = new ObjectMapper();
     String message =
         objectMapper.writeValueAsString(ProcessOrderDto.toDto(orderGroupId, orderInfoByStores));
+    List<Long> deliveryIds = new ArrayList<>();
+    deliveryIds.add(1L);
+    CommonResponse<List<Long>> success = CommonResponse.success(deliveryIds);
+
+    when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
+
+    kafkaProducer = mock(KafkaProducer.class);
+    doNothing().when(kafkaProducer).rollbackOrder(any(ProcessOrderDto.class));
 
     // when, then
     assertThatThrownBy(() -> kafkaConsumer.processOrder(message))

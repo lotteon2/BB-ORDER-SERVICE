@@ -13,14 +13,29 @@ import org.springframework.stereotype.Service;
 public class KafkaConsumer {
   private final ObjectMapper objectMapper;
   private final OrderService orderService;
+  private final KafkaProducer kafkaProducer;
 
   @KafkaListener(topics = "process-order")
   public void processOrder(String message) {
     try {
       ProcessOrderDto processOrderDto = objectMapper.readValue(message, ProcessOrderDto.class);
-      orderService.processOrder(processOrderDto);
+      try {
+          orderService.processOrder(processOrderDto);
+      } catch(Exception e){
+        // TODO : SQS & 문자로 주문 실패 알려주기 (주문&결제 실패시)
+        //
+        kafkaProducer.rollbackOrder(processOrderDto);
+        throw e;
+      }
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
   }
+
+  // TODO: SQS 알림 보내는 방법 상원이한테 물어보기 (가게 실패시)
+  @KafkaListener(topics = "request-order-rollback")
+  public void rollbackOrder(String message){
+
+  }
+
 }

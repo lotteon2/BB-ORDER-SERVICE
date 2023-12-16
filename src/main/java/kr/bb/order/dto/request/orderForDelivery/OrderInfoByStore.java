@@ -19,5 +19,4 @@ public class OrderInfoByStore {
   private Long couponId;
   private Long couponAmount;
   private Long actualAmount;
-  private Boolean isSubscriptionPay;
 }

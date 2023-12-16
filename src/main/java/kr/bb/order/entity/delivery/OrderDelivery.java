@@ -47,7 +47,7 @@ public class OrderDelivery extends BaseEntity {
   @Builder.Default
   @Enumerated(EnumType.STRING)
   @Column(name = "order_delivery_status", nullable = false)
-  private OrderDeliveryStatus orderDeliveryStatus = OrderDeliveryStatus.PENDING;
+  private OrderDeliveryStatus orderDeliveryStatus = OrderDeliveryStatus.INITIAL;
 
   @Column(name = "order_delivery_total_amount", nullable = false)
   private Long orderDeliveryTotalAmount;
@@ -65,7 +65,6 @@ public class OrderDelivery extends BaseEntity {
         .orderGroup(orderGroup)
         .storeId(orderInfoByStore.getStoreId())
         .deliveryId(deliveryId)
-        .orderDeliveryStatus(OrderDeliveryStatus.PENDING)
         .orderDeliveryTotalAmount(orderInfoByStore.getTotalAmount())
         .orderDeliveryCouponAmount(orderInfoByStore.getCouponAmount())
         .build();

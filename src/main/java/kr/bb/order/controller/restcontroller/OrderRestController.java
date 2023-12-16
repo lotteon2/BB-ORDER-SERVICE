@@ -31,6 +31,7 @@ public class OrderRestController {
   private final OrderListService orderListService;
   private final OrderDetailsService orderDetailsService;
 
+  // 바로 주문(배송) 준비 단계
   @PostMapping("/delivery")
   public ResponseEntity<KakaopayReadyResponseDto> receiveOrderForDelivery(
       @RequestHeader Long userId, @RequestBody OrderForDeliveryRequest requestDto) {
@@ -38,6 +39,7 @@ public class OrderRestController {
     return ResponseEntity.ok().body(responseDto);
   }
 
+  // 바로 주문(배송) 승인 단계
   @GetMapping("/approve/{partnerOrderId}/{partnerUserId}")
   public ResponseEntity<Void> processOrder(
       @PathVariable("partnerOrderId") String orderId,
@@ -47,6 +49,8 @@ public class OrderRestController {
     return ResponseEntity.ok().build();
   }
 
+
+  // 회원- 주문(배송) 목록 조회
   @GetMapping("/delivery")
   public ResponseEntity<OrderDeliveryPageInfoDto> getOrderDeliveryListForUser(
       @RequestHeader Long userId, @PageableDefault(page = 0, size = 5) Pageable pageable, @RequestParam("sort") String status) {
@@ -58,6 +62,7 @@ public class OrderRestController {
     return ResponseEntity.ok().body(orderDeliveryPageInfoDto);
   }
 
+  // 가게- 주문(배송) 목록 조회
   @GetMapping("/store/delivery")
   public ResponseEntity<OrderDeliveryPageInfoForSeller> getOrderDeliveryListForSeller(
       @PageableDefault(page = 0, size = 5) Pageable pageable, @RequestParam("sort") String status, @RequestParam("storeId") Long storeId) {
@@ -68,12 +73,14 @@ public class OrderRestController {
     return ResponseEntity.ok().body(orderDeliveryPageInfoForSeller);
   }
 
+  // 회원- 주문(배송) 상세 조회 
   @GetMapping("/delivery/details/{orderGroupId}")
   public ResponseEntity<OrderDeliveryGroup> getOrderDeliveryDetailsForUser(@PathVariable String orderGroupId){
     return ResponseEntity.ok().body(orderDetailsService.getOrderDetailsForUser(
             orderGroupId));
   }
 
+  // 가게- 주문(배송) 상세 조회
   @GetMapping("/store/delivery/details/{orderDeliveryId}")
   public ResponseEntity<OrderInfoForStoreForSeller> getOrderDeliveryDetailsForSeller(@PathVariable String orderDeliveryId){
     return ResponseEntity.ok().body(orderDetailsService.getOrderDetailsForSeller(orderDeliveryId));

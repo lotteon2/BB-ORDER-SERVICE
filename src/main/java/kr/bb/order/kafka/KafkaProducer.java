@@ -13,10 +13,19 @@ public class KafkaProducer {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    public void sendUseCoupon(ProcessOrderDto processOrderDto){
+    public void requestOrder(ProcessOrderDto processOrderDto){
         try{
             String jsonString = objectMapper.writeValueAsString(processOrderDto);
-            kafkaTemplate.send("use-coupon", jsonString);
+            kafkaTemplate.send("request-order", jsonString);
+        }catch (JsonProcessingException e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void rollbackOrder(ProcessOrderDto processOrderDto){
+        try{
+            String jsonString = objectMapper.writeValueAsString(processOrderDto);
+            kafkaTemplate.send("process-order-rollback", jsonString);
         }catch (JsonProcessingException e){
             throw new RuntimeException(e);
         }
