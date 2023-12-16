@@ -13,7 +13,7 @@ public class KafkaProducer {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    public void sendUseCoupon(ProcessOrderDto processOrderDto){
+    public void requestOrder(ProcessOrderDto processOrderDto){
         try{
             String jsonString = objectMapper.writeValueAsString(processOrderDto);
             kafkaTemplate.send("request-order", jsonString);

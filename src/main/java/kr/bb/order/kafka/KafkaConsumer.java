@@ -25,6 +25,7 @@ public class KafkaConsumer {
         // TODO : SQS & 문자로 주문 실패 알려주기 (주문&결제 실패시)
         //
         kafkaProducer.rollbackOrder(processOrderDto);
+        throw e;
       }
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);

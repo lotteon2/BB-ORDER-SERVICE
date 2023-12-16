@@ -111,7 +111,7 @@ public class OrderService {
 
     ProcessOrderDto processOrderDto =
         ProcessOrderDto.toDto(orderId, orderInfo.getOrderInfoByStores());
-    kafkaProducer.sendUseCoupon(processOrderDto);
+    kafkaProducer.requestOrder(processOrderDto);
   }
 
   @Transactional

@@ -2,7 +2,6 @@ package kr.bb.order.feign;
 
 
 import bloomingblooms.response.CommonResponse;
-import bloomingblooms.response.SuccessResponse;
 import java.util.List;
 import java.util.Map;
 import kr.bb.order.dto.request.store.CouponAndDeliveryCheckDto;
