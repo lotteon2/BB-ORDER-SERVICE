@@ -15,6 +15,7 @@ import kr.bb.order.dto.request.payment.PaymentInfoDto;
 import kr.bb.order.dto.request.product.ProductInfoDto;
 import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
+import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
@@ -101,4 +102,29 @@ private Map<Long, DeliveryInfoDto> createDeliveryInfoMap() {
     return productInfoDtos;
   }
 
+  @Test
+  @DisplayName("주문 상세 조회 - 가게")
+  void getOrderDetailsForSeller() {
+    String orderDeliveryId = "가게주문id";
+
+    List<ProductInfoDto> productInfoDtos = createProductInfoList();
+    when(productServiceClient.getProductInfo(any()))
+            .thenReturn(CommonResponse.success(productInfoDtos));
+
+    Map<Long, String> storeNameMap = createStoreNameMap();
+    when(storeServiceClient.getStoreName(any())).thenReturn(CommonResponse.success(storeNameMap));
+
+    Map<Long, DeliveryInfoDto> deliveryInfoMap = createDeliveryInfoMap();
+    when(deliveryServiceClient.getDeliveryInfo(any()))
+            .thenReturn(CommonResponse.success(deliveryInfoMap));
+
+    String paymentDate = createPaymentDate();
+    when(paymentServiceClient.getPaymentDate(any()))
+            .thenReturn(CommonResponse.success(paymentDate));
+
+    OrderInfoForStoreForSeller orderDetailsForSeller = orderDetailsService.getOrderDetailsForSeller(
+            orderDeliveryId);
+
+    assertThat(orderDetailsForSeller.getOrdererName().equals("주문자 이름")).isTrue();
+  }
 }

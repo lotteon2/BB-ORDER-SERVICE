@@ -2,6 +2,7 @@ package kr.bb.order.controller.restcontroller;
 
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
+import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
@@ -67,10 +68,15 @@ public class OrderRestController {
     return ResponseEntity.ok().body(orderDeliveryPageInfoForSeller);
   }
 
-  @GetMapping("/delivery/details")
+  @GetMapping("/delivery/details/{orderGroupId}")
   public ResponseEntity<OrderDeliveryGroup> getOrderDeliveryDetailsForUser(@PathVariable String orderGroupId){
     return ResponseEntity.ok().body(orderDetailsService.getOrderDetailsForUser(
             orderGroupId));
+  }
+
+  @GetMapping("/store/delivery/details/{orderDeliveryId}")
+  public ResponseEntity<OrderInfoForStoreForSeller> getOrderDeliveryDetailsForSeller(@PathVariable String orderDeliveryId){
+    return ResponseEntity.ok().body(orderDetailsService.getOrderDetailsForSeller(orderDeliveryId));
   }
 
   public OrderDeliveryStatus parseOrderDeliveryStatus(String status) {
