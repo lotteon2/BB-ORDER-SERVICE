@@ -36,7 +36,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation group: 'io.github.lotteon-maven', name: 'blooming-blooms-utils', version: '0.1.5-alpha'
+    implementation 'io.github.lotteon-maven:blooming-blooms-utils:202312151219'
     runtimeOnly 'com.h2database:h2'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
