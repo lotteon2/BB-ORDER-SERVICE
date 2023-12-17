@@ -16,6 +16,7 @@ import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.dto.request.store.ProcessOrderDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
+import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.exception.InvalidOrderAmountException;
@@ -98,7 +99,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
     when(orderUtil.generateUUID()).thenReturn(orderId);
 
-    KakaopayReadyResponseDto responseDto = orderService.receiveOrderForDelivery(userId, request);
+    KakaopayReadyResponseDto responseDto =
+        orderService.readyForDirectOrder(userId, request, OrderType.ORDER_DELIVERY);
 
     assertNotNull(responseDto);
   }
@@ -118,7 +120,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
     when(orderUtil.generateUUID()).thenReturn(orderId);
 
-    assertThatThrownBy(() -> orderService.receiveOrderForDelivery(userId, request))
+    assertThatThrownBy(
+            () -> orderService.readyForDirectOrder(userId, request, OrderType.ORDER_DELIVERY))
         .isInstanceOf(InvalidOrderAmountException.class)
         .hasMessage("유효하지 않은 주문 금액입니다");
   }
@@ -140,7 +143,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
     when(orderUtil.generateUUID()).thenReturn(orderId);
 
-    orderService.receiveOrderForDelivery(userId, request);
+    orderService.readyForDirectOrder(userId, request, OrderType.ORDER_DELIVERY);
     kafkaProducer = mock(KafkaProducer.class);
 
     doNothing().when(kafkaProducer).requestOrder(any(ProcessOrderDto.class));
@@ -163,7 +166,14 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     OrderInfo orderInfo =
         OrderInfo.transformDataForApi(
-            orderGroupId, userId, "제품명 외 1개", 2, false, "tid번호", requestDto);
+            orderGroupId,
+            userId,
+            "제품명 외 1개",
+            2,
+            false,
+            "tid번호",
+            requestDto,
+            OrderType.ORDER_DELIVERY);
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
     List<Long> deliveryIds = new ArrayList<>();
@@ -173,6 +183,42 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
     when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
     when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
+
+    // when
+    kafkaConsumer.processOrder(message);
+    // then
+    List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
+    assertThat(orderDelivery).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("장바구니에서 주문하기 - 처리단계")
+  void processCartOrder() throws JsonProcessingException {
+    // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
+    // given
+    Long userId = 1L;
+    String orderGroupId = "임시orderId";
+    String orderDeliveryId = "임시가게주문id";
+
+    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
+    ObjectMapper objectMapper = new ObjectMapper();
+    String message =
+        objectMapper.writeValueAsString(ProcessOrderDto.toDto(orderGroupId, orderInfoByStores));
+    OrderForDeliveryRequest requestDto = createOrderForDeliveryRequest(90500L);
+
+    OrderInfo orderInfo =
+        OrderInfo.transformDataForApi(
+            orderGroupId, userId, "제품명 외 1개", 2, false, "tid번호", requestDto, OrderType.ORDER_CART);
+    redisTemplate.opsForValue().set(orderGroupId, orderInfo);
+
+    List<Long> deliveryIds = new ArrayList<>();
+    deliveryIds.add(1L);
+    CommonResponse<List<Long>> success = CommonResponse.success(deliveryIds);
+
+    when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
+    when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
+    when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
+    doNothing().when(kafkaProducer).deleteFromCart(any());
 
     // when
     kafkaConsumer.processOrder(message);

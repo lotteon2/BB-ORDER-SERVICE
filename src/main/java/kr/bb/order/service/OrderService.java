@@ -1,8 +1,11 @@
 package kr.bb.order.service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import kr.bb.order.dto.request.delivery.DeliveryInsertRequestDto;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
@@ -49,9 +52,10 @@ public class OrderService {
   private final OrderProductRepository orderProductRepository;
   private final OrderGroupRepository orderGroupRepository;
 
+  // 바로 주문 / 장바구니 주문 준비 단계
   @Transactional
-  public KakaopayReadyResponseDto receiveOrderForDelivery(
-      Long userId, OrderForDeliveryRequest requestDto) {
+  public KakaopayReadyResponseDto readyForDirectOrder(
+      Long userId, OrderForDeliveryRequest requestDto, OrderType orderType) {
     // 결제금액, 재고유무, 쿠폰유효유무 feign을 통해 확인하기
 
     // product-service로 가격 유효성 확인하기
@@ -73,11 +77,7 @@ public class OrderService {
 
     KakaopayReadyRequestDto readyRequestDto =
         KakaopayReadyRequestDto.toDto(
-            userId,
-            tempOrderId,
-            OrderType.ORDER_DELIVERY.toString(),
-            requestDto,
-            isSubscriptionPay);
+            userId, tempOrderId, orderType.toString(), requestDto, isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
     KakaopayReadyResponseDto responseDto = paymentServiceClient.ready(readyRequestDto).getData();
@@ -93,14 +93,17 @@ public class OrderService {
             quantity,
             isSubscriptionPay,
             responseDto.getTid(),
-            requestDto);
+            requestDto,
+            orderType);
+
     redisTemplate.opsForValue().set(tempOrderId, orderInfo);
 
     return responseDto;
   }
 
+  // (바로 주문 / 장바구니) 다른 서비스로 주문 요청하기
   @Transactional
-  public void createOrderForDelivery(String orderId, Long userId, String pgToken) {
+  public void requestOrder(String orderId, String pgToken) {
     // redis에서 정보 가져오기 및 TTL 갱신
     OrderInfo orderInfo = redisTemplate.opsForValue().get(orderId);
     if (orderInfo == null) throw new PaymentExpiredException();
@@ -114,6 +117,7 @@ public class OrderService {
     kafkaProducer.requestOrder(processOrderDto);
   }
 
+  // (바로 주문 / 장바구니) 주문 서비스에서 주문 처리하기
   @Transactional
   public void processOrder(ProcessOrderDto processOrderDto) {
     // TODO: rollback 처리하기
@@ -159,9 +163,23 @@ public class OrderService {
       orderProductRepository.saveAll(orderDeliveryProducts);
     }
 
+    // 장바구니에서 주문이면 장바구니에서 해당 상품들 비우기 kafka 요청
+    if (orderInfo.getOrderType().equals(OrderType.ORDER_CART.toString())) {
+      List<String> productIds =
+          orderInfo.getOrderInfoByStores().stream()
+              .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())
+              .map(ProductCreate::getProductId)
+              .collect(Collectors.toList());
+      Map<Long, String> productIdMap = new HashMap<>();
+      for (String productId : productIds) {
+        productIdMap.put(orderInfo.getUserId(), productId);
+      }
+      kafkaProducer.deleteFromCart(productIdMap);
+    }
+
     // payment-service 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
-            KakaopayApproveRequestDto.toDto(orderInfo, OrderType.ORDER_DELIVERY.toString());
+        KakaopayApproveRequestDto.toDto(orderInfo, orderInfo.getOrderType());
     paymentServiceClient.approve(approveRequestDto).getData();
   }
 

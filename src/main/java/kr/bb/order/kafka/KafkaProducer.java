@@ -2,6 +2,7 @@ package kr.bb.order.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import kr.bb.order.dto.request.store.ProcessOrderDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -27,6 +28,15 @@ public class KafkaProducer {
             String jsonString = objectMapper.writeValueAsString(processOrderDto);
             kafkaTemplate.send("process-order-rollback", jsonString);
         }catch (JsonProcessingException e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void deleteFromCart(Map<Long,String> cartCompoKeys){
+        try{
+            String jsonString = objectMapper.writeValueAsString(cartCompoKeys);
+            kafkaTemplate.send("delete-from-cart", jsonString);
+        } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
