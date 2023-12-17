@@ -51,7 +51,7 @@ public class OrderRestController {
   }
 
   // 장바구니에서 주문(배송) 준비 단계
-  @GetMapping("/cart")
+  @PostMapping("/cart")
   public ResponseEntity<KakaopayReadyResponseDto> readyForCartOrder(@RequestHeader Long userId, @RequestBody OrderForDeliveryRequest requestDto){
 
     KakaopayReadyResponseDto kakaopayReadyResponseDto = orderService.readyForDirectOrder(userId,
