@@ -1,14 +1,15 @@
 package kr.bb.order.entity.pickup;
 
 import java.time.LocalDateTime;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
+import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.common.BaseEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,6 +26,9 @@ public class OrderPickup extends BaseEntity {
     @Id
     private String orderPickupId;
 
+    @OneToOne(mappedBy = "orderPickup", cascade = CascadeType.PERSIST, orphanRemoval = true)
+    private OrderPickupProduct orderPickupProduct;
+
     @Column(name="user_id", nullable = false)
     private Long userId;
 
@@ -39,9 +43,14 @@ public class OrderPickup extends BaseEntity {
     @Column(name="order_pickup_coupon_amount", nullable= false)
     private Long orderPickupCouponAmount;
 
+    @Builder.Default
     @Column(name="order_pickup_is_complete", nullable = false)
-    private Boolean orderPickupIsComplete;
+    private Boolean orderPickupIsComplete = false;
 
     @Column(name="order_pickup_datetime", nullable = false)
     private LocalDateTime orderPickupDatetime;
+
+    public void setOrderPickupProduct(OrderPickupProduct orderPickupProduct){
+        this.orderPickupProduct = orderPickupProduct;
+    }
 }
