@@ -6,6 +6,7 @@ import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
+import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.service.OrderDetailsService;
 import kr.bb.order.service.OrderListService;
@@ -33,9 +34,9 @@ public class OrderRestController {
 
   // 바로 주문(배송) 준비 단계
   @PostMapping("/delivery")
-  public ResponseEntity<KakaopayReadyResponseDto> receiveOrderForDelivery(
+  public ResponseEntity<KakaopayReadyResponseDto> readyForDirectOrder(
       @RequestHeader Long userId, @RequestBody OrderForDeliveryRequest requestDto) {
-    KakaopayReadyResponseDto responseDto = orderService.receiveOrderForDelivery(userId, requestDto);
+    KakaopayReadyResponseDto responseDto = orderService.readyForDirectOrder(userId, requestDto, OrderType.ORDER_DELIVERY);
     return ResponseEntity.ok().body(responseDto);
   }
 
@@ -45,8 +46,17 @@ public class OrderRestController {
       @PathVariable("partnerOrderId") String orderId,
       @PathVariable("partnerUserId") Long userId,
       @RequestParam("pg_token") String pgToken) {
-    orderService.createOrderForDelivery(orderId, userId, pgToken);
+    orderService.requestOrder(orderId, pgToken);
     return ResponseEntity.ok().build();
+  }
+
+  // 장바구니에서 주문(배송) 준비 단계
+  @PostMapping("/cart")
+  public ResponseEntity<KakaopayReadyResponseDto> readyForCartOrder(@RequestHeader Long userId, @RequestBody OrderForDeliveryRequest requestDto){
+
+    KakaopayReadyResponseDto kakaopayReadyResponseDto = orderService.readyForDirectOrder(userId,
+            requestDto, OrderType.ORDER_CART);
+    return ResponseEntity.ok().body(kakaopayReadyResponseDto);
   }
 
 

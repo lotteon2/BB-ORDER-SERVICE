@@ -5,6 +5,7 @@ import java.util.List;
 import javax.persistence.Id;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
+import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.common.BaseEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,7 +26,7 @@ public class OrderInfo extends BaseEntity {
   private List<OrderInfoByStore> orderInfoByStores;
   private Long sumOfActualAmount;
 
-  @JsonProperty(value="subscriptionPay")
+  @JsonProperty(value = "subscriptionPay")
   private boolean isSubscriptionPay;
 
   private String ordererName;
@@ -39,6 +40,7 @@ public class OrderInfo extends BaseEntity {
   private String deliveryRequest;
   private String tid;
   private String pgToken;
+  private String orderType;
 
   public static OrderInfo transformDataForApi(
       String tempOrderId,
@@ -47,7 +49,8 @@ public class OrderInfo extends BaseEntity {
       int quantity,
       boolean isSubscriptionPay,
       String tid,
-      OrderForDeliveryRequest requestDto) {
+      OrderForDeliveryRequest requestDto,
+      OrderType orderType) {
 
     return OrderInfo.builder()
         .tempOrderId(tempOrderId)
@@ -67,6 +70,7 @@ public class OrderInfo extends BaseEntity {
         .ordererPhoneNumber(requestDto.getOrdererPhoneNumber())
         .deliveryRequest(requestDto.getDeliveryRequest())
         .tid(tid)
+        .orderType(orderType.toString())
         .build();
   }
 
