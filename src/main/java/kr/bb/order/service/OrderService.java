@@ -41,6 +41,7 @@ import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.util.OrderUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class OrderService {
+  private OrderService orderService;
   private final ProductServiceClient productServiceClient;
   private final StoreServiceClient storeServiceClient;
   private final PaymentServiceClient paymentServiceClient;
@@ -62,6 +64,11 @@ public class OrderService {
   private final OrderProductRepository orderProductRepository;
   private final OrderGroupRepository orderGroupRepository;
   private final OrderPickupRepository orderPickupRepository;
+
+  @Autowired
+  public void setOrderService(OrderService orderService ){
+    this.orderService = orderService;
+  }
 
   // 바로 주문 / 장바구니 주문 준비 단계
   @Transactional
@@ -122,12 +129,12 @@ public class OrderService {
 
     // product-service로 가격 유효성 확인하기
     List<PriceCheckDto> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
-    productServiceClient.validatePrice(priceCheckDtos).getData();
+    productServiceClient.validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<CouponAndDeliveryCheckDto> couponAndDeliveryCheckDtos =
             createCouponAndDeliveryCheckDto(orderInfoByStores);
-    storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos).getData();
+    storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(
@@ -199,13 +206,15 @@ public class OrderService {
     if(processOrderDto.getOrderType().equals(OrderType.ORDER_DELIVERY.toString())){
       OrderInfo orderInfo = redisTemplate.opsForValue().get(processOrderDto.getOrderId());
       if (orderInfo == null) throw new PaymentExpiredException();
-      processOrderDelivery(processOrderDto, orderInfo);
+      // 자기자신을 주입받아 호출하여 내부호출 해결
+      orderService.processOrderDelivery(processOrderDto, orderInfo);
     }
     else if(processOrderDto.getOrderType().equals(OrderType.ORDER_PICKUP.toString())){
       PickupOrderInfo pickupOrderInfo = redisTemplateForPickup.opsForValue()
               .get(processOrderDto.getOrderId());
       if (pickupOrderInfo == null) throw new PaymentExpiredException();
-      processOrderPickup(processOrderDto, pickupOrderInfo);
+      // 자기자신을 주입받아 호출하여 내부호출 해결
+      orderService.processOrderPickup(processOrderDto, pickupOrderInfo);
     }
   }
 

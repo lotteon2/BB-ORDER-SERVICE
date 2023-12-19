@@ -1,12 +1,12 @@
 package kr.bb.order.config;
 
-import kr.bb.order.dto.request.payment.KakaopayReadyRequestDto;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
@@ -23,9 +23,16 @@ public class RedisConfig {
   @Value("${spring.redis.port}")
   private int port;
 
+  @Value("${spring.redis.password}")
+  private String password;
+
   @Bean
   public RedisConnectionFactory redisConnectionFactory() {
-    return new LettuceConnectionFactory(host, port);
+    RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+    redisStandaloneConfiguration.setHostName(host);
+    redisStandaloneConfiguration.setPort(port);
+    redisStandaloneConfiguration.setPassword(password);
+    return new LettuceConnectionFactory(redisStandaloneConfiguration);
   }
 
   @Bean
@@ -40,7 +47,7 @@ public class RedisConfig {
   @Bean
   public RedisTemplate<String, PickupOrderInfo> redisTemplateForPickup() {
     RedisTemplate<String, PickupOrderInfo> redisTemplate = new RedisTemplate<>();
-    redisTemplate.setValueSerializer(new StringRedisSerializer());
+    redisTemplate.setKeySerializer(new StringRedisSerializer());
     redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
     redisTemplate.setConnectionFactory(redisConnectionFactory());
     return redisTemplate;

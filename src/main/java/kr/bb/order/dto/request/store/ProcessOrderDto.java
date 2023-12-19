@@ -37,10 +37,8 @@ public class ProcessOrderDto {
   }
 
   public static ProcessOrderDto toDtoForOrderPickup(String orderId, PickupOrderInfo pickupOrderInfo ){
-    List<Long> couponIds = new ArrayList<>();
-    couponIds.add(pickupOrderInfo.getCouponId());
-    List<String> productIds = new ArrayList<>();
-    productIds.add(pickupOrderInfo.getProduct().getProductId());
+    List<Long> couponIds = List.of(pickupOrderInfo.getCouponId());
+    List<String> productIds = List.of(pickupOrderInfo.getProduct().getProductId());
 
     return ProcessOrderDto.builder()
             .orderId(orderId)
