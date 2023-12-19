@@ -24,6 +24,7 @@ spring:
   redis:
     host: 127.0.0.1
     port: 6379
+    password: 123456
   kafka:
     producer:
       bootstrap-servers: localhost:9092
@@ -37,6 +38,9 @@ spring:
   sql:
     init:
       encoding: utf-8
+  main:
+    allow-circular-references: true
+
 logging:
   level:
     org:
