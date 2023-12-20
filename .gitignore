@@ -16,6 +16,7 @@ build/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+**/src/test/**/data.sql
 
 ### IntelliJ IDEA ###
 .idea

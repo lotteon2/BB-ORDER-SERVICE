@@ -16,7 +16,6 @@ import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
-import kr.bb.order.dto.request.store.ProcessOrderDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
@@ -31,12 +30,12 @@ import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.kafka.KafkaConsumer;
 import kr.bb.order.kafka.KafkaProducer;
+import kr.bb.order.kafka.ProcessOrderDto;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.util.OrderUtil;
-import org.junit.Before;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -88,11 +87,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             orderGroupRepository,
             orderPickupRepository);
   }
-
-//  @Autowired
-//  void setOrderService(OrderService orderService){
-//    this.orderService = orderService;
-//  }
 
   @AfterEach
   void teardown() {

@@ -78,4 +78,8 @@ public class OrderDelivery extends BaseEntity {
   public void setOrderDeliveryProduct(List<OrderDeliveryProduct> orderDeliveryProducts) {
     this.orderDeliveryProducts = orderDeliveryProducts;
   }
+
+  public void updateStatus(String newStatus){
+    this.orderDeliveryStatus = OrderDeliveryStatus.valueOf(newStatus);
+  }
 }

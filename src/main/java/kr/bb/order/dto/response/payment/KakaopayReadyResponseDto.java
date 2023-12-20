@@ -1,5 +1,6 @@
 package kr.bb.order.dto.response.payment;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -10,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class KakaopayReadyResponseDto {
-    private String tid;
-    private String nextRedirectPcUrl;
-
+  private String tid;
+  @JsonProperty("next_redirect_pc_url")
+  private String nextRedirectPcUrl;
 }

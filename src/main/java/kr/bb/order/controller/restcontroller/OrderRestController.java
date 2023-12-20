@@ -42,7 +42,7 @@ public class OrderRestController {
 
   // 바로 주문(배송) 승인 단계
   @GetMapping("/approve/{partnerOrderId}/{orderType}")
-  public ResponseEntity<Void> processOrder(
+  public ResponseEntity<Void> requestOrder(
       @PathVariable("partnerOrderId") String orderId,
       @PathVariable("orderType") String orderType,
       @RequestParam("pg_token") String pgToken) {
