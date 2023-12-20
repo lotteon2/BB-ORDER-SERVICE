@@ -14,7 +14,7 @@ public class KafkaConsumer {
   private final OrderService orderService;
   private final KafkaProducer kafkaProducer;
 
-  @KafkaListener(topics = "process-order")
+  @KafkaListener(topics = "order-create")
   public void processOrder(String message) {
     try {
       ProcessOrderDto processOrderDto = objectMapper.readValue(message, ProcessOrderDto.class);

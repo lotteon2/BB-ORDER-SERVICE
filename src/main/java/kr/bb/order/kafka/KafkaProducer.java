@@ -16,7 +16,7 @@ public class KafkaProducer {
     public void requestOrder(ProcessOrderDto processOrderDto){
         try{
             String jsonString = objectMapper.writeValueAsString(processOrderDto);
-            kafkaTemplate.send("request-order", jsonString);
+            kafkaTemplate.send("coupon-use", jsonString);
         }catch (JsonProcessingException e){
             throw new RuntimeException(e);
         }
@@ -25,7 +25,7 @@ public class KafkaProducer {
     public void rollbackOrder(ProcessOrderDto processOrderDto){
         try{
             String jsonString = objectMapper.writeValueAsString(processOrderDto);
-            kafkaTemplate.send("process-order-rollback", jsonString);
+            kafkaTemplate.send("order-create-rollback", jsonString);
         }catch (JsonProcessingException e){
             throw new RuntimeException(e);
         }

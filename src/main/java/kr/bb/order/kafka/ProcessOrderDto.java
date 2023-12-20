@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
+import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,14 +21,18 @@ public class ProcessOrderDto {
   private String orderType;
   private List<Long> couponIds;
   private Map<String, Long> products; // productId: quantity
+  private Long userId;
+  private String phoneNumber;
 
   public static ProcessOrderDto toDtoForOrderDelivery(
-      String orderId, String orderType, List<OrderInfoByStore> orderInfoByStores) {
+      String orderId, String orderType, OrderInfo orderInfo) {
 
     List<Long> couponIds =
-        orderInfoByStores.stream().map(OrderInfoByStore::getCouponId).collect(Collectors.toList());
+        orderInfo.getOrderInfoByStores().stream()
+            .map(OrderInfoByStore::getCouponId)
+            .collect(Collectors.toList());
     Map<String, Long> products =
-        orderInfoByStores.stream()
+        orderInfo.getOrderInfoByStores().stream()
             .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())
             .collect(Collectors.toMap(ProductCreate::getProductId, ProductCreate::getQuantity));
 
@@ -36,6 +41,8 @@ public class ProcessOrderDto {
         .orderType(orderType)
         .couponIds(couponIds)
         .products(products)
+        .userId(orderInfo.getUserId())
+        .phoneNumber(orderInfo.getOrdererPhoneNumber())
         .build();
   }
 
