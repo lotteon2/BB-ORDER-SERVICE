@@ -16,7 +16,6 @@ import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
-import kr.bb.order.dto.request.store.ProcessOrderDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
@@ -31,12 +30,14 @@ import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.kafka.KafkaConsumer;
 import kr.bb.order.kafka.KafkaProducer;
+import kr.bb.order.kafka.ProcessOrderDto;
+import kr.bb.order.kafka.UpdateOrderStatusDto;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.util.OrderUtil;
-import org.junit.Before;
+import org.hibernate.sql.Update;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -88,11 +89,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             orderGroupRepository,
             orderPickupRepository);
   }
-
-//  @Autowired
-//  void setOrderService(OrderService orderService){
-//    this.orderService = orderService;
-//  }
 
   @AfterEach
   void teardown() {
@@ -169,7 +165,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     String orderType = OrderType.ORDER_DELIVERY.toString();
     String pgToken = "임시pgToken";
 
-    OrderInfo orderInfo = createOrderInfo(orderId);
+    OrderInfo orderInfo = createOrderInfo(orderId, OrderType.valueOf(orderType));
     redisTemplate.opsForValue().set(orderId, orderInfo);
 
     orderService.requestOrder(orderId, orderType, pgToken);
@@ -206,23 +202,11 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     String orderDeliveryId = "임시가게주문id";
     String orderType = OrderType.ORDER_DELIVERY.toString();
 
-    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
     ObjectMapper objectMapper = new ObjectMapper();
     String message =
         objectMapper.writeValueAsString(
-            ProcessOrderDto.toDtoForOrderDelivery(orderGroupId, orderType, orderInfoByStores));
-    OrderForDeliveryRequest requestDto = createOrderForDeliveryRequest(90500L);
-
-    OrderInfo orderInfo =
-        OrderInfo.transformDataForApi(
-            orderGroupId,
-            userId,
-            "제품명 외 1개",
-            2,
-            false,
-            "tid번호",
-            requestDto,
-            OrderType.ORDER_DELIVERY);
+            ProcessOrderDto.toDtoForOrderDelivery(orderGroupId, orderType, orderInfo));
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
     List<Long> deliveryIds = new ArrayList<>();
@@ -248,18 +232,15 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     Long userId = 1L;
     String orderGroupId = "임시orderId";
     String orderDeliveryId = "임시가게주문id";
-    String orderType = OrderType.ORDER_DELIVERY.toString();
+    String orderType = OrderType.ORDER_CART.toString();
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
 
-    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
     ObjectMapper objectMapper = new ObjectMapper();
     String message =
         objectMapper.writeValueAsString(
-            ProcessOrderDto.toDtoForOrderDelivery(orderGroupId, orderType, orderInfoByStores));
+            ProcessOrderDto.toDtoForOrderDelivery(orderGroupId, orderType, orderInfo));
     OrderForDeliveryRequest requestDto = createOrderForDeliveryRequest(90500L);
 
-    OrderInfo orderInfo =
-        OrderInfo.transformDataForApi(
-            orderGroupId, userId, "제품명 외 1개", 2, false, "tid번호", requestDto, OrderType.ORDER_CART);
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
     List<Long> deliveryIds = new ArrayList<>();
@@ -318,12 +299,13 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
     // given
     String orderGroupId = "임시orderId";
-    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
     String orderType = OrderType.ORDER_DELIVERY.toString();
+//    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
     ObjectMapper objectMapper = new ObjectMapper();
     String message =
         objectMapper.writeValueAsString(
-            ProcessOrderDto.toDtoForOrderDelivery(orderGroupId, orderType, orderInfoByStores));
+            ProcessOrderDto.toDtoForOrderDelivery(orderGroupId, orderType, orderInfo));
     List<Long> deliveryIds = new ArrayList<>();
     deliveryIds.add(1L);
     CommonResponse<List<Long>> success = CommonResponse.success(deliveryIds);
@@ -337,6 +319,23 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     assertThatThrownBy(() -> kafkaConsumer.processOrder(message))
         .isInstanceOf(PaymentExpiredException.class)
         .hasMessage("결제 시간이 만료되었습니다. 다시 시도해주세요.");
+  }
+
+  @Test
+  @DisplayName("배송 상태를 kafka를 통해 넘겨받는다")
+  void updateOrderStatus() throws JsonProcessingException {
+    UpdateOrderStatusDto updateOrderStatusDto = UpdateOrderStatusDto.builder()
+            .orderDeliveryId("가게주문id")
+            .status("COMPLETED")
+            .build();
+    ObjectMapper objectMapper = new ObjectMapper();
+    String message = objectMapper.writeValueAsString(updateOrderStatusDto);
+
+    kafkaConsumer.updateOrderDeliveryStatus(message);
+    OrderDelivery orderDelivery = orderDeliveryRepository.findById("가게주문id")
+            .orElseThrow(EntityNotFoundException::new);
+
+    assertThat(orderDelivery.getOrderDeliveryStatus().toString()).isEqualTo("COMPLETED");
   }
 
   public OrderForDeliveryRequest createOrderForDeliveryRequest(Long sumOfActualAmount) {
@@ -428,7 +427,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .build();
   }
 
-  public OrderInfo createOrderInfo(String orderId) {
+  public OrderInfo createOrderInfo(String orderId, OrderType orderType) {
     return OrderInfo.builder()
         .tempOrderId(orderId)
         .userId(1L)
@@ -446,7 +445,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .recipientPhone("수신자 전화번호")
         .deliveryRequest("배송 요청사항")
         .tid("tid고유번호")
-        .orderType(OrderType.ORDER_DELIVERY.toString())
+        .orderType(orderType.toString())
         .build();
   }
 

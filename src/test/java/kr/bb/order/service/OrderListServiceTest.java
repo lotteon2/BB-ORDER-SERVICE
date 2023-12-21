@@ -117,6 +117,12 @@ public class OrderListServiceTest {
             .productName("꽃이름-1")
             .productThumbnailImage("썸네일url-1")
             .build());
+    productInfoDtos.add(
+            ProductInfoDto.builder()
+                    .productId("꽃id-2")
+                    .productName("꽃이름-2")
+                    .productThumbnailImage("썸네일url-2")
+                    .build());
     return productInfoDtos;
   }
 

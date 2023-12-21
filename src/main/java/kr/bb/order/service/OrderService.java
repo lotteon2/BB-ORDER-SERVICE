@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.delivery.DeliveryInsertRequestDto;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
@@ -19,12 +20,12 @@ import kr.bb.order.dto.request.payment.KakaopayApproveRequestDto;
 import kr.bb.order.dto.request.payment.KakaopayReadyRequestDto;
 import kr.bb.order.dto.request.product.PriceCheckDto;
 import kr.bb.order.dto.request.store.CouponAndDeliveryCheckDto;
-import kr.bb.order.dto.request.store.ProcessOrderDto;
 import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
+import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.redis.OrderInfo;
@@ -35,6 +36,8 @@ import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.kafka.KafkaProducer;
+import kr.bb.order.kafka.ProcessOrderDto;
+import kr.bb.order.kafka.UpdateOrderStatusDto;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
 import kr.bb.order.repository.OrderPickupRepository;
@@ -50,7 +53,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class OrderService {
-  private OrderService orderService;
   private final ProductServiceClient productServiceClient;
   private final StoreServiceClient storeServiceClient;
   private final PaymentServiceClient paymentServiceClient;
@@ -64,6 +66,7 @@ public class OrderService {
   private final OrderProductRepository orderProductRepository;
   private final OrderGroupRepository orderGroupRepository;
   private final OrderPickupRepository orderPickupRepository;
+  private OrderService orderService;
 
   @Autowired
   public void setOrderService(OrderService orderService ){
@@ -78,12 +81,12 @@ public class OrderService {
 
     // product-service로 가격 유효성 확인하기
     List<PriceCheckDto> priceCheckDtos = createPriceCheckDto(requestDto.getOrderInfoByStores());
-    productServiceClient.validatePrice(priceCheckDtos).getData();
+        productServiceClient.validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<CouponAndDeliveryCheckDto> couponAndDeliveryCheckDtos =
         createCouponAndDeliveryCheckDto(requestDto.getOrderInfoByStores());
-    storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos).getData();
+        storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(
@@ -95,7 +98,12 @@ public class OrderService {
 
     KakaopayReadyRequestDto readyRequestDto =
         KakaopayReadyRequestDto.toDto(
-            userId, tempOrderId, orderType.toString(), requestDto.getOrderInfoByStores(), requestDto.getSumOfActualAmount(), isSubscriptionPay);
+            userId,
+            tempOrderId,
+            orderType.toString(),
+            requestDto.getOrderInfoByStores(),
+            requestDto.getSumOfActualAmount(),
+            isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
     KakaopayReadyResponseDto responseDto = paymentServiceClient.ready(readyRequestDto).getData();
@@ -121,7 +129,8 @@ public class OrderService {
 
   // 픽업 주문 준비 단계
   @Transactional
-  public KakaopayReadyResponseDto readyForPickupOrder(Long userId, OrderForPickupDto requestDto, OrderType orderType) {
+  public KakaopayReadyResponseDto readyForPickupOrder(
+      Long userId, OrderForPickupDto requestDto, OrderType orderType) {
 
     List<OrderInfoByStore> orderInfoByStores = new ArrayList<>();
     OrderInfoByStore orderInfoByStore = createOrderInfoByStore(requestDto);
@@ -133,20 +142,24 @@ public class OrderService {
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<CouponAndDeliveryCheckDto> couponAndDeliveryCheckDtos =
-            createCouponAndDeliveryCheckDto(orderInfoByStores);
+        createCouponAndDeliveryCheckDto(orderInfoByStores);
     storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
-    orderManager.checkActualAmountIsValid(
-            orderInfoByStores, requestDto.getActualAmount());
+    orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
 
     // 임시 주문id 및 결제준비용 dto 생성
     String tempOrderId = orderUtil.generateUUID();
     boolean isSubscriptionPay = false;
 
     KakaopayReadyRequestDto readyRequestDto =
-            KakaopayReadyRequestDto.toDto(
-                    userId, tempOrderId, orderType.toString(), orderInfoByStores, requestDto.getActualAmount(), isSubscriptionPay);
+        KakaopayReadyRequestDto.toDto(
+            userId,
+            tempOrderId,
+            orderType.toString(),
+            orderInfoByStores,
+            requestDto.getActualAmount(),
+            isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
     KakaopayReadyResponseDto responseDto = paymentServiceClient.ready(readyRequestDto).getData();
@@ -156,15 +169,8 @@ public class OrderService {
     long quantity = readyRequestDto.getQuantity();
     String tid = responseDto.getTid();
     PickupOrderInfo pickupOrderInfo =
-            PickupOrderInfo.transformDataForApi(
-                    tempOrderId,
-                    userId,
-                    itemName,
-                    quantity,
-                    isSubscriptionPay,
-                    tid,
-                    requestDto,
-                    orderType);
+        PickupOrderInfo.transformDataForApi(
+            tempOrderId, userId, itemName, quantity, isSubscriptionPay, tid, requestDto, orderType);
 
     redisTemplateForPickup.opsForValue().set(tempOrderId, pickupOrderInfo);
 
@@ -175,8 +181,7 @@ public class OrderService {
   @Transactional
   public void requestOrder(String orderId, String orderType, String pgToken) {
     // redis에서 정보 가져오기 및 TTL 갱신
-    // TODO: (WIP) 픽업 주문 코드 추가
-    if(orderType.equals(OrderType.ORDER_DELIVERY.toString())){
+    if (orderType.equals(OrderType.ORDER_DELIVERY.toString())) {
       OrderInfo orderInfo = redisTemplate.opsForValue().get(orderId);
       if (orderInfo == null) throw new PaymentExpiredException();
 
@@ -185,51 +190,51 @@ public class OrderService {
       redisTemplate.expire(orderId, 5, TimeUnit.MINUTES);
 
       ProcessOrderDto processOrderDto =
-              ProcessOrderDto.toDtoForOrderDelivery(orderId, orderType, orderInfo.getOrderInfoByStores());
+          ProcessOrderDto.toDtoForOrderDelivery(orderId, orderType, orderInfo);
       kafkaProducer.requestOrder(processOrderDto);
-    }
-    else if(orderType.equals(OrderType.ORDER_PICKUP.toString())){
+    } else if (orderType.equals(OrderType.ORDER_PICKUP.toString())) {
       PickupOrderInfo pickupOrderInfo = redisTemplateForPickup.opsForValue().get(orderId);
-      if(pickupOrderInfo == null) throw new PaymentExpiredException();
+      if (pickupOrderInfo == null) throw new PaymentExpiredException();
 
       pickupOrderInfo.setPgToken(pgToken);
       redisTemplateForPickup.opsForValue().set(orderId, pickupOrderInfo);
       redisTemplateForPickup.expire(orderId, 5, TimeUnit.MINUTES);
 
-      ProcessOrderDto processOrderDto = ProcessOrderDto.toDtoForOrderPickup(orderId, pickupOrderInfo);
+      ProcessOrderDto processOrderDto =
+          ProcessOrderDto.toDtoForOrderPickup(orderId, pickupOrderInfo);
       kafkaProducer.requestOrder((processOrderDto));
     }
   }
 
-  //  주문 처리하기
+  //  주문 저장하기
   public void processOrder(ProcessOrderDto processOrderDto) {
-    if(processOrderDto.getOrderType().equals(OrderType.ORDER_DELIVERY.toString())){
+    String orderType = processOrderDto.getOrderType();
+    if (orderType.equals(OrderType.ORDER_DELIVERY.toString()) || orderType.equals(OrderType.ORDER_CART.toString())) {
       OrderInfo orderInfo = redisTemplate.opsForValue().get(processOrderDto.getOrderId());
       if (orderInfo == null) throw new PaymentExpiredException();
       // 자기자신을 주입받아 호출하여 내부호출 해결
       orderService.processOrderDelivery(processOrderDto, orderInfo);
-    }
-    else if(processOrderDto.getOrderType().equals(OrderType.ORDER_PICKUP.toString())){
-      PickupOrderInfo pickupOrderInfo = redisTemplateForPickup.opsForValue()
-              .get(processOrderDto.getOrderId());
+    } else if (orderType.equals(OrderType.ORDER_PICKUP.toString())) {
+      PickupOrderInfo pickupOrderInfo =
+          redisTemplateForPickup.opsForValue().get(processOrderDto.getOrderId());
       if (pickupOrderInfo == null) throw new PaymentExpiredException();
       // 자기자신을 주입받아 호출하여 내부호출 해결
       orderService.processOrderPickup(processOrderDto, pickupOrderInfo);
     }
   }
 
-  // (바로주문, 장바구니) 주문 처리하기
+  // (바로주문, 장바구니) 주문 저장하기
   @Transactional
-  public void processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo){
+  public void processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo) {
     // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
     List<DeliveryInsertRequestDto> dtoList = DeliveryInsertRequestDto.toDto(orderInfo);
     List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
 
     OrderGroup orderGroup =
-            OrderGroup.builder()
-                    .orderGroupId(processOrderDto.getOrderId())
-                    .userId(orderInfo.getUserId())
-                    .build();
+        OrderGroup.builder()
+            .orderGroupId(processOrderDto.getOrderId())
+            .userId(orderInfo.getUserId())
+            .build();
     orderGroupRepository.save(orderGroup);
 
     // 주문 정보 저장
@@ -237,11 +242,11 @@ public class OrderService {
       // 1. 주문_배송 entity
       String orderDeliveryId = orderUtil.generateUUID();
       OrderDelivery orderDelivery =
-              OrderDelivery.toEntity(
-                      orderDeliveryId,
-                      deliveryIds.get(i),
-                      orderGroup,
-                      orderInfo.getOrderInfoByStores().get(i));
+          OrderDelivery.toEntity(
+              orderDeliveryId,
+              deliveryIds.get(i),
+              orderGroup,
+              orderInfo.getOrderInfoByStores().get(i));
       // 연관관계 매핑 : 편의 메서드 적용
       orderDelivery.setOrderGroup(orderGroup);
       orderDeliveryRepository.save(orderDelivery);
@@ -262,10 +267,10 @@ public class OrderService {
     // 장바구니에서 주문이면 장바구니에서 해당 상품들 비우기 kafka 요청
     if (orderInfo.getOrderType().equals(OrderType.ORDER_CART.toString())) {
       List<String> productIds =
-              orderInfo.getOrderInfoByStores().stream()
-                      .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())
-                      .map(ProductCreate::getProductId)
-                      .collect(Collectors.toList());
+          orderInfo.getOrderInfoByStores().stream()
+              .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())
+              .map(ProductCreate::getProductId)
+              .collect(Collectors.toList());
       Map<Long, String> productIdMap = new HashMap<>();
       for (String productId : productIds) {
         productIdMap.put(orderInfo.getUserId(), productId);
@@ -275,17 +280,18 @@ public class OrderService {
 
     // payment-service 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
-            KakaopayApproveRequestDto.toDto(orderInfo, orderInfo.getOrderType());
+        KakaopayApproveRequestDto.toDto(orderInfo, orderInfo.getOrderType());
     paymentServiceClient.approve(approveRequestDto).getData();
   }
 
-  // (픽업주문) 주문 처리하기
+  // (픽업주문) 주문 저장하기
   @Transactional
-  public void processOrderPickup(ProcessOrderDto processOrderDto, PickupOrderInfo pickupOrderInfo ){
-    LocalDateTime localDateTime = parseDateTime(pickupOrderInfo.getPickupDate(),
-            pickupOrderInfo.getPickupTime());
+  public void processOrderPickup(ProcessOrderDto processOrderDto, PickupOrderInfo pickupOrderInfo) {
+    LocalDateTime localDateTime =
+        parseDateTime(pickupOrderInfo.getPickupDate(), pickupOrderInfo.getPickupTime());
 
-    OrderPickup orderPickup = OrderPickup.builder()
+    OrderPickup orderPickup =
+        OrderPickup.builder()
             .orderPickupId(processOrderDto.getOrderId())
             .userId(pickupOrderInfo.getUserId())
             .orderPickupTotalAmount(pickupOrderInfo.getTotalAmount())
@@ -304,17 +310,30 @@ public class OrderService {
     orderPickupRepository.save(orderPickup);
   }
 
-private LocalDateTime parseDateTime(String pickupDate, String pickupTime) {
-  DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-  DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+  public void updateStatus(UpdateOrderStatusDto statusDto) {
+    OrderDelivery orderDelivery =
+        orderDeliveryRepository
+            .findById(statusDto.getOrderDeliveryId())
+            .orElseThrow(EntityNotFoundException::new);
+    orderDelivery.updateStatus(statusDto.getStatus());
+    if (statusDto.getStatus().equals(OrderDeliveryStatus.COMPLETED.toString())) {
+      orderDelivery
+          .getOrderDeliveryProducts()
+          .forEach(OrderDeliveryProduct::updateReviewAndCardStatus);
+    }
+  }
 
-  LocalDate date = LocalDate.parse(pickupDate, dateFormatter);
-  LocalTime time = LocalTime.parse(pickupTime, timeFormatter);
+  private LocalDateTime parseDateTime(String pickupDate, String pickupTime) {
+    DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
-  return LocalDateTime.of(date, time);
-}
+    LocalDate date = LocalDate.parse(pickupDate, dateFormatter);
+    LocalTime time = LocalTime.parse(pickupTime, timeFormatter);
 
-public List<PriceCheckDto> createPriceCheckDto(List<OrderInfoByStore> orderInfoByStores) {
+    return LocalDateTime.of(date, time);
+  }
+
+  public List<PriceCheckDto> createPriceCheckDto(List<OrderInfoByStore> orderInfoByStores) {
     List<PriceCheckDto> list = new ArrayList<>();
     for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
       for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
@@ -337,9 +356,10 @@ public List<PriceCheckDto> createPriceCheckDto(List<OrderInfoByStore> orderInfoB
     return list;
   }
 
-  public OrderInfoByStore createOrderInfoByStore(OrderForPickupDto requestDto){
+  public OrderInfoByStore createOrderInfoByStore(OrderForPickupDto requestDto) {
     List<ProductCreate> products = new ArrayList<>();
-    ProductCreate productCreate = ProductCreate.builder()
+    ProductCreate productCreate =
+        ProductCreate.builder()
             .productId(requestDto.getProduct().getProductId())
             .productName(requestDto.getProduct().getProductName())
             .quantity(requestDto.getProduct().getQuantity())
@@ -349,14 +369,14 @@ public List<PriceCheckDto> createPriceCheckDto(List<OrderInfoByStore> orderInfoB
     products.add(productCreate);
 
     return OrderInfoByStore.builder()
-            .storeId(requestDto.getStoreId())
-            .storeName(requestDto.getStoreName())
-            .products(products)
-            .totalAmount(requestDto.getTotalAmount())
-            .deliveryCost(requestDto.getDeliveryCost())
-            .couponId(requestDto.getCouponId())
-            .couponAmount(requestDto.getCouponAmount())
-            .actualAmount(requestDto.getActualAmount())
-            .build();
+        .storeId(requestDto.getStoreId())
+        .storeName(requestDto.getStoreName())
+        .products(products)
+        .totalAmount(requestDto.getTotalAmount())
+        .deliveryCost(requestDto.getDeliveryCost())
+        .couponId(requestDto.getCouponId())
+        .couponAmount(requestDto.getCouponAmount())
+        .actualAmount(requestDto.getActualAmount())
+        .build();
   }
 }

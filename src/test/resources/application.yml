@@ -48,7 +48,7 @@ logging:
         SQL: DEBUG
 
 endpoint:
-  product-service: localhost:8900
-  delivery-service: localhost:8900
-  payment-service: localhost:8900
-  store-service: localhost:8900
+  product-service: localhost:8800
+  delivery-service: localhost:8081
+  payment-service: localhost:8100
+  store-service: localhost:8700

@@ -12,17 +12,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "paymentServiceClient")
+@FeignClient(name = "paymentServiceClient", url = "${endpoint.payment-service}")
 public interface PaymentServiceClient {
-  @PostMapping(value = "/payments/ready")
+  @PostMapping(value = "/client/ready")
   CommonResponse<KakaopayReadyResponseDto> ready(@RequestBody KakaopayReadyRequestDto readyRequestDto);
 
-  @PostMapping(value = "/payments/approve")
+  @PostMapping(value = "/client/approve")
   CommonResponse<Void> approve(@RequestBody KakaopayApproveRequestDto approveRequestDto);
 
-  @GetMapping(value = "/payments/paymentInfo")
+  @GetMapping(value = "/client/paymentInfo")
   CommonResponse<List<PaymentInfoDto>> getPaymentInfo(@RequestParam List<String> orderGroupIds);
 
-  @GetMapping(value = "/payments/paymentDate")
+  @GetMapping(value = "/client/paymentDate")
   CommonResponse<String> getPaymentDate(@RequestParam String orderGroupId);
 }
