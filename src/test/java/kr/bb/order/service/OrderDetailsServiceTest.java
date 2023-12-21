@@ -1,6 +1,7 @@
 package kr.bb.order.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import kr.bb.order.dto.request.product.ProductInfoDto;
 import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
+import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.feign.DeliveryServiceClient;
@@ -131,5 +133,17 @@ public class OrderDetailsServiceTest {
         orderDetailsService.getOrderDetailsForSeller(orderDeliveryId);
 
     assertThat(orderDetailsForSeller.getOrdererName().equals("주문자 이름")).isTrue();
+  }
+
+  @Test
+  @DisplayName("주간별 가게 매출 조회")
+  void getWeeklySalesInfo() {
+    Long storeId = 1L;
+    WeeklySalesInfoDto weeklySalesInfo = orderDetailsService.getWeeklySalesInfo(storeId);
+
+    assertThat(weeklySalesInfo)
+        .extracting("categories", "data")
+        .contains(Arrays.asList("2023-12-16", "2023-12-17", "2023-12-18", "2023-12-20"),
+                    Arrays.asList(39800L, 39800L, 39800L, 39800L));
   }
 }

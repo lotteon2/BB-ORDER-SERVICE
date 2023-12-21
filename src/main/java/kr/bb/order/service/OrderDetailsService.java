@@ -1,5 +1,7 @@
 package kr.bb.order.service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +9,7 @@ import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.product.ProductInfoDto;
 import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
+import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStore;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
@@ -20,7 +23,9 @@ import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+@Transactional(readOnly = true)
 @Service
 @RequiredArgsConstructor
 public class OrderDetailsService {
@@ -116,5 +121,29 @@ public class OrderDetailsService {
 
     return OrderInfoForStoreForSeller.toDto(
         orderDelivery, productReadList, storeNameMap, paymentDate, deliveryInfoMap);
+  }
+
+  public WeeklySalesInfoDto getWeeklySalesInfo(Long storeId){
+    LocalDateTime endDate = LocalDateTime.now().minusDays(1); // 어제 날짜
+    LocalDateTime startDate = endDate.minusDays(6); // 7일 전
+    List<Object[]> weeklySalesData = orderDeliveryRepository.findWeeklySales(storeId, startDate,
+            endDate);
+
+    List<String> dates = new ArrayList<>();
+    List<Long> totalAmounts = new ArrayList<>();
+
+    for(Object[] result : weeklySalesData){
+      if(result[0] != null){
+        LocalDateTime dateTime = (LocalDateTime) result[0];
+        String dateString = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        dates.add(dateString);
+        totalAmounts.add((Long) result[1]);
+      }
+    }
+
+    return WeeklySalesInfoDto.builder()
+            .categories(dates)
+            .data(totalAmounts)
+            .build();
   }
 }
