@@ -19,11 +19,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
-import kr.bb.order.dto.request.delivery.DeliveryInsertDtoManager;
+import kr.bb.order.mapper.OrderDeliveryMapper;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
-import kr.bb.order.dto.request.orderForDelivery.ProductCreateManager;
+import kr.bb.order.mapper.OrderProductMapper;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
-import kr.bb.order.dto.request.payment.KakaopayApproveRequestDtoManager;
+import kr.bb.order.mapper.KakaopayMapper;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.OrderType;
@@ -230,7 +230,7 @@ public class OrderService {
   @Transactional
   public void processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo) {
     // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
-    List<DeliveryInsertDto> dtoList = DeliveryInsertDtoManager.toDto(orderInfo);
+    List<DeliveryInsertDto> dtoList = OrderDeliveryMapper.toDto(orderInfo);
     List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
 
     OrderGroup orderGroup =
@@ -258,7 +258,7 @@ public class OrderService {
       List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
       for (OrderInfoByStore orderInfoByStore : orderInfo.getOrderInfoByStores()) {
         for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
-          OrderDeliveryProduct orderDeliveryProduct = ProductCreateManager.toEntity(productCreate);
+          OrderDeliveryProduct orderDeliveryProduct = OrderProductMapper.toEntity(productCreate);
           // 연관관계 매핑 : 편의 메서드 적용
           orderDeliveryProduct.setOrderDelivery(orderDelivery);
           orderDeliveryProducts.add(orderDeliveryProduct);
@@ -283,7 +283,7 @@ public class OrderService {
 
     // payment-service 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
-        KakaopayApproveRequestDtoManager.toDto(orderInfo, orderInfo.getOrderType());
+        KakaopayMapper.toDto(orderInfo, orderInfo.getOrderType());
     paymentServiceClient.approve(approveRequestDto).getData();
   }
 

@@ -1,4 +1,4 @@
-package kr.bb.order.dto.request.delivery;
+package kr.bb.order.mapper;
 
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.order.OrderInfoByStore;
@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import kr.bb.order.entity.redis.OrderInfo;
 
-public class DeliveryInsertDtoManager {
+public class OrderDeliveryMapper {
   public static List<DeliveryInsertDto> toDto(OrderInfo orderInfo) {
     List<OrderInfoByStore> orderInfoByStores = orderInfo.getOrderInfoByStores();
     List<DeliveryInsertDto> list = new ArrayList<>();

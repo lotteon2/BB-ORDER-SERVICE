@@ -1,9 +1,9 @@
-package kr.bb.order.dto.request.payment;
+package kr.bb.order.mapper;
 
 import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
 import kr.bb.order.entity.redis.OrderInfo;
 
-public class KakaopayApproveRequestDtoManager {
+public class KakaopayMapper {
   public static KakaopayApproveRequestDto toDto(OrderInfo orderInfo, String orderType) {
     return KakaopayApproveRequestDto.builder()
         .userId(orderInfo.getUserId())
