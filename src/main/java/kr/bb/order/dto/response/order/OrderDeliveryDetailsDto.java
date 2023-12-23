@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import kr.bb.order.dto.request.product.ProductInfoDto;
+import bloomingblooms.domain.product.ProductInformation;
 import kr.bb.order.entity.CardStatus;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.ReviewStatus;
@@ -29,11 +29,11 @@ public class OrderDeliveryDetailsDto {
   private CardStatus cardIsWritten;
 
   public static List<OrderDeliveryDetailsDto> toDto(
-      List<String> productIds, List<ProductInfoDto> infoDtos, List<OrderDeliveryProduct> orderDeliveryProducts) {
+      List<String> productIds, List<ProductInformation> infoDtos, List<OrderDeliveryProduct> orderDeliveryProducts) {
     List<OrderDeliveryDetailsDto> list = new ArrayList<>();
 
-    Map<String, ProductInfoDto> productInfoDtoMap =
-        infoDtos.stream().collect(Collectors.toMap(ProductInfoDto::getProductId, dto -> dto));
+    Map<String, ProductInformation> productInfoDtoMap =
+        infoDtos.stream().collect(Collectors.toMap(ProductInformation::getProductId, dto -> dto));
     Map<String, OrderDeliveryProduct> orderProductMap =
         orderDeliveryProducts.stream().collect(Collectors.toMap(OrderDeliveryProduct::getProductId, dto -> dto));
 
@@ -42,7 +42,7 @@ public class OrderDeliveryDetailsDto {
           OrderDeliveryDetailsDto.builder()
               .orderProductId(orderProductMap.get(productId).getOrderProductId())
               .productId(productId)
-              .thumbnailImage(productInfoDtoMap.get(productId).getProductThumbnailImage())
+              .thumbnailImage(productInfoDtoMap.get(productId).getProductThumbnail())
               .name(productInfoDtoMap.get(productId).getProductName())
               .price(orderProductMap.get(productId).getOrderProductPrice())
               .quantity(orderProductMap.get(productId).getOrderProductQuantity())

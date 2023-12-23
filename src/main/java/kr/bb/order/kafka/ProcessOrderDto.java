@@ -1,10 +1,10 @@
 package kr.bb.order.kafka;
 
+import bloomingblooms.domain.order.OrderInfoByStore;
+import bloomingblooms.domain.order.ProductCreate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
-import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
 import lombok.AllArgsConstructor;

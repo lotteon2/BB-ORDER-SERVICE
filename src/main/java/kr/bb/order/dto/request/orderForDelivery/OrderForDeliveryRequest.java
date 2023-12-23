@@ -1,5 +1,6 @@
 package kr.bb.order.dto.request.orderForDelivery;
 
+import bloomingblooms.domain.order.OrderInfoByStore;
 import java.util.List;
 import javax.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;

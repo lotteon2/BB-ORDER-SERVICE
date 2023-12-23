@@ -1,5 +1,13 @@
 package kr.bb.order.service;
 
+import bloomingblooms.domain.delivery.DeliveryInsertDto;
+import bloomingblooms.domain.order.OrderInfoByStore;
+import bloomingblooms.domain.order.ProductCreate;
+import bloomingblooms.domain.order.ValidatePriceDto;
+import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
+import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
+import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
+import bloomingblooms.domain.product.IsProductPriceValid;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -11,16 +19,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
-import kr.bb.order.dto.request.delivery.DeliveryInsertRequestDto;
+import kr.bb.order.dto.request.delivery.DeliveryInsertDtoManager;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
-import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
-import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
+import kr.bb.order.dto.request.orderForDelivery.ProductCreateManager;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
-import kr.bb.order.dto.request.payment.KakaopayApproveRequestDto;
-import kr.bb.order.dto.request.payment.KakaopayReadyRequestDto;
-import kr.bb.order.dto.request.product.PriceCheckDto;
-import kr.bb.order.dto.request.store.CouponAndDeliveryCheckDto;
-import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
+import kr.bb.order.dto.request.payment.KakaopayApproveRequestDtoManager;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.OrderType;
@@ -80,11 +83,11 @@ public class OrderService {
     // 결제금액, 재고유무, 쿠폰유효유무 feign을 통해 확인하기
 
     // product-service로 가격 유효성 확인하기
-    List<PriceCheckDto> priceCheckDtos = createPriceCheckDto(requestDto.getOrderInfoByStores());
+    List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(requestDto.getOrderInfoByStores());
         productServiceClient.validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
-    List<CouponAndDeliveryCheckDto> couponAndDeliveryCheckDtos =
+    List<ValidatePriceDto> couponAndDeliveryCheckDtos =
         createCouponAndDeliveryCheckDto(requestDto.getOrderInfoByStores());
         storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos);
 
@@ -137,13 +140,13 @@ public class OrderService {
     orderInfoByStores.add(orderInfoByStore);
 
     // product-service로 가격 유효성 확인하기
-    List<PriceCheckDto> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
+    List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
     productServiceClient.validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
-    List<CouponAndDeliveryCheckDto> couponAndDeliveryCheckDtos =
+    List<ValidatePriceDto> validatePriceDtos =
         createCouponAndDeliveryCheckDto(orderInfoByStores);
-    storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos);
+    storeServiceClient.validatePurchaseDetails(validatePriceDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
@@ -227,7 +230,7 @@ public class OrderService {
   @Transactional
   public void processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo) {
     // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
-    List<DeliveryInsertRequestDto> dtoList = DeliveryInsertRequestDto.toDto(orderInfo);
+    List<DeliveryInsertDto> dtoList = DeliveryInsertDtoManager.toDto(orderInfo);
     List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
 
     OrderGroup orderGroup =
@@ -255,7 +258,7 @@ public class OrderService {
       List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
       for (OrderInfoByStore orderInfoByStore : orderInfo.getOrderInfoByStores()) {
         for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
-          OrderDeliveryProduct orderDeliveryProduct = ProductCreate.toEntity(productCreate);
+          OrderDeliveryProduct orderDeliveryProduct = ProductCreateManager.toEntity(productCreate);
           // 연관관계 매핑 : 편의 메서드 적용
           orderDeliveryProduct.setOrderDelivery(orderDelivery);
           orderDeliveryProducts.add(orderDeliveryProduct);
@@ -280,7 +283,7 @@ public class OrderService {
 
     // payment-service 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
-        KakaopayApproveRequestDto.toDto(orderInfo, orderInfo.getOrderType());
+        KakaopayApproveRequestDtoManager.toDto(orderInfo, orderInfo.getOrderType());
     paymentServiceClient.approve(approveRequestDto).getData();
   }
 
@@ -289,6 +292,9 @@ public class OrderService {
   public void processOrderPickup(ProcessOrderDto processOrderDto, PickupOrderInfo pickupOrderInfo) {
     LocalDateTime localDateTime =
         parseDateTime(pickupOrderInfo.getPickupDate(), pickupOrderInfo.getPickupTime());
+
+    // TODO: kafka 로 order-query로 보내주기
+
 
     OrderPickup orderPickup =
         OrderPickup.builder()
@@ -333,24 +339,24 @@ public class OrderService {
     return LocalDateTime.of(date, time);
   }
 
-  public List<PriceCheckDto> createPriceCheckDto(List<OrderInfoByStore> orderInfoByStores) {
-    List<PriceCheckDto> list = new ArrayList<>();
-    for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
-      for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
+  public List<IsProductPriceValid> createPriceCheckDto(List<bloomingblooms.domain.order.OrderInfoByStore> orderInfoByStores) {
+    List<IsProductPriceValid> list = new ArrayList<>();
+    for (bloomingblooms.domain.order.OrderInfoByStore orderInfoByStore : orderInfoByStores) {
+      for (bloomingblooms.domain.order.ProductCreate productCreate : orderInfoByStore.getProducts()) {
         String productId = productCreate.getProductId();
         Long price = productCreate.getPrice();
-        PriceCheckDto dto = PriceCheckDto.toDto(productId, price);
+        IsProductPriceValid dto = IsProductPriceValid.toDto(productId, price);
         list.add(dto);
       }
     }
     return list;
   }
 
-  public List<CouponAndDeliveryCheckDto> createCouponAndDeliveryCheckDto(
+  public List<ValidatePriceDto> createCouponAndDeliveryCheckDto(
       List<OrderInfoByStore> orderInfoByStores) {
-    List<CouponAndDeliveryCheckDto> list = new ArrayList<>();
+    List<ValidatePriceDto> list = new ArrayList<>();
     for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
-      CouponAndDeliveryCheckDto dto = CouponAndDeliveryCheckDto.toDto(orderInfoByStore);
+      ValidatePriceDto dto = ValidatePriceDto.toDto(orderInfoByStore);
       list.add(dto);
     }
     return list;

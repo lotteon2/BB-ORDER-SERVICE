@@ -1,11 +1,11 @@
 package kr.bb.order.feign;
 
+import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
+import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
+import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
+import bloomingblooms.domain.payment.PaymentInfoDto;
 import bloomingblooms.response.CommonResponse;
 import java.util.List;
-import kr.bb.order.dto.request.payment.PaymentInfoDto;
-import kr.bb.order.dto.request.payment.KakaopayApproveRequestDto;
-import kr.bb.order.dto.request.payment.KakaopayReadyRequestDto;
-import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;

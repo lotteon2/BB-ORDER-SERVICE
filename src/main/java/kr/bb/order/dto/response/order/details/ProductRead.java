@@ -1,7 +1,7 @@
 package kr.bb.order.dto.response.order.details;
 
+import bloomingblooms.domain.product.ProductInformation;
 import java.util.Map;
-import kr.bb.order.dto.request.product.ProductInfoDto;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,14 +22,14 @@ public class ProductRead {
   private String cardStatus;
 
   public static ProductRead toDto(
-      OrderDeliveryProduct orderDeliveryProduct, Map<String, ProductInfoDto> productInfoDtoMap) {
-    ProductInfoDto productInfoDto = productInfoDtoMap.get(orderDeliveryProduct.getProductId());
+      OrderDeliveryProduct orderDeliveryProduct, Map<String, ProductInformation> productInfoDtoMap) {
+    ProductInformation productInformation = productInfoDtoMap.get(orderDeliveryProduct.getProductId());
 
     return ProductRead.builder()
         .orderProductId(orderDeliveryProduct.getOrderProductId())
         .productId(orderDeliveryProduct.getProductId())
-        .thumbnailImage(productInfoDto.getProductThumbnailImage())
-        .name(productInfoDto.getProductName())
+        .thumbnailImage(productInformation.getProductThumbnail())
+        .name(productInformation.getProductName())
         .price(orderDeliveryProduct.getOrderProductPrice())
         .quantity(orderDeliveryProduct.getOrderProductQuantity())
         .totalAmount(

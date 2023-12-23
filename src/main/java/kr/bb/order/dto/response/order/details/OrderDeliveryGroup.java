@@ -1,7 +1,7 @@
 package kr.bb.order.dto.response.order.details;
 
 import java.util.List;
-import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

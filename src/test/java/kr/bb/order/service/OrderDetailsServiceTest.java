@@ -1,19 +1,19 @@
 package kr.bb.order.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import bloomingblooms.response.CommonResponse;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import kr.bb.order.dto.request.product.ProductInfoDto;
-import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.product.ProductInformation;
+import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
@@ -42,9 +42,9 @@ public class OrderDetailsServiceTest {
   void getOrderDetailsForUser() {
     String orderGroupId = "그룹주문id";
 
-    List<ProductInfoDto> productInfoDtos = createProductInfoList();
+    List<ProductInformation> productInformations = createProductInfoList();
     when(productServiceClient.getProductInfo(any()))
-        .thenReturn(CommonResponse.success(productInfoDtos));
+        .thenReturn(CommonResponse.success(productInformations));
 
     Map<Long, String> storeNameMap = createStoreNameMap();
     when(storeServiceClient.getStoreName(any())).thenReturn(CommonResponse.success(storeNameMap));
@@ -92,21 +92,21 @@ public class OrderDetailsServiceTest {
     return map;
   }
 
-  List<ProductInfoDto> createProductInfoList() {
-    List<ProductInfoDto> productInfoDtos = new ArrayList<>();
-    productInfoDtos.add(
-        ProductInfoDto.builder()
+  List<ProductInformation> createProductInfoList() {
+    List<ProductInformation> productInformations = new ArrayList<>();
+    productInformations.add(
+        ProductInformation.builder()
             .productId("꽃id-1")
             .productName("꽃이름-1")
-            .productThumbnailImage("썸네일url-1")
+            .productThumbnail("썸네일url-1")
             .build());
-    productInfoDtos.add(
-        ProductInfoDto.builder()
+    productInformations.add(
+        ProductInformation.builder()
             .productId("꽃id-2")
             .productName("꽃이름-2")
-            .productThumbnailImage("썸네일url-2")
+            .productThumbnail("썸네일url-2")
             .build());
-    return productInfoDtos;
+    return productInformations;
   }
 
   @Test
@@ -114,9 +114,9 @@ public class OrderDetailsServiceTest {
   void getOrderDetailsForSeller() {
     String orderDeliveryId = "가게주문id";
 
-    List<ProductInfoDto> productInfoDtos = createProductInfoList();
+    List<ProductInformation> productInformations = createProductInfoList();
     when(productServiceClient.getProductInfo(any()))
-        .thenReturn(CommonResponse.success(productInfoDtos));
+        .thenReturn(CommonResponse.success(productInformations));
 
     Map<Long, String> storeNameMap = createStoreNameMap();
     when(storeServiceClient.getStoreName(any())).thenReturn(CommonResponse.success(storeNameMap));
@@ -143,7 +143,7 @@ public class OrderDetailsServiceTest {
 
     assertThat(weeklySalesInfo)
         .extracting("categories", "data")
-        .contains(Arrays.asList("2023-12-16", "2023-12-17", "2023-12-18", "2023-12-20"),
+        .contains(Arrays.asList((LocalDate.now().minusDays(4).toString()), (LocalDate.now().minusDays(3).toString()), (LocalDate.now().minusDays(2).toString()), (LocalDate.now().minusDays(1).toString())),
                     Arrays.asList(39800L, 39800L, 39800L, 39800L));
   }
 }
