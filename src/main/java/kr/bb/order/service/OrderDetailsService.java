@@ -1,5 +1,6 @@
 package kr.bb.order.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -7,8 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
-import kr.bb.order.dto.request.product.ProductInfoDto;
-import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.product.ProductInformation;
+import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStore;
@@ -47,11 +48,11 @@ public class OrderDetailsService {
                     orderDelivery.getOrderDeliveryProducts().stream()
                         .map(OrderDeliveryProduct::getProductId))
             .collect(Collectors.toList());
-    List<ProductInfoDto> productInfoDtos =
+    List<ProductInformation> productInformations =
         productServiceClient.getProductInfo(productIds).getData();
-    Map<String, ProductInfoDto> productInfoDtoMap =
-        productInfoDtos.stream()
-            .collect(Collectors.toMap(ProductInfoDto::getProductId, dto -> dto));
+    Map<String, ProductInformation> productInfoDtoMap =
+        productInformations.stream()
+            .collect(Collectors.toMap(ProductInformation::getProductId, dto -> dto));
 
     List<Long> storeIds =
         orderDeliveryList.stream().map(OrderDelivery::getStoreId).collect(Collectors.toList());
@@ -91,11 +92,11 @@ public class OrderDetailsService {
         orderDelivery.getOrderDeliveryProducts().stream()
             .map(OrderDeliveryProduct::getProductId)
             .collect(Collectors.toList());
-    List<ProductInfoDto> productInfoDtos =
+    List<ProductInformation> productInformations =
         productServiceClient.getProductInfo(productIds).getData();
-    Map<String, ProductInfoDto> productInfoDtoMap =
-        productInfoDtos.stream()
-            .collect(Collectors.toMap(ProductInfoDto::getProductId, dto -> dto));
+    Map<String, ProductInformation> productInfoDtoMap =
+        productInformations.stream()
+            .collect(Collectors.toMap(ProductInformation::getProductId, dto -> dto));
 
     List<Long> storeIds = new ArrayList<>();
     storeIds.add(orderDelivery.getStoreId());

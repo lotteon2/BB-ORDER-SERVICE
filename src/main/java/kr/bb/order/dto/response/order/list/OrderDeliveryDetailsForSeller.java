@@ -1,7 +1,7 @@
 package kr.bb.order.dto.response.order.list;
 
 import java.util.Map;
-import kr.bb.order.dto.request.product.ProductInfoDto;
+import bloomingblooms.domain.product.ProductInformation;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,13 +20,13 @@ public class OrderDeliveryDetailsForSeller {
   private Long paymentAmount;
 
   public static OrderDeliveryDetailsForSeller toDto(
-      OrderDeliveryProduct orderDeliveryProduct, Map<String, ProductInfoDto> productIdMap) {
-    ProductInfoDto productInfoDto = productIdMap.get(orderDeliveryProduct.getProductId());
+      OrderDeliveryProduct orderDeliveryProduct, Map<String, ProductInformation> productIdMap) {
+    ProductInformation productInformation = productIdMap.get(orderDeliveryProduct.getProductId());
     return OrderDeliveryDetailsForSeller.builder()
         .key(orderDeliveryProduct.getOrderProductId())
         .productId(orderDeliveryProduct.getProductId())
-        .thumbnailImage(productInfoDto.getProductThumbnailImage())
-        .name(productInfoDto.getProductName())
+        .thumbnailImage(productInformation.getProductThumbnail())
+        .name(productInformation.getProductName())
         .price(orderDeliveryProduct.getOrderProductPrice())
         .quantity(orderDeliveryProduct.getOrderProductQuantity())
         .paymentAmount(

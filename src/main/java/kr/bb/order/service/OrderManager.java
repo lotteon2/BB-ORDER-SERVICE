@@ -1,8 +1,8 @@
 package kr.bb.order.service;
 
+import bloomingblooms.domain.order.OrderInfoByStore;
+import bloomingblooms.domain.order.ProductCreate;
 import java.util.List;
-import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
-import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.exception.InvalidOrderAmountException;
 import org.springframework.stereotype.Component;
 

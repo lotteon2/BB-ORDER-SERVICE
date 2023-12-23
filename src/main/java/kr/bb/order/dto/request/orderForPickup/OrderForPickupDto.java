@@ -1,8 +1,6 @@
 package kr.bb.order.dto.request.orderForPickup;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
+import bloomingblooms.domain.order.ProductCreate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

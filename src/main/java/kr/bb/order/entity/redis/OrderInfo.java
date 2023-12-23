@@ -1,10 +1,10 @@
 package kr.bb.order.entity.redis;
 
+import bloomingblooms.domain.order.OrderInfoByStore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import javax.persistence.Id;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
-import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.common.BaseEntity;
 import lombok.AllArgsConstructor;

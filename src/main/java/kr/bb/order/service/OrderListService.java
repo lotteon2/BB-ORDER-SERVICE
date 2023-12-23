@@ -1,12 +1,12 @@
 package kr.bb.order.service;
 
+import bloomingblooms.domain.payment.PaymentInfoDto;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import kr.bb.order.dto.request.payment.PaymentInfoDto;
-import kr.bb.order.dto.request.product.ProductInfoDto;
-import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.product.ProductInformation;
+import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryDetailsForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryGroupDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryInfoForSeller;
@@ -52,8 +52,9 @@ public class OrderListService {
             .collect(Collectors.toList());
 
     List<String> productIds = getProductIds(orderGroupsList);
-    List<ProductInfoDto> productInfo = productServiceClient.getProductInfo(productIds).getData();
-    Map<String, ProductInfoDto> productInfoDtoMap = productInfo.stream().collect(Collectors.toMap(ProductInfoDto::getProductId, productInfoDto -> productInfoDto));
+    List<ProductInformation> productInfo = productServiceClient.getProductInfo(productIds).getData();
+    Map<String, ProductInformation> productInfoDtoMap = productInfo.stream().collect(Collectors.toMap(
+            ProductInformation::getProductId, productInfoDto -> productInfoDto));
 
     List<String> orderGroupIds = getOrderGroupIds(orderGroupsList);
     List<PaymentInfoDto> paymentInfo = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
@@ -87,9 +88,9 @@ public class OrderListService {
     // product, payment, delivery-service feign 요청
     List<String> productIds = orderDeliveriesPerPage.getContent().stream().flatMap(orderDelivery -> orderDelivery.getOrderDeliveryProducts().stream()).map(OrderDeliveryProduct::getProductId).collect(
             Collectors.toList());
-    List<ProductInfoDto> productInfoDto = productServiceClient.getProductInfo(productIds).getData();
-    Map<String, ProductInfoDto> productIdMap = productInfoDto.stream()
-            .collect(Collectors.toMap(ProductInfoDto::getProductId, dto -> dto));
+    List<ProductInformation> productInformation = productServiceClient.getProductInfo(productIds).getData();
+    Map<String, ProductInformation> productIdMap = productInformation.stream()
+            .collect(Collectors.toMap(ProductInformation::getProductId, dto -> dto));
 
     List<PaymentInfoDto> paymentInfo = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
     Map<String, PaymentInfoDto> paymentInfoMap = paymentInfo.stream().collect(Collectors.toMap(PaymentInfoDto::getOrderGroupId, dto->dto));
