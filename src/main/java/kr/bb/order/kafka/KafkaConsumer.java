@@ -1,7 +1,6 @@
 package kr.bb.order.kafka;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import bloomingblooms.domain.order.ProcessOrderDto;
 import kr.bb.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -9,35 +8,26 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class KafkaConsumer {
-  private final ObjectMapper objectMapper;
+public class KafkaConsumer<T> {
   private final OrderService orderService;
-  private final KafkaProducer kafkaProducer;
+  private final KafkaProducer<ProcessOrderDto> kafkaProducer;
 
   @KafkaListener(topics = "order-create")
-  public void processOrder(String message) {
+  public void processOrder(ProcessOrderDto processOrderDto ) {
     try {
-      ProcessOrderDto processOrderDto = objectMapper.readValue(message, ProcessOrderDto.class);
-      try {
-        orderService.processOrder(processOrderDto);
-      } catch (Exception e) {
-        // TODO : SQS & 문자로 주문 실패 알려주기 (주문&결제 실패시)
-        //
-        kafkaProducer.rollbackOrder(processOrderDto);
-        throw e;
-      }
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
+      orderService.processOrder(processOrderDto);
+    } catch (Exception e) {
+      // TODO : SQS & 문자로 주문 실패 알려주기 (주문&결제 실패시)
+
+
+      // Kafka로 롤백 보상 패턴 실행
+      kafkaProducer.send("order-create-rollback", processOrderDto);
+      throw e;
     }
   }
 
   @KafkaListener(topics = "order-delivery-status")
-  public void updateOrderDeliveryStatus(String message) {
-    try {
-      UpdateOrderStatusDto updateOrderStatusDto = objectMapper.readValue(message, UpdateOrderStatusDto.class);
+  public void updateOrderDeliveryStatus(UpdateOrderStatusDto updateOrderStatusDto) {
       orderService.updateStatus(updateOrderStatusDto);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
   }
 }

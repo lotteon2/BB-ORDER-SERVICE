@@ -2,11 +2,13 @@ package kr.bb.order.service;
 
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.order.OrderInfoByStore;
+import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
 import bloomingblooms.domain.order.ValidatePriceDto;
 import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
+import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.product.IsProductPriceValid;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,11 +21,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
-import kr.bb.order.mapper.OrderDeliveryMapper;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
-import kr.bb.order.mapper.OrderProductMapper;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
-import kr.bb.order.mapper.KakaopayMapper;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.OrderType;
@@ -39,8 +38,10 @@ import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.kafka.KafkaProducer;
-import kr.bb.order.kafka.ProcessOrderDto;
 import kr.bb.order.kafka.UpdateOrderStatusDto;
+import kr.bb.order.mapper.KakaopayMapper;
+import kr.bb.order.mapper.OrderCommonMapper;
+import kr.bb.order.mapper.OrderProductMapper;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
 import kr.bb.order.repository.OrderPickupRepository;
@@ -64,7 +65,9 @@ public class OrderService {
   private final OrderManager orderManager;
   private final OrderDeliveryRepository orderDeliveryRepository;
   private final DeliveryServiceClient deliveryServiceClient;
-  private final KafkaProducer kafkaProducer;
+  private final KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
+  private final KafkaProducer<Map<Long, String>> cartItemDeleteKafkaProducer;
+  private final KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   private final OrderUtil orderUtil;
   private final OrderProductRepository orderProductRepository;
   private final OrderGroupRepository orderGroupRepository;
@@ -72,7 +75,7 @@ public class OrderService {
   private OrderService orderService;
 
   @Autowired
-  public void setOrderService(OrderService orderService ){
+  public void setOrderService(OrderService orderService) {
     this.orderService = orderService;
   }
 
@@ -83,13 +86,14 @@ public class OrderService {
     // 결제금액, 재고유무, 쿠폰유효유무 feign을 통해 확인하기
 
     // product-service로 가격 유효성 확인하기
-    List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(requestDto.getOrderInfoByStores());
-        productServiceClient.validatePrice(priceCheckDtos);
+    List<IsProductPriceValid> priceCheckDtos =
+        createPriceCheckDto(requestDto.getOrderInfoByStores());
+    productServiceClient.validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> couponAndDeliveryCheckDtos =
         createCouponAndDeliveryCheckDto(requestDto.getOrderInfoByStores());
-        storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos);
+    storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(
@@ -144,8 +148,7 @@ public class OrderService {
     productServiceClient.validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
-    List<ValidatePriceDto> validatePriceDtos =
-        createCouponAndDeliveryCheckDto(orderInfoByStores);
+    List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
     storeServiceClient.validatePurchaseDetails(validatePriceDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
@@ -193,8 +196,8 @@ public class OrderService {
       redisTemplate.expire(orderId, 5, TimeUnit.MINUTES);
 
       ProcessOrderDto processOrderDto =
-          ProcessOrderDto.toDtoForOrderDelivery(orderId, orderType, orderInfo);
-      kafkaProducer.requestOrder(processOrderDto);
+          OrderCommonMapper.toProcessOrderDto(orderId, orderType, orderInfo);
+      processOrderDtoKafkaProducer.send("coupon-use", processOrderDto);
     } else if (orderType.equals(OrderType.ORDER_PICKUP.toString())) {
       PickupOrderInfo pickupOrderInfo = redisTemplateForPickup.opsForValue().get(orderId);
       if (pickupOrderInfo == null) throw new PaymentExpiredException();
@@ -204,15 +207,16 @@ public class OrderService {
       redisTemplateForPickup.expire(orderId, 5, TimeUnit.MINUTES);
 
       ProcessOrderDto processOrderDto =
-          ProcessOrderDto.toDtoForOrderPickup(orderId, pickupOrderInfo);
-      kafkaProducer.requestOrder((processOrderDto));
+          OrderCommonMapper.toDtoForOrderPickup(orderId, pickupOrderInfo);
+      processOrderDtoKafkaProducer.send("coupon-use", processOrderDto);
     }
   }
 
   //  주문 저장하기
   public void processOrder(ProcessOrderDto processOrderDto) {
     String orderType = processOrderDto.getOrderType();
-    if (orderType.equals(OrderType.ORDER_DELIVERY.toString()) || orderType.equals(OrderType.ORDER_CART.toString())) {
+    if (orderType.equals(OrderType.ORDER_DELIVERY.toString())
+        || orderType.equals(OrderType.ORDER_CART.toString())) {
       OrderInfo orderInfo = redisTemplate.opsForValue().get(processOrderDto.getOrderId());
       if (orderInfo == null) throw new PaymentExpiredException();
       // 자기자신을 주입받아 호출하여 내부호출 해결
@@ -224,14 +228,21 @@ public class OrderService {
       // 자기자신을 주입받아 호출하여 내부호출 해결
       orderService.processOrderPickup(processOrderDto, pickupOrderInfo);
     }
+
+    // TODO: SQS로 신규 주문 발생 알림 보내기 (가게 사장님에게)
+
   }
 
   // (바로주문, 장바구니) 주문 저장하기
   @Transactional
   public void processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo) {
     // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
-    List<DeliveryInsertDto> dtoList = OrderDeliveryMapper.toDto(orderInfo);
+    List<DeliveryInsertDto> dtoList = OrderCommonMapper.toDto(orderInfo);
     List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
+
+    // payment-service 결제 승인 요청
+    KakaopayApproveRequestDto approveRequestDto = KakaopayMapper.toDtoFromOrderInfo(orderInfo);
+    paymentServiceClient.approve(approveRequestDto).getData();
 
     OrderGroup orderGroup =
         OrderGroup.builder()
@@ -274,27 +285,25 @@ public class OrderService {
               .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())
               .map(ProductCreate::getProductId)
               .collect(Collectors.toList());
-      Map<Long, String> productIdMap = new HashMap<>();
+      Map<Long, String> userIdToProductIdMap = new HashMap<>();
       for (String productId : productIds) {
-        productIdMap.put(orderInfo.getUserId(), productId);
+        userIdToProductIdMap.put(orderInfo.getUserId(), productId);
       }
-      kafkaProducer.deleteFromCart(productIdMap);
+      cartItemDeleteKafkaProducer.send("delete-from-cart", userIdToProductIdMap);
     }
-
-    // payment-service 결제 승인 요청
-    KakaopayApproveRequestDto approveRequestDto =
-        KakaopayMapper.toDto(orderInfo, orderInfo.getOrderType());
-    paymentServiceClient.approve(approveRequestDto).getData();
   }
 
   // (픽업주문) 주문 저장하기
   @Transactional
   public void processOrderPickup(ProcessOrderDto processOrderDto, PickupOrderInfo pickupOrderInfo) {
-    LocalDateTime localDateTime =
+
+    // payment-service 결제 승인 요청
+    KakaopayApproveRequestDto approveRequestDto =
+        KakaopayMapper.toDtoFromPickupOrderInfo(pickupOrderInfo);
+    LocalDateTime paymentDateTime = paymentServiceClient.approve(approveRequestDto).getData();
+
+    LocalDateTime pickupDateTime =
         parseDateTime(pickupOrderInfo.getPickupDate(), pickupOrderInfo.getPickupTime());
-
-    // TODO: kafka 로 order-query로 보내주기
-
 
     OrderPickup orderPickup =
         OrderPickup.builder()
@@ -302,7 +311,7 @@ public class OrderService {
             .userId(pickupOrderInfo.getUserId())
             .orderPickupTotalAmount(pickupOrderInfo.getTotalAmount())
             .orderPickupCouponAmount(pickupOrderInfo.getCouponAmount())
-            .orderPickupDatetime(localDateTime)
+            .orderPickupDatetime(pickupDateTime)
             .build();
 
     OrderPickupProduct orderPickupProduct =
@@ -314,6 +323,11 @@ public class OrderService {
 
     orderPickupProduct.setOrderPickup(orderPickup);
     orderPickupRepository.save(orderPickup);
+
+    // order-query 서비스로 픽업 주문 Kafka send
+    PickupCreateDto pickupCreateDto =
+        OrderCommonMapper.toPickupCreateDto(pickupOrderInfo, paymentDateTime, orderPickupProduct);
+    pickupCreateDtoKafkaProducer.send("pickup-create", pickupCreateDto);
   }
 
   public void updateStatus(UpdateOrderStatusDto statusDto) {
@@ -339,10 +353,10 @@ public class OrderService {
     return LocalDateTime.of(date, time);
   }
 
-  public List<IsProductPriceValid> createPriceCheckDto(List<bloomingblooms.domain.order.OrderInfoByStore> orderInfoByStores) {
+  public List<IsProductPriceValid> createPriceCheckDto(List<OrderInfoByStore> orderInfoByStores) {
     List<IsProductPriceValid> list = new ArrayList<>();
     for (bloomingblooms.domain.order.OrderInfoByStore orderInfoByStore : orderInfoByStores) {
-      for (bloomingblooms.domain.order.ProductCreate productCreate : orderInfoByStore.getProducts()) {
+      for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
         String productId = productCreate.getProductId();
         Long price = productCreate.getPrice();
         IsProductPriceValid dto = IsProductPriceValid.toDto(productId, price);

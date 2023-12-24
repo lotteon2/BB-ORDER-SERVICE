@@ -5,6 +5,7 @@ import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.payment.PaymentInfoDto;
 import bloomingblooms.response.CommonResponse;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +19,7 @@ public interface PaymentServiceClient {
   CommonResponse<KakaopayReadyResponseDto> ready(@RequestBody KakaopayReadyRequestDto readyRequestDto);
 
   @PostMapping(value = "/client/approve")
-  CommonResponse<Void> approve(@RequestBody KakaopayApproveRequestDto approveRequestDto);
+  CommonResponse<LocalDateTime> approve(@RequestBody KakaopayApproveRequestDto approveRequestDto);
 
   @GetMapping(value = "/client/paymentInfo")
   CommonResponse<List<PaymentInfoDto>> getPaymentInfo(@RequestParam List<String> orderGroupIds);
