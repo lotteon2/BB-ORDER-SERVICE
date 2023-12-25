@@ -6,6 +6,7 @@ import kr.bb.order.dto.response.settlement.SettlementDto;
 import kr.bb.order.entity.settlement.Settlement;
 import kr.bb.order.repository.settlement.SettlementJpaRepository;
 import kr.bb.order.repository.settlement.SettlementSpecification;
+import kr.bb.order.util.SettlementMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,19 +30,9 @@ public class GetSettlementService {
   public List<SettlementDto> getSettlement(Long storeId, Integer year, Integer month, int page,
       int size) {
     Page<Settlement> settlementPage = getFilteredSettlements(storeId, year, month, page, size);
-    return convertToDto(settlementPage);
+    return SettlementMapper.pageSettlementToDtoList(settlementPage);
   }
 
 
-  private List<SettlementDto> convertToDto(Page<Settlement> settlements) {
-    return settlements.map(settlement -> SettlementDto.builder()
-            .key(settlement.getSettlementId())
-            .storeName(settlement.getStoreName())
-            .settlementDate(settlement.getSettlementDate())
-            .settlementAmount(settlement.getSettlementAmount())
-            .bankName(settlement.getBankName())
-            .accountNumber(settlement.getAccountNumber())
-            .build())
-        .toList();
-  }
+
 }

@@ -27,14 +27,14 @@ public static Specification<Settlement> filterSettlements(Long storeId, Integer 
                 LocalDateTime endDateTime = startDateTime.plusMonths(1).minusSeconds(1);
 
                 predicate = criteriaBuilder.and(predicate,
-                        criteriaBuilder.between(root.get("createdAt"), startDateTime, endDateTime)
+                        criteriaBuilder.between(root.get("settlementDate"), startDateTime, endDateTime)
                 );
             } else {
                 LocalDateTime startDateTime = LocalDateTime.of(year, 1, 1, 0, 0);
                 LocalDateTime endDateTime = startDateTime.plusYears(1).minusSeconds(1);
 
                 predicate = criteriaBuilder.and(predicate,
-                        criteriaBuilder.between(root.get("createdAt"), startDateTime, endDateTime)
+                        criteriaBuilder.between(root.get("settlementDate"), startDateTime, endDateTime)
                 );
             }
         }
