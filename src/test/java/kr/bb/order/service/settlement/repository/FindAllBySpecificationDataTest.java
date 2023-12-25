@@ -115,21 +115,23 @@ class FindAllBySpecificationDataTest {
   }
 
 
-  @DisplayName("월만 입력되어있을 때 전체 받기")
+  @DisplayName("월만 입력되어있을 때 해당 월에 해당 되는 년도 데이터 모두 받기")
   @Test
-  void GetDataAllData_WhenSpecificationOnlyMonth_GetAllData()
-       {
+  void GetDataAllData_WhenSpecificationOnlyMonth_GetAllData() {
     createSettlement(1L, LocalDateTime.of(2023, 11, 15, 12, 30), 1500L);
     createSettlement(2L, LocalDateTime.of(2022, 2, 10, 9, 0), 2000L);
-    createSettlement(3L, LocalDateTime.of(2022, 12, 5, 9, 0), 2000L);
+    createSettlement(3L, LocalDateTime.of(2021, 2, 5, 9, 0), 2000L);
+    createSettlement(4L, LocalDateTime.of(2020, 2, 5, 9, 0), 2000L);
+    createSettlement(5L, LocalDateTime.of(2019, 2, 5, 9, 0), 2000L);
+    createSettlement(5L, LocalDateTime.of(2018, 2, 5, 9, 0), 2000L);
 
     Specification<Settlement> storeIdWithYearSpecification = SettlementSpecification.filterSettlements(
-        null, null, 12);
+        null, null, 2);
 
     Page<Settlement> result = repository.findAll(storeIdWithYearSpecification,
         PageRequest.of(0, 10));
 
-    assertEquals(3L, result.getTotalElements());
+    assertEquals(5L, result.getTotalElements());
   }
 
   @DisplayName("Specification 아무것도 없을 때 전체 데이터 받기")
