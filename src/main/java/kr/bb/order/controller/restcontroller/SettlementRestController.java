@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RequiredArgsConstructor
 @RestController
-public class SettlementController {
+public class SettlementRestController {
 
   private final SettlementService settlementService;
   private final GetStoreInfoFeignRequestFacade storeInfoFeignRequest;

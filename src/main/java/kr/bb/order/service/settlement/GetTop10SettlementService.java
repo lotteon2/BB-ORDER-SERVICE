@@ -1,16 +1,11 @@
 package kr.bb.order.service.settlement;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-import kr.bb.order.dto.response.settlement.BestSettlementDto;
 import kr.bb.order.dto.response.settlement.LastMonthTop10SalesResponse;
 import kr.bb.order.entity.settlement.Settlement;
 import kr.bb.order.repository.settlement.SettlementJpaRepository;
 import kr.bb.order.util.SettlementMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
