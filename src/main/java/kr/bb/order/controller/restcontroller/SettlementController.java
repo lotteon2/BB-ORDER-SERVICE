@@ -7,7 +7,7 @@ import kr.bb.order.dto.request.store.StoreDto;
 import kr.bb.order.dto.response.settlement.SettlementDto;
 import kr.bb.order.dto.response.settlement.SettlementResponse;
 import kr.bb.order.dto.response.settlement.LastMonthTop10SalesResponse;
-import kr.bb.order.service.SettlementService;
+import kr.bb.order.service.settlement.SettlementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,7 +32,7 @@ public class SettlementController {
         pageable.getPageSize(),
         pageable.getPageSize());
 
-    List<StoreDto> storeDtoList = storeInfoFeignRequest.handleFeign(year, month, storeId);
+    List<StoreDto> storeDtoList = storeInfoFeignRequest.handleFeign(storeId);
 
     return CommonResponse.success(
         SettlementResponse.builder().totalCnt(settlementDtoList.size()).month(month).year(year)
@@ -43,7 +43,7 @@ public class SettlementController {
 
   @GetMapping("/admin/sales")
   public CommonResponse<LastMonthTop10SalesResponse> getSalesTop10() {
-    return null;
+    return CommonResponse.success(settlementService.getTop10());
   }
 
 

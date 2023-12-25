@@ -21,6 +21,3 @@ logging:
         SQL: DEBUG
 
 
-service:
-  store:
-     domain: http://localhost:8700

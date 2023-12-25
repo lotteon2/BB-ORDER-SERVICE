@@ -1,10 +1,7 @@
-package kr.bb.order.service;
+package kr.bb.order.service.settlement;
 
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import kr.bb.order.dto.response.settlement.LastMonthTop10SalesResponse;
 import kr.bb.order.dto.response.settlement.SettlementDto;
 import kr.bb.order.entity.settlement.Settlement;
 import kr.bb.order.repository.settlement.SettlementJpaRepository;
@@ -12,13 +9,12 @@ import kr.bb.order.repository.settlement.SettlementSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
+@Service
 @RequiredArgsConstructor
-@Component
-public class SettlementService {
+public class GetSettlementService {
 
   private final SettlementJpaRepository repository;
 
@@ -36,15 +32,6 @@ public class SettlementService {
     return convertToDto(settlementPage);
   }
 
-  public List<LastMonthTop10SalesResponse> getTop10() {
-    Pageable pageable = PageRequest.of(0, 10);
-    List<Settlement> settlementList = repository.findTop10ByOrderBySettlementAmountDesc(pageable);
-    return ;
-  }
-
-
-  private List<LastMonthTop10SalesResponse> convertToDto(List<Settlement> settlementList){
-  }
 
   private List<SettlementDto> convertToDto(Page<Settlement> settlements) {
     return settlements.map(settlement -> SettlementDto.builder()
@@ -57,6 +44,4 @@ public class SettlementService {
             .build())
         .toList();
   }
-
-
 }

@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(value = "get-all-store-info", url = "${service.store.domain}")
+@FeignClient(value = "get-all-store-info", url = "${endpoint.store-service}")
 public interface GetStoreInfoFeignRequest {
 
   @GetMapping("/client/stores/{storeId}")
