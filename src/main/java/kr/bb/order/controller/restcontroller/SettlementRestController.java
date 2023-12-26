@@ -23,8 +23,8 @@ public class SettlementRestController {
 
   @GetMapping("/admin/settlement")
   public CommonResponse<SettlementResponse> getSettlements(
-      @RequestParam(required = false) int year,
-      @RequestParam(required = false) int month,
+      @RequestParam(required = false) Integer year,
+      @RequestParam(required = false) Integer month,
       @RequestParam(required = false) Long storeId,
       @RequestParam(required = false) String sido,
       @RequestParam(required = false) String gugun,
