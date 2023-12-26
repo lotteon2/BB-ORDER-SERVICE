@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.data.domain.PageRequest;
 
 @DataJpaTest
 class GetTop10SettlementServiceRepositoryTest {
@@ -42,9 +43,11 @@ class GetTop10SettlementServiceRepositoryTest {
     createSettlement(8L, LocalDateTime.of(2023, 11, 15, 12, 30), 2200L);
     createSettlement(9L, LocalDateTime.of(2023, 11, 15, 12, 30), 2300L);
     createSettlement(10L, LocalDateTime.of(2023, 11, 15, 12, 30), 2400L);
+    createSettlement(11L, LocalDateTime.of(2023, 11, 15, 12, 30), 2660L);
+    createSettlement(12L, LocalDateTime.of(2023, 11, 15, 12, 30), 2800L);
 
-    List<Settlement> top10Settlements = repository.findTop10ByOrderBySettlementAmountDesc();
-
+    List<Settlement> top10Settlements = repository.findTop10ByOrderBySettlementAmountDesc(
+        PageRequest.of(0, 10));
     assertNotNull(top10Settlements);
     assertEquals(10, top10Settlements.size());
 

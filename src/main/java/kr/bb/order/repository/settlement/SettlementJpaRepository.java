@@ -15,5 +15,5 @@ public interface SettlementJpaRepository extends JpaRepository<Settlement, Long>
   Page<Settlement> findAll(Specification<Settlement> specification, Pageable pageable);
 
    @Query("SELECT s FROM Settlement s ORDER BY s.settlementAmount DESC")
-    List<Settlement> findTop10ByOrderBySettlementAmountDesc();
+    List<Settlement> findTop10ByOrderBySettlementAmountDesc(Pageable pageable);
 }
