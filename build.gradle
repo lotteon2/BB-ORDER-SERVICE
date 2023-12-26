@@ -60,71 +60,72 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-//// jacoco
-//jacoco {
-//    toolVersion = '0.8.5'
-//}
-//
-//jacocoTestCoverageVerification {
-//    violationRules {
-//        rule {
-//            enabled = true
-//            element = 'CLASS'
-//
-//            limit {
-//                counter = 'BRANCH'
-//                value = 'COVEREDRATIO'
-//                minimum = 0.80
-//            }
-//            afterEvaluate {
-//                classDirectories.setFrom(
-//                        files(classDirectories.files.collect{
-//                            fileTree(dir:it,excludes:[
-//                                    "**/*Exception.class",
-//                                    "**/*Controller.class",
-//                                    "**/*Dto.class",
-//                                    "**/*Request.class",
-//                                    "**/*Response.class",
-//                                    "**/*Id.class",
-//                                    "**/*Application*"
-//                            ])
-//                        })
-//                )
-//            }
-//        }
-//    }
-//}
-//
-//test {
-//    jacoco {
-//        destinationFile = file("$buildDir/jacoco/jacoco.exec")
-//    }
-//    useJUnitPlatform()
-//    finalizedBy 'jacocoTestReport'
-//}
-//
-//jacocoTestReport {
-//    reports {
-//        html.required = true
-//    }
-//    def Qdomains = []
-//    for (qPattern in '**/QA'..'**/QZ') {
-//        Qdomains.add(qPattern + '*')
-//    }
-//    afterEvaluate {
-//        classDirectories.setFrom(
-//                files(classDirectories.files.collect{
-//                    fileTree(dir:it,excludes:[
-//                            "**/*Exception.class",
-//                            "**/*Controller.class",
-//                            "**/*Dto.class",
-//                            "**/*Request.class",
-//                            "**/*Response.class",
-//                            "**/*Id.class",
-//                            "**/*Application*"
-//                    ])
-//                })
-//        )
-//    }
-//    finalizedBy 'jacocoTestCoverageVerification'
-//}
+// jacoco
+jacoco {
+    toolVersion = '0.8.5'
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            enabled = true
+            element = 'CLASS'
+
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+            afterEvaluate {
+                classDirectories.setFrom(
+                        files(classDirectories.files.collect {
+                            fileTree(dir: it, excludes: [
+                                    "**/*Exception.class",
+                                    "**/*Controller.class",
+                                    "**/*Dto.class",
+                                    "**/*Request.class",
+                                    "**/*Response.class",
+                                    "**/*Id.class",
+                                    "**/*Application*"
+                            ])
+                        })
+                )
+            }
+        }
+    }
+}
+
+test {
+    jacoco {
+        destinationFile = file("$buildDir/jacoco/jacoco.exec")
+    }
+    useJUnitPlatform()
+    finalizedBy 'jacocoTestReport'
+}
+
+jacocoTestReport {
+    reports {
+        html.required = true
+    }
+    def Qdomains = []
+    for (qPattern in '**/QA'..'**/QZ') {
+        Qdomains.add(qPattern + '*')
+    }
+    afterEvaluate {
+        classDirectories.setFrom(
+                files(classDirectories.files.collect {
+                    fileTree(dir: it, excludes: [
+                            "**/*Exception.class",
+                            "**/*Controller.class",
+                            "**/*Dto.class",
+                            "**/*Request.class",
+                            "**/*Response.class",
+                            "**/*Id.class",
+                            "**/*Application*",
+                            "**/GetStoreInfoFeignRequestFacade.class",
+                    ])
+                })
+        )
+    }
+    finalizedBy 'jacocoTestCoverageVerification'
+}
