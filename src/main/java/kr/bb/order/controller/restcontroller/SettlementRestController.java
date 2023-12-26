@@ -23,12 +23,15 @@ public class SettlementRestController {
 
   @GetMapping("/admin/settlement")
   public CommonResponse<SettlementResponse> getSettlements(
-      @RequestParam int year,
-      @RequestParam int month,
+      @RequestParam(required = false) int year,
+      @RequestParam(required = false) int month,
       @RequestParam(required = false) Long storeId,
+      @RequestParam(required = false) String sido,
+      @RequestParam(required = false) String gugun,
       Pageable pageable) {
 
-    List<SettlementDto> settlementDtoList = settlementService.getSettlement(storeId, year, month,
+    List<SettlementDto> settlementDtoList = settlementService.getSettlement(sido, gugun, storeId,
+        year, month,
         pageable.getPageSize(),
         pageable.getPageSize());
 

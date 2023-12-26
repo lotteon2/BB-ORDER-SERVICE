@@ -19,9 +19,10 @@ public class SettlementService {
   }
 
 
-  public List<SettlementDto> getSettlement(Long storeId, Integer year, Integer month, int page,
+  public List<SettlementDto> getSettlement(String sido, String gugun, Long storeId, Integer year,
+      Integer month, int page,
       int size) {
-    return getSettlementService.getSettlement(storeId, year, month, page, size);
+    return getSettlementService.getSettlement(sido,gugun,storeId, year, month, page, size);
   }
 
 }

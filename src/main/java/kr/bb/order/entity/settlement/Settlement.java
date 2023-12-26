@@ -28,4 +28,6 @@ public class Settlement extends BaseEntity {
   private String accountNumber;
   private Long storeId;
   private Long totalAmountPerMonth;
+  private String gugun;
+  private String sido;
 }
