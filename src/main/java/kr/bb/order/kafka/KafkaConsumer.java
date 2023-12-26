@@ -1,5 +1,6 @@
 package kr.bb.order.kafka;
 
+import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import kr.bb.order.service.OrderService;
 import lombok.RequiredArgsConstructor;

@@ -47,7 +47,7 @@ public class OrderDelivery extends BaseEntity {
   @Builder.Default
   @Enumerated(EnumType.STRING)
   @Column(name = "order_delivery_status", nullable = false)
-  private OrderDeliveryStatus orderDeliveryStatus = OrderDeliveryStatus.INITIAL;
+  private OrderDeliveryStatus orderDeliveryStatus = OrderDeliveryStatus.PENDING;
 
   @Column(name = "order_delivery_total_amount", nullable = false)
   private Long orderDeliveryTotalAmount;
