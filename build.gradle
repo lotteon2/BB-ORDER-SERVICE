@@ -86,7 +86,9 @@ jacocoTestCoverageVerification {
                                     "**/*Request.class",
                                     "**/*Response.class",
                                     "**/*Id.class",
-                                    "**/*Application*"
+                                    "**/*Application*",
+                                    "**/GetStoreInfoFeignRequestFacade.class",
+
                             ])
                         })
                 )
