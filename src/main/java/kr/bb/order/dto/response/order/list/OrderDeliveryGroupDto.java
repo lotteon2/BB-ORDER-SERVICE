@@ -1,9 +1,10 @@
 package kr.bb.order.dto.response.order.list;
 
+import bloomingblooms.domain.payment.PaymentInfoDto;
 import java.util.ArrayList;
 import java.util.List;
-import kr.bb.order.dto.request.payment.PaymentInfoDto;
-import kr.bb.order.dto.request.product.ProductInfoDto;
+import java.util.Map;
+import bloomingblooms.domain.product.ProductInformation;
 import kr.bb.order.entity.delivery.OrderGroup;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,15 +25,16 @@ public class OrderDeliveryGroupDto {
     private String paymentDate;
     private Long storeCount;
 
-    public static List<OrderDeliveryGroupDto> toDto(List<OrderGroup> orderGroupsList, List<Long> storeCounts, List<ProductInfoDto> productInfo, List<PaymentInfoDto> paymentInfo){
+    public static List<OrderDeliveryGroupDto> toDto(List<OrderGroup> orderGroupsList, List<Long> storeCounts, List<String> productIds, Map<String, ProductInformation> productInfoDtoMap, List<PaymentInfoDto> paymentInfo){
         List<OrderDeliveryGroupDto> orderDeliveryGroupDtos = new ArrayList<>();
 
         for(int i=0; i<orderGroupsList.size(); i++){
             OrderDeliveryGroupDto orderDeliveryGroupDto = OrderDeliveryGroupDto.builder()
                     .key(orderGroupsList.get(i).getOrderGroupId())
-                    .orderStatus(orderGroupsList.get(i).getOrderDeliveryList().get(i).getOrderDeliveryStatus().toString())
-                    .thumbnailImage(productInfo.get(i).getProductThumbnailImage())
-                    .productName(productInfo.get(i).getProductName())
+                    // 한 가게의 주문상태가 해당 그룹주문의 상태가 된다.
+                    .orderStatus(orderGroupsList.get(i).getOrderDeliveryList().get(0).getOrderDeliveryStatus().toString())
+                    .thumbnailImage( productInfoDtoMap.get(productIds.get(i)).getProductThumbnail())
+                    .productName(productInfoDtoMap.get(productIds.get(i)).getProductName())
                     .quantity(orderGroupsList.get(i).getOrderDeliveryList().stream()
                             .mapToLong(orderDelivery -> orderDelivery.getOrderDeliveryProducts().size())
                             .sum())

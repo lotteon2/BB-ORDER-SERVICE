@@ -51,4 +51,11 @@ public class OrderDeliveryProduct extends BaseEntity {
     this.orderDelivery = orderDelivery;
     orderDelivery.getOrderDeliveryProducts().add(this);
   }
+
+  public void updateReviewAndCardStatus(){
+    if (this.cardStatus.equals(CardStatus.ABLE)) {
+      this.cardStatus = CardStatus.DISABLED;
+    }
+    this.reviewStatus = ReviewStatus.ABLE;
+  }
 }

@@ -1,4 +1,4 @@
-package kr.bb.order.dto.response.payment;
+package kr.bb.order.kafka;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,8 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class KakaopayReadyResponseDto {
-    private String tid;
-    private String nextRedirectPcUrl;
-
+public class UpdateOrderStatusDto {
+    private String orderDeliveryId;
+    private String status;
 }

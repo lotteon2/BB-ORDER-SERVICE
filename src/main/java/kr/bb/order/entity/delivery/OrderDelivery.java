@@ -1,5 +1,6 @@
 package kr.bb.order.entity.delivery;
 
+import bloomingblooms.domain.order.OrderInfoByStore;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.CascadeType;
@@ -13,7 +14,6 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.common.BaseEntity;
 import lombok.AllArgsConstructor;
@@ -77,5 +77,9 @@ public class OrderDelivery extends BaseEntity {
 
   public void setOrderDeliveryProduct(List<OrderDeliveryProduct> orderDeliveryProducts) {
     this.orderDeliveryProducts = orderDeliveryProducts;
+  }
+
+  public void updateStatus(String newStatus){
+    this.orderDeliveryStatus = OrderDeliveryStatus.valueOf(newStatus);
   }
 }

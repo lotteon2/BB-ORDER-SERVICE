@@ -4,20 +4,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import bloomingblooms.domain.order.OrderInfoByStore;
+import bloomingblooms.domain.order.ProcessOrderDto;
+import bloomingblooms.domain.order.ProductCreate;
+import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
+import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.response.CommonResponse;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
-import kr.bb.order.dto.request.orderForDelivery.OrderInfoByStore;
-import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
-import kr.bb.order.dto.request.store.ProcessOrderDto;
-import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.pickup.OrderPickup;
@@ -31,12 +34,13 @@ import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.kafka.KafkaConsumer;
 import kr.bb.order.kafka.KafkaProducer;
+import kr.bb.order.kafka.UpdateOrderStatusDto;
+import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.util.OrderUtil;
-import org.junit.Before;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,8 +67,10 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private OrderManager orderManager;
   @Autowired private OrderDeliveryRepository orderDeliveryRepository;
   @MockBean private DeliveryServiceClient deliveryServiceClient;
-  @MockBean private KafkaProducer kafkaProducer;
-  @Autowired private KafkaConsumer kafkaConsumer;
+  @MockBean private KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
+  @MockBean private KafkaProducer<Map<Long, String>> cartItemDeleteProducer;
+  @MockBean private KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
+  @Autowired private KafkaConsumer<ProcessOrderDto> kafkaConsumer;
   @MockBean private OrderUtil orderUtil;
   @Autowired private OrderProductRepository orderProductRepository;
   @Autowired private OrderGroupRepository orderGroupRepository;
@@ -82,17 +88,14 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             orderManager,
             orderDeliveryRepository,
             deliveryServiceClient,
-            kafkaProducer,
+            processOrderDtoKafkaProducer,
+            cartItemDeleteProducer,
+            pickupCreateDtoKafkaProducer,
             orderUtil,
             orderProductRepository,
             orderGroupRepository,
             orderPickupRepository);
   }
-
-//  @Autowired
-//  void setOrderService(OrderService orderService){
-//    this.orderService = orderService;
-//  }
 
   @AfterEach
   void teardown() {
@@ -169,14 +172,16 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     String orderType = OrderType.ORDER_DELIVERY.toString();
     String pgToken = "임시pgToken";
 
-    OrderInfo orderInfo = createOrderInfo(orderId);
+    OrderInfo orderInfo = createOrderInfo(orderId, OrderType.valueOf(orderType));
     redisTemplate.opsForValue().set(orderId, orderInfo);
 
     orderService.requestOrder(orderId, orderType, pgToken);
-    kafkaProducer = mock(KafkaProducer.class);
+    processOrderDtoKafkaProducer = mock(KafkaProducer.class);
 
-    doNothing().when(kafkaProducer).requestOrder(any(ProcessOrderDto.class));
-    doNothing().when(kafkaProducer).deleteFromCart(any());
+    doNothing()
+        .when(processOrderDtoKafkaProducer)
+        .send(eq("coupon-use"), any(ProcessOrderDto.class));
+    doNothing().when(processOrderDtoKafkaProducer).send(eq("delete-from-cart"), any());
   }
 
   @Test
@@ -191,38 +196,22 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     redisTemplateForPickup.opsForValue().set(orderId, pickupOrderInfo);
 
     orderService.requestOrder(orderId, orderType, pgToken);
-    kafkaProducer = mock(KafkaProducer.class);
+    processOrderDtoKafkaProducer = mock(KafkaProducer.class);
 
-    doNothing().when(kafkaProducer).requestOrder(any(ProcessOrderDto.class));
+    doNothing()
+        .when(processOrderDtoKafkaProducer)
+        .send(eq("coupon-use"), any(ProcessOrderDto.class));
   }
 
   @Test
   @DisplayName("바로 주문하기 - 처리 및 저장 단계")
   void processOrderForDelivery() throws JsonProcessingException {
-    // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
     // given
-    Long userId = 1L;
     String orderGroupId = "임시orderId";
     String orderDeliveryId = "임시가게주문id";
     String orderType = OrderType.ORDER_DELIVERY.toString();
 
-    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
-    ObjectMapper objectMapper = new ObjectMapper();
-    String message =
-        objectMapper.writeValueAsString(
-            ProcessOrderDto.toDtoForOrderDelivery(orderGroupId, orderType, orderInfoByStores));
-    OrderForDeliveryRequest requestDto = createOrderForDeliveryRequest(90500L);
-
-    OrderInfo orderInfo =
-        OrderInfo.transformDataForApi(
-            orderGroupId,
-            userId,
-            "제품명 외 1개",
-            2,
-            false,
-            "tid번호",
-            requestDto,
-            OrderType.ORDER_DELIVERY);
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
     List<Long> deliveryIds = new ArrayList<>();
@@ -233,8 +222,11 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
     when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
 
+    ProcessOrderDto processOrderDto =
+        OrderCommonMapper.toProcessOrderDto(orderGroupId, orderType, orderInfo);
+
     // when
-    kafkaConsumer.processOrder(message);
+    kafkaConsumer.processOrder(processOrderDto);
     // then
     List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
     assertThat(orderDelivery).hasSize(1);
@@ -245,21 +237,11 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   void processCartOrder() throws JsonProcessingException {
     // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
     // given
-    Long userId = 1L;
     String orderGroupId = "임시orderId";
     String orderDeliveryId = "임시가게주문id";
-    String orderType = OrderType.ORDER_DELIVERY.toString();
+    String orderType = OrderType.ORDER_CART.toString();
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
 
-    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
-    ObjectMapper objectMapper = new ObjectMapper();
-    String message =
-        objectMapper.writeValueAsString(
-            ProcessOrderDto.toDtoForOrderDelivery(orderGroupId, orderType, orderInfoByStores));
-    OrderForDeliveryRequest requestDto = createOrderForDeliveryRequest(90500L);
-
-    OrderInfo orderInfo =
-        OrderInfo.transformDataForApi(
-            orderGroupId, userId, "제품명 외 1개", 2, false, "tid번호", requestDto, OrderType.ORDER_CART);
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
     List<Long> deliveryIds = new ArrayList<>();
@@ -269,10 +251,11 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
     when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
     when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
-    doNothing().when(kafkaProducer).deleteFromCart(any());
+    doNothing().when(processOrderDtoKafkaProducer).send(eq("delete-from-cart"), any());
 
     // when
-    kafkaConsumer.processOrder(message);
+    kafkaConsumer.processOrder(
+        OrderCommonMapper.toProcessOrderDto(orderGroupId, orderType, orderInfo));
     // then
     List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
     assertThat(orderDelivery).hasSize(1);
@@ -287,11 +270,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     String orderDeliveryId = "임시가게주문id";
 
     PickupOrderInfo pickupOrderInfo = createPickupOrderInfo(orderId);
-    ObjectMapper objectMapper = new ObjectMapper();
-    String message =
-        objectMapper.writeValueAsString(
-            ProcessOrderDto.toDtoForOrderPickup(orderId, pickupOrderInfo));
-    OrderForDeliveryRequest requestDto = createOrderForDeliveryRequest(90500L);
 
     redisTemplateForPickup.opsForValue().set(orderId, pickupOrderInfo);
 
@@ -299,13 +277,13 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     deliveryIds.add(1L);
     CommonResponse<List<Long>> success = CommonResponse.success(deliveryIds);
 
+    doNothing().when(pickupCreateDtoKafkaProducer).send(eq("pickup-create"), any());
     when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
     when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
     when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
-    doNothing().when(kafkaProducer).deleteFromCart(any());
 
     // when
-    kafkaConsumer.processOrder(message);
+    kafkaConsumer.processOrder(OrderCommonMapper.toDtoForOrderPickup(orderId, pickupOrderInfo));
     OrderPickup orderPickup =
         orderPickupRepository.findById(orderId).orElseThrow(EntityNotFoundException::new);
     // then
@@ -318,25 +296,42 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
     // given
     String orderGroupId = "임시orderId";
-    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
     String orderType = OrderType.ORDER_DELIVERY.toString();
+    //    List<OrderInfoByStore> orderInfoByStores = createOrderInfoByStores();
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
     ObjectMapper objectMapper = new ObjectMapper();
-    String message =
-        objectMapper.writeValueAsString(
-            ProcessOrderDto.toDtoForOrderDelivery(orderGroupId, orderType, orderInfoByStores));
     List<Long> deliveryIds = new ArrayList<>();
     deliveryIds.add(1L);
     CommonResponse<List<Long>> success = CommonResponse.success(deliveryIds);
 
     when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
 
-    kafkaProducer = mock(KafkaProducer.class);
-    doNothing().when(kafkaProducer).rollbackOrder(any(ProcessOrderDto.class));
+    processOrderDtoKafkaProducer = mock(KafkaProducer.class);
+    doNothing()
+        .when(processOrderDtoKafkaProducer)
+        .send(eq("order-create-rollback"), any(ProcessOrderDto.class));
 
     // when, then
-    assertThatThrownBy(() -> kafkaConsumer.processOrder(message))
+    assertThatThrownBy(
+            () ->
+                kafkaConsumer.processOrder(
+                    OrderCommonMapper.toProcessOrderDto(orderGroupId, orderType, orderInfo)))
         .isInstanceOf(PaymentExpiredException.class)
         .hasMessage("결제 시간이 만료되었습니다. 다시 시도해주세요.");
+  }
+
+  @Test
+  @DisplayName("배송 상태를 kafka를 통해 넘겨받는다")
+  void updateOrderStatus() throws JsonProcessingException {
+    UpdateOrderStatusDto updateOrderStatusDto =
+        UpdateOrderStatusDto.builder().orderDeliveryId("가게주문id").status("COMPLETED").build();
+    ObjectMapper objectMapper = new ObjectMapper();
+
+    kafkaConsumer.updateOrderDeliveryStatus(updateOrderStatusDto);
+    OrderDelivery orderDelivery =
+        orderDeliveryRepository.findById("가게주문id").orElseThrow(EntityNotFoundException::new);
+
+    assertThat(orderDelivery.getOrderDeliveryStatus().toString()).isEqualTo("COMPLETED");
   }
 
   public OrderForDeliveryRequest createOrderForDeliveryRequest(Long sumOfActualAmount) {
@@ -428,7 +423,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .build();
   }
 
-  public OrderInfo createOrderInfo(String orderId) {
+  public OrderInfo createOrderInfo(String orderId, OrderType orderType) {
     return OrderInfo.builder()
         .tempOrderId(orderId)
         .userId(1L)
@@ -446,7 +441,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .recipientPhone("수신자 전화번호")
         .deliveryRequest("배송 요청사항")
         .tid("tid고유번호")
-        .orderType(OrderType.ORDER_DELIVERY.toString())
+        .orderType(orderType.toString())
         .build();
   }
 

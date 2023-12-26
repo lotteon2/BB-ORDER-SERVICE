@@ -1,9 +1,9 @@
 package kr.bb.order.dto.response.order.list;
 
+import bloomingblooms.domain.payment.PaymentInfoDto;
 import java.util.List;
 import java.util.Map;
-import kr.bb.order.dto.request.payment.PaymentInfoDto;
-import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,12 +1,13 @@
 package kr.bb.order.controller.restcontroller;
 
+import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
+import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
-import kr.bb.order.dto.response.payment.KakaopayReadyResponseDto;
 import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.service.OrderDetailsService;
@@ -42,7 +43,7 @@ public class OrderRestController {
 
   // 바로 주문(배송) 승인 단계
   @GetMapping("/approve/{partnerOrderId}/{orderType}")
-  public ResponseEntity<Void> processOrder(
+  public ResponseEntity<Void> requestOrder(
       @PathVariable("partnerOrderId") String orderId,
       @PathVariable("orderType") String orderType,
       @RequestParam("pg_token") String pgToken) {
@@ -112,6 +113,11 @@ public class OrderRestController {
     return ResponseEntity.ok().body(orderDetailsService.getOrderDetailsForSeller(orderDeliveryId));
   }
 
+  @GetMapping("/store/{storeId}/weekly/sales")
+  public ResponseEntity<WeeklySalesInfoDto> getWeeklySalesInfo(@PathVariable Long storeId){
+    return ResponseEntity.ok().body(orderDetailsService.getWeeklySalesInfo(storeId));
+  }
+
   public OrderDeliveryStatus parseOrderDeliveryStatus(String status) {
     try {
       return OrderDeliveryStatus.valueOf(status);
@@ -119,5 +125,5 @@ public class OrderRestController {
       throw new RuntimeException("올바르지 않은 정렬값 입니다: " + status);
     }
   }
-
+  
 }

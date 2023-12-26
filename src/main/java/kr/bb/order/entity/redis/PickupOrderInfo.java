@@ -1,10 +1,8 @@
 package kr.bb.order.entity.redis;
 
+import bloomingblooms.domain.order.ProductCreate;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.time.LocalDate;
-import java.time.LocalTime;
 import javax.persistence.Id;
-import kr.bb.order.dto.request.orderForDelivery.ProductCreate;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
 import kr.bb.order.entity.OrderType;
 import lombok.AllArgsConstructor;

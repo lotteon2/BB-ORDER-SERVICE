@@ -1,12 +1,12 @@
 package kr.bb.order.service;
 
+import bloomingblooms.domain.payment.PaymentInfoDto;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import kr.bb.order.dto.request.payment.PaymentInfoDto;
-import kr.bb.order.dto.request.product.ProductInfoDto;
-import kr.bb.order.dto.response.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.product.ProductInformation;
+import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryDetailsForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryGroupDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryInfoForSeller;
@@ -52,16 +52,26 @@ public class OrderListService {
             .collect(Collectors.toList());
 
     List<String> productIds = getProductIds(orderGroupsList);
-    List<ProductInfoDto> productInfo = productServiceClient.getProductInfo(productIds).getData();
+    List<ProductInformation> productInfo = productServiceClient.getProductInfo(productIds).getData();
+    Map<String, ProductInformation> productInfoDtoMap = productInfo.stream().collect(Collectors.toMap(
+            ProductInformation::getProductId, productInfoDto -> productInfoDto));
 
     List<String> orderGroupIds = getOrderGroupIds(orderGroupsList);
     List<PaymentInfoDto> paymentInfo = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
 
     List<OrderDeliveryGroupDto> orderDeliveryGroupDtos =
-        OrderDeliveryGroupDto.toDto(orderGroupsList, storeCounts, productInfo, paymentInfo);
+        OrderDeliveryGroupDto.toDto(orderGroupsList, storeCounts, productIds, productInfoDtoMap, paymentInfo);
 
     return OrderDeliveryPageInfoDto.toDto(totalCnt, orderDeliveryGroupDtos);
   }
+
+//private Map<OrderGroup, String> getOrderGroupToProductIdMap(List<OrderGroup> orderGroupsList) {
+//    orderGroupsList.stream()
+//            .flatMap(orderGroup -> orderGroup.getOrderDeliveryList().stream()
+//                    .flatMap(orderDelivery -> orderDelivery.getOrderDeliveryProducts().stream()
+//                            .map(orderProduct -> orderProduct.getOrderProductId())
+//
+//}
 
   public OrderDeliveryPageInfoForSeller getOrderDeliveryListForSeller(
           Pageable pageable, OrderDeliveryStatus status, Long storeId) {
@@ -78,9 +88,9 @@ public class OrderListService {
     // product, payment, delivery-service feign 요청
     List<String> productIds = orderDeliveriesPerPage.getContent().stream().flatMap(orderDelivery -> orderDelivery.getOrderDeliveryProducts().stream()).map(OrderDeliveryProduct::getProductId).collect(
             Collectors.toList());
-    List<ProductInfoDto> productInfoDto = productServiceClient.getProductInfo(productIds).getData();
-    Map<String, ProductInfoDto> productIdMap = productInfoDto.stream()
-            .collect(Collectors.toMap(ProductInfoDto::getProductId, dto -> dto));
+    List<ProductInformation> productInformation = productServiceClient.getProductInfo(productIds).getData();
+    Map<String, ProductInformation> productIdMap = productInformation.stream()
+            .collect(Collectors.toMap(ProductInformation::getProductId, dto -> dto));
 
     List<PaymentInfoDto> paymentInfo = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
     Map<String, PaymentInfoDto> paymentInfoMap = paymentInfo.stream().collect(Collectors.toMap(PaymentInfoDto::getOrderGroupId, dto->dto));
@@ -105,13 +115,13 @@ public class OrderListService {
     return OrderDeliveryPageInfoForSeller.toDto(totalCnt, infoDtoList);
   }
 
-  // 각 주문그룹id의 첫번째 상품id만 추출하기
+  // 각 주문그룹id의 '첫번째' 상품id만 추출하기
   List<String> getProductIds(List<OrderGroup> orderGroupsList) {
     return orderGroupsList.stream()
-        .flatMap(orderGroup -> orderGroup.getOrderDeliveryList().stream())
-        .map(OrderDelivery::getOrderDeliveryProducts)
-        .map(orderDeliveryProducts -> orderDeliveryProducts.get(0).getProductId())
-        .collect(Collectors.toList());
+            .flatMap(orderGroup -> orderGroup.getOrderDeliveryList().stream())
+            .map(OrderDelivery::getOrderDeliveryProducts)
+            .map(orderDeliveryProducts -> orderDeliveryProducts.get(0).getProductId())
+            .collect(Collectors.toList());
   }
 
   List<String> getOrderGroupIds(List<OrderGroup> orderGroupList) {

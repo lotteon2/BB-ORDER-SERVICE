@@ -8,8 +8,8 @@ spring:
     name: order-service
   config:
     activate:
-      on-profile: local
-    import: optional:configserver:http://localhost:8888
+      on-profile: prod
+    import: optional:configserver:http://config-service:8888
 management:
   endpoints:
     web:
