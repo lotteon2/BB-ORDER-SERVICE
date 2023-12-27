@@ -1,7 +1,7 @@
 package kr.bb.order.controller.helper;
 
+import bloomingblooms.domain.store.StoreInfoDto;
 import java.util.List;
-import kr.bb.order.dto.request.store.StoreDto;
 import kr.bb.order.feign.settlement.GetStoreInfoFeignRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -12,16 +12,16 @@ public class GetStoreInfoFeignRequestFacade {
 
   private final GetStoreInfoFeignRequest feignRequest;
 
-  public List<StoreDto> handleFeign(Long storeId) {
-    List<StoreDto> storeDtoList;
+  public List<StoreInfoDto> handleFeign(Long storeId) {
+    List<StoreInfoDto> storeInfoDtoList;
     if (storeId == null) {
-      storeDtoList =  feignRequest.getAllStore().getBody();
+      storeInfoDtoList =  feignRequest.getAllStore().getData();
 
     } else {
-      StoreDto storeDto = feignRequest.getOneStore(storeId).getBody();
-      storeDtoList = List.of(storeDto);
+      StoreInfoDto storeDto = feignRequest.getOneStore(storeId).getData();
+      storeInfoDtoList = List.of(storeDto);
     }
-      return storeDtoList;
+      return storeInfoDtoList;
   }
 
 }
