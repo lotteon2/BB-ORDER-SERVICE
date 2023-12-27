@@ -29,6 +29,7 @@ public class OrderInfo extends BaseEntity {
   @JsonProperty(value = "subscriptionPay")
   private boolean isSubscriptionPay;
 
+  private Long deliveryAddressId;
   private String ordererName;
   private String ordererPhoneNumber;
   private String ordererEmail;
@@ -42,7 +43,7 @@ public class OrderInfo extends BaseEntity {
   private String pgToken;
   private String orderType;
 
-  public static OrderInfo transformDataForApi(
+  public static OrderInfo convertToRedisDto(
       String tempOrderId,
       Long userId,
       String itemName,
@@ -60,6 +61,7 @@ public class OrderInfo extends BaseEntity {
         .orderInfoByStores(requestDto.getOrderInfoByStores())
         .sumOfActualAmount(requestDto.getSumOfActualAmount())
         .isSubscriptionPay(isSubscriptionPay)
+        .deliveryAddressId(requestDto.getDeliveryAddressId())
         .ordererName(requestDto.getOrdererName())
         .ordererPhoneNumber(requestDto.getOrdererPhoneNumber())
         .ordererEmail(requestDto.getOrdererEmail())

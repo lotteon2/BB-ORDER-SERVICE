@@ -6,9 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.order.OrderInfoByStore;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
@@ -27,14 +30,14 @@ import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
 import kr.bb.order.exception.InvalidOrderAmountException;
-import kr.bb.order.exception.PaymentExpiredException;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
+import kr.bb.order.infra.OrderSNSPublisher;
+import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.kafka.KafkaConsumer;
 import kr.bb.order.kafka.KafkaProducer;
-import kr.bb.order.kafka.UpdateOrderStatusDto;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
@@ -58,8 +61,8 @@ import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 @Testcontainers
 @Transactional
 class OrderServiceTest extends AbstractContainerBaseTest {
-  @Autowired private OrderService orderService;
   @MockBean private ProductServiceClient productServiceClient;
+  @Autowired private OrderService orderService;
   @MockBean private StoreServiceClient storeServiceClient;
   @MockBean private PaymentServiceClient paymentServiceClient;
   @Autowired private RedisTemplate<String, OrderInfo> redisTemplate;
@@ -75,6 +78,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private OrderProductRepository orderProductRepository;
   @Autowired private OrderGroupRepository orderGroupRepository;
   @Autowired private OrderPickupRepository orderPickupRepository;
+  @MockBean private OrderSNSPublisher orderSNSPublisher;
+  @MockBean private OrderSQSPublisher orderSQSPublisher;
 
   @BeforeEach
   void setup() {
@@ -94,7 +99,9 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             orderUtil,
             orderProductRepository,
             orderGroupRepository,
-            orderPickupRepository);
+            orderPickupRepository,
+            orderSNSPublisher,
+            orderSQSPublisher);
   }
 
   @AfterEach
@@ -233,6 +240,37 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   }
 
   @Test
+  @DisplayName("바로 주문하기 처리중에 예외 발생시 롤백 작업 진행")
+  void rollbackForProcessOrderForDelivery() {
+    // given
+    String orderGroupId = "임시orderId";
+    String orderDeliveryId = "임시가게주문id";
+    String orderType = OrderType.ORDER_DELIVERY.toString();
+
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
+    redisTemplate.opsForValue().set(orderGroupId, orderInfo);
+
+    List<Long> deliveryIds = new ArrayList<>();
+    deliveryIds.add(1L);
+    CommonResponse<List<Long>> success = CommonResponse.success(deliveryIds);
+
+    when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
+    when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
+    when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
+
+    ProcessOrderDto processOrderDto =
+        OrderCommonMapper.toProcessOrderDto(orderGroupId, orderType, orderInfo);
+
+    doNothing().when(processOrderDtoKafkaProducer).send("order-create-rollback", processOrderDto);
+
+    // when
+    doThrow(RuntimeException.class).when(deliveryServiceClient).createDeliveryAddress(any());
+    kafkaConsumer.processOrder(processOrderDto);
+    // then
+    verify(processOrderDtoKafkaProducer).send("order-create-rollback", processOrderDto);
+  }
+
+  @Test
   @DisplayName("장바구니에서 주문하기 - 저장 및 처리단계")
   void processCartOrder() throws JsonProcessingException {
     // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
@@ -292,6 +330,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
   @Test
   @DisplayName("주문에 대한 결제는 5분 안에 이뤄져야한다.")
+  // 오류 발생시, kafka를 통해 롤백하고 오류를 SNS를 통해 보낸다.
   void paymentShouldBeWithinTimeLimit() throws JsonProcessingException {
     // TODO: kafka consumer를 실행시켜 테스트하는 방법 찾아보기
     // given
@@ -306,18 +345,17 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
 
-    processOrderDtoKafkaProducer = mock(KafkaProducer.class);
     doNothing()
         .when(processOrderDtoKafkaProducer)
         .send(eq("order-create-rollback"), any(ProcessOrderDto.class));
 
-    // when, then
-    assertThatThrownBy(
-            () ->
-                kafkaConsumer.processOrder(
-                    OrderCommonMapper.toProcessOrderDto(orderGroupId, orderType, orderInfo)))
-        .isInstanceOf(PaymentExpiredException.class)
-        .hasMessage("결제 시간이 만료되었습니다. 다시 시도해주세요.");
+    ProcessOrderDto processOrderDto =
+        OrderCommonMapper.toProcessOrderDto(orderGroupId, orderType, orderInfo);
+    // when
+    kafkaConsumer.processOrder(processOrderDto);
+
+    // then
+    verify(processOrderDtoKafkaProducer).send("order-create-rollback", processOrderDto);
   }
 
   @Test
@@ -325,7 +363,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   void updateOrderStatus() throws JsonProcessingException {
     UpdateOrderStatusDto updateOrderStatusDto =
         UpdateOrderStatusDto.builder().orderDeliveryId("가게주문id").status("COMPLETED").build();
-    ObjectMapper objectMapper = new ObjectMapper();
 
     kafkaConsumer.updateOrderDeliveryStatus(updateOrderStatusDto);
     OrderDelivery orderDelivery =

@@ -1,5 +1,6 @@
 package kr.bb.order.kafka;
 
+import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import kr.bb.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,6 @@ public class KafkaConsumer<T> {
 
       // Kafka로 롤백 보상 패턴 실행
       kafkaProducer.send("order-create-rollback", processOrderDto);
-      throw e;
     }
   }
 

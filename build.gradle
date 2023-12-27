@@ -33,12 +33,15 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'io.github.lotteon-maven:blooming-blooms-utils:202312220850'
+    implementation 'io.github.lotteon-maven:blooming-blooms-utils:202312270619'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'mysql:mysql-connector-java:8.0.33'
+    implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.4.RELEASE'
+    implementation 'org.springframework.cloud:spring-cloud-aws-messaging:2.2.4.RELEASE'
+    implementation 'software.amazon.awssdk:sns:2.21.37'
     runtimeOnly 'com.h2database:h2'
-    runtimeOnly 'com.mysql:mysql-connector-j'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -88,7 +91,7 @@ jacocoTestCoverageVerification {
                                     "**/*Id.class",
                                     "**/*Application*",
                                     "**/GetStoreInfoFeignRequestFacade.class",
-
+                                    "**/*Publisher.class",
                             ])
                         })
                 )
@@ -125,6 +128,7 @@ jacocoTestReport {
                             "**/*Id.class",
                             "**/*Application*",
                             "**/GetStoreInfoFeignRequestFacade.class",
+                            "**/*Publisher.class",
                     ])
                 })
         )

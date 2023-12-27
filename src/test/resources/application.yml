@@ -41,6 +41,22 @@ spring:
   main:
     allow-circular-references: true
 
+cloud:
+  aws:
+    stack:
+      auto: false
+    region:
+      static: ap-northeast-1
+    credentials:
+      ACCESS_KEY_ID: "test"
+      SECRET_ACCESS_KEY: "test"
+    sns:
+      new-order-event:
+        arn:
+    sqs:
+      new-order-status-queue:
+        url:
+
 logging:
   level:
     org:
