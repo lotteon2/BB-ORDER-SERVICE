@@ -1,5 +1,6 @@
 package kr.bb.order.feign;
 
+import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import bloomingblooms.response.CommonResponse;
@@ -18,4 +19,7 @@ public interface DeliveryServiceClient {
 
     @GetMapping(value = "/delivery/requests")  // key: deliveryId
     CommonResponse<Map<Long, DeliveryInfoDto>> getDeliveryInfo(@RequestParam List<Long> deliveryIds);
+
+    @PostMapping(value = "/delivery/delivery-address")
+    CommonResponse<Void> createDeliveryAddress(@RequestBody DeliveryAddressInsertDto createDeliveryAddress);
 }
