@@ -34,6 +34,8 @@ import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
+import kr.bb.order.infra.OrderSNSPublisher;
+import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.kafka.KafkaConsumer;
 import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.mapper.OrderCommonMapper;
@@ -76,6 +78,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private OrderProductRepository orderProductRepository;
   @Autowired private OrderGroupRepository orderGroupRepository;
   @Autowired private OrderPickupRepository orderPickupRepository;
+  @MockBean private OrderSNSPublisher orderSNSPublisher;
+  @MockBean private OrderSQSPublisher orderSQSPublisher;
 
   @BeforeEach
   void setup() {
@@ -95,7 +99,9 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             orderUtil,
             orderProductRepository,
             orderGroupRepository,
-            orderPickupRepository);
+            orderPickupRepository,
+            orderSNSPublisher,
+            orderSQSPublisher);
   }
 
   @AfterEach

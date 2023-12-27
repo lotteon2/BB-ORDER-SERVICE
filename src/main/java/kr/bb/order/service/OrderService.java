@@ -3,6 +3,7 @@ package kr.bb.order.service;
 import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
+import bloomingblooms.domain.order.NewOrderEvent.NewOrderEventItem;
 import bloomingblooms.domain.order.OrderInfoByStore;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
@@ -39,6 +40,8 @@ import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
+import kr.bb.order.infra.OrderSNSPublisher;
+import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.mapper.DeliveryAddressMapper;
 import kr.bb.order.mapper.KakaopayMapper;
@@ -74,6 +77,8 @@ public class OrderService {
   private final OrderProductRepository orderProductRepository;
   private final OrderGroupRepository orderGroupRepository;
   private final OrderPickupRepository orderPickupRepository;
+  private final OrderSNSPublisher orderSNSPublisher;
+  private final OrderSQSPublisher orderSQSPublisher;
   private OrderService orderService;
 
   @Autowired
@@ -222,7 +227,7 @@ public class OrderService {
       OrderInfo orderInfo = redisTemplate.opsForValue().get(processOrderDto.getOrderId());
       if (orderInfo == null) throw new PaymentExpiredException();
       // 자기자신을 주입받아 호출하여 내부호출 해결
-      orderService.processOrderDelivery(processOrderDto, orderInfo);
+      OrderGroup orderGroup = orderService.processOrderDelivery(processOrderDto, orderInfo);
 
       // delivery-service로 신규 배송지 추가 / 기존 배송지 날짜 update하기
       DeliveryAddressInsertDto deliveryAddressInsertDto =
@@ -237,21 +242,32 @@ public class OrderService {
 
       deliveryServiceClient.createDeliveryAddress(deliveryAddressInsertDto);
 
+      // SNS로 신규 주문 발생 이벤트 보내기
+      List<NewOrderEventItem> newOrderEventList = OrderCommonMapper.createNewOrderEventListForDelivery(orderGroup, orderInfo);
+      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+
+      // SQS로 고객에게 신규 주문 알리기
+      orderSQSPublisher.publish(orderInfo.getUserId(), orderInfo.getOrdererPhoneNumber());
+
     } else if (orderType.equals(OrderType.ORDER_PICKUP.toString())) {
       PickupOrderInfo pickupOrderInfo =
           redisTemplateForPickup.opsForValue().get(processOrderDto.getOrderId());
       if (pickupOrderInfo == null) throw new PaymentExpiredException();
       // 자기자신을 주입받아 호출하여 내부호출 해결
-      orderService.processOrderPickup(processOrderDto, pickupOrderInfo);
+      OrderPickup orderPickup = orderService.processOrderPickup(processOrderDto, pickupOrderInfo);
+
+      // SNS로 신규 주문 발생 이벤트 보내기
+      List<NewOrderEventItem> newOrderEventList = OrderCommonMapper.createNewOrderEventListForPickup(orderPickup, pickupOrderInfo);
+      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+
+      // SQS로 고객에게 신규 주문 알리기
+      orderSQSPublisher.publish(pickupOrderInfo.getUserId(), pickupOrderInfo.getOrdererPhoneNumber());
     }
-
-    // TODO: SNS로 신규 주문 발생 이벤트 보내기
-
   }
 
   // (바로주문, 장바구니) 주문 저장하기
   @Transactional
-  public void processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo) {
+  public OrderGroup processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo) {
     // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
     List<DeliveryInsertDto> dtoList = OrderCommonMapper.toDto(orderInfo);
     List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
@@ -307,11 +323,13 @@ public class OrderService {
       }
       cartItemDeleteKafkaProducer.send("delete-from-cart", userIdToProductIdMap);
     }
+
+    return orderGroup;
   }
 
   // (픽업주문) 주문 저장하기
   @Transactional
-  public void processOrderPickup(ProcessOrderDto processOrderDto, PickupOrderInfo pickupOrderInfo) {
+  public OrderPickup processOrderPickup(ProcessOrderDto processOrderDto, PickupOrderInfo pickupOrderInfo) {
 
     // payment-service 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
@@ -344,6 +362,8 @@ public class OrderService {
     PickupCreateDto pickupCreateDto =
         OrderCommonMapper.toPickupCreateDto(pickupOrderInfo, paymentDateTime, orderPickupProduct);
     pickupCreateDtoKafkaProducer.send("pickup-create", pickupCreateDto);
+
+    return orderPickup;
   }
 
   public void updateStatus(UpdateOrderStatusDto statusDto) {
