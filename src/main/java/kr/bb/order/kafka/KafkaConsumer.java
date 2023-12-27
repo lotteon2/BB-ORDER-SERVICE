@@ -23,7 +23,6 @@ public class KafkaConsumer<T> {
 
       // Kafka로 롤백 보상 패턴 실행
       kafkaProducer.send("order-create-rollback", processOrderDto);
-      throw e;
     }
   }
 

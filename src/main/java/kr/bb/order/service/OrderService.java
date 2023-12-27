@@ -1,5 +1,6 @@
 package kr.bb.order.service;
 
+import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.order.OrderInfoByStore;
@@ -39,6 +40,7 @@ import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.kafka.KafkaProducer;
+import kr.bb.order.mapper.DeliveryAddressMapper;
 import kr.bb.order.mapper.KakaopayMapper;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.mapper.OrderProductMapper;
@@ -119,7 +121,7 @@ public class OrderService {
     String itemName = readyRequestDto.getItemName();
     int quantity = readyRequestDto.getQuantity();
     OrderInfo orderInfo =
-        OrderInfo.transformDataForApi(
+        OrderInfo.convertToRedisDto(
             tempOrderId,
             userId,
             itemName,
@@ -221,6 +223,20 @@ public class OrderService {
       if (orderInfo == null) throw new PaymentExpiredException();
       // 자기자신을 주입받아 호출하여 내부호출 해결
       orderService.processOrderDelivery(processOrderDto, orderInfo);
+
+      // delivery-service로 신규 배송지 추가 / 기존 배송지 날짜 update하기
+      DeliveryAddressInsertDto deliveryAddressInsertDto =
+          DeliveryAddressMapper.toDto(
+              orderInfo.getDeliveryAddressId(),
+              orderInfo.getUserId(),
+              orderInfo.getRecipientName(),
+              orderInfo.getDeliveryZipcode(),
+              orderInfo.getDeliveryRoadName(),
+              orderInfo.getDeliveryAddressDetail(),
+              orderInfo.getOrdererPhoneNumber());
+
+      deliveryServiceClient.createDeliveryAddress(deliveryAddressInsertDto);
+
     } else if (orderType.equals(OrderType.ORDER_PICKUP.toString())) {
       PickupOrderInfo pickupOrderInfo =
           redisTemplateForPickup.opsForValue().get(processOrderDto.getOrderId());
@@ -229,7 +245,7 @@ public class OrderService {
       orderService.processOrderPickup(processOrderDto, pickupOrderInfo);
     }
 
-    // TODO: SQS로 신규 주문 발생 알림 보내기 (가게 사장님에게)
+    // TODO: SNS로 신규 주문 발생 이벤트 보내기
 
   }
 

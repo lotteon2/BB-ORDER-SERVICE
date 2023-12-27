@@ -15,10 +15,10 @@ public class GetStoreInfoFeignRequestFacade {
   public List<StoreDto> handleFeign(Long storeId) {
     List<StoreDto> storeDtoList;
     if (storeId == null) {
-      storeDtoList =  feignRequest.getAllStore().getBody();
+      storeDtoList =  feignRequest.getAllStore().getData();
 
     } else {
-      StoreDto storeDto = feignRequest.getOneStore(storeId).getBody();
+      StoreDto storeDto = feignRequest.getOneStore(storeId).getData();
       storeDtoList = List.of(storeDto);
     }
       return storeDtoList;
