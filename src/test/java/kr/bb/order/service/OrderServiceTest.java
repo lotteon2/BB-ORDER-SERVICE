@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.order.OrderInfoByStore;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
@@ -34,7 +35,6 @@ import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.kafka.KafkaConsumer;
 import kr.bb.order.kafka.KafkaProducer;
-import kr.bb.order.kafka.UpdateOrderStatusDto;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
