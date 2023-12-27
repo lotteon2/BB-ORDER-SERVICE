@@ -78,15 +78,17 @@ jacocoTestCoverageVerification {
             }
             afterEvaluate {
                 classDirectories.setFrom(
-                        files(classDirectories.files.collect{
-                            fileTree(dir:it,excludes:[
+                        files(classDirectories.files.collect {
+                            fileTree(dir: it, excludes: [
                                     "**/*Exception.class",
                                     "**/*Controller.class",
                                     "**/*Dto.class",
                                     "**/*Request.class",
                                     "**/*Response.class",
                                     "**/*Id.class",
-                                    "**/*Application*"
+                                    "**/*Application*",
+                                    "**/GetStoreInfoFeignRequestFacade.class",
+
                             ])
                         })
                 )
@@ -113,15 +115,16 @@ jacocoTestReport {
     }
     afterEvaluate {
         classDirectories.setFrom(
-                files(classDirectories.files.collect{
-                    fileTree(dir:it,excludes:[
+                files(classDirectories.files.collect {
+                    fileTree(dir: it, excludes: [
                             "**/*Exception.class",
                             "**/*Controller.class",
                             "**/*Dto.class",
                             "**/*Request.class",
                             "**/*Response.class",
                             "**/*Id.class",
-                            "**/*Application*"
+                            "**/*Application*",
+                            "**/GetStoreInfoFeignRequestFacade.class",
                     ])
                 })
         )
