@@ -14,16 +14,15 @@ public class SettlementMapper {
   private SettlementMapper(){
 
   }
-  public static List<SettlementDto> pageSettlementToDtoList(Page<Settlement> settlements) {
-    return settlements.map(settlement -> SettlementDto.builder()
+  public static List<SettlementDto> pageSettlementToDtoList(List<Settlement> settlements) {
+    return settlements.stream().map(settlement -> SettlementDto.builder()
             .key(settlement.getSettlementId())
             .storeName(settlement.getStoreName())
             .settlementDate(settlement.getSettlementDate())
             .settlementAmount(settlement.getSettlementAmount())
             .bankName(settlement.getBankName())
             .accountNumber(settlement.getAccountNumber())
-            .build())
-        .toList();
+            .build()).collect(Collectors.toList());
   }
 
     private static BestSettlementDto mapToBestSettlementDto(Settlement settlement) {

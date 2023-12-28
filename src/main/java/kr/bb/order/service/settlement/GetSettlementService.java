@@ -2,6 +2,7 @@ package kr.bb.order.service.settlement;
 
 
 import java.util.List;
+import java.util.stream.Collectors;
 import kr.bb.order.dto.response.settlement.SettlementDto;
 import kr.bb.order.entity.settlement.Settlement;
 import kr.bb.order.repository.settlement.SettlementJpaRepository;
@@ -33,7 +34,7 @@ public class GetSettlementService {
       int size) {
     Page<Settlement> settlementPage = getFilteredSettlements(sido, gugun, storeId, year, month,
         page, size);
-    return SettlementMapper.pageSettlementToDtoList(settlementPage);
+    return SettlementMapper.pageSettlementToDtoList(settlementPage.getContent());
   }
 
 

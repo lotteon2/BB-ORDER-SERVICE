@@ -1,12 +1,12 @@
 package kr.bb.order.controller.restcontroller;
 
+import bloomingblooms.domain.store.StoreInfoDto;
 import bloomingblooms.response.CommonResponse;
 import java.util.List;
 import kr.bb.order.controller.helper.GetStoreInfoFeignRequestFacade;
-import kr.bb.order.dto.request.store.StoreDto;
+import kr.bb.order.dto.response.settlement.LastMonthTop10SalesResponse;
 import kr.bb.order.dto.response.settlement.SettlementDto;
 import kr.bb.order.dto.response.settlement.SettlementResponse;
-import kr.bb.order.dto.response.settlement.LastMonthTop10SalesResponse;
 import kr.bb.order.service.settlement.SettlementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -32,14 +32,14 @@ public class SettlementRestController {
 
     List<SettlementDto> settlementDtoList = settlementService.getSettlement(sido, gugun, storeId,
         year, month,
-        pageable.getPageSize(),
+        pageable.getPageNumber(),
         pageable.getPageSize());
 
-    List<StoreDto> storeDtoList = storeInfoFeignRequest.handleFeign(storeId);
+    List<StoreInfoDto> storeInfoDtoList = storeInfoFeignRequest.handleFeign(storeId);
 
     return CommonResponse.success(
         SettlementResponse.builder().totalCnt(settlementDtoList.size()).month(month).year(year)
-            .store(storeDtoList).settlementDtoList(settlementDtoList).build());
+            .store(storeInfoDtoList).settlementDtoList(settlementDtoList).build());
 
   }
 
