@@ -10,6 +10,7 @@ import kr.bb.order.dto.response.settlement.SettlementResponse;
 import kr.bb.order.service.settlement.SettlementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
