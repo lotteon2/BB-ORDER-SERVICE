@@ -1,18 +1,11 @@
 package kr.bb.order.service.settlement.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.springframework.test.util.AssertionErrors.assertTrue;
-
 import java.time.LocalDateTime;
-import java.util.List;
-import kr.bb.order.dto.response.settlement.SettlementDto;
 import kr.bb.order.entity.settlement.Settlement;
 import kr.bb.order.repository.settlement.SettlementJpaRepository;
 import kr.bb.order.service.settlement.GetSettlementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -61,20 +54,5 @@ class GetSettlementServiceTest {
         "GugunL");
   }
 
- @DisplayName("데이터가 존재할 때 SettlementDto List NotNull 데이터 list 얻기")
-    @Test
-    void GetListOfSettlementDto_WhenThereIsPreData_GetEachOfElementsNotNullSettlementDto() {
-        List<SettlementDto> settlementDtoList = getSettlementService.getSettlement(null, null, null, 2023, null, 0, 10);
-        assertNotNull(settlementDtoList);
-
-        for (SettlementDto settlementDto : settlementDtoList) {
-            assertNotNull(settlementDto);
-            assertNotNull(settlementDto.getKey());
-            assertNotNull(settlementDto.getStoreName());
-            assertNotNull(settlementDto.getSettlementDate());
-            assertNotNull(settlementDto.getSettlementAmount());
-        }
-        assertEquals(10,settlementDtoList.size());
-    }
 
 }

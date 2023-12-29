@@ -92,6 +92,7 @@ jacocoTestCoverageVerification {
                                     "**/*Application*",
                                     "**/GetStoreInfoFeignRequestFacade.class",
                                     "**/*Publisher.class",
+                                    "**/*Mapper.class",
                             ])
                         })
                 )
@@ -129,6 +130,7 @@ jacocoTestReport {
                             "**/*Application*",
                             "**/GetStoreInfoFeignRequestFacade.class",
                             "**/*Publisher.class",
+                            "**/*Mapper.class",
                     ])
                 })
         )

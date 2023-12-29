@@ -17,6 +17,7 @@ public class SettlementDto {
   private String storeName;
   private LocalDateTime settlementDate;
   private Long settlementAmount;
+  private Long totalAmountPerMonth;
   private String bankName;
   private String accountNumber;
 

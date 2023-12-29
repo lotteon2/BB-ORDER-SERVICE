@@ -1,11 +1,7 @@
 package kr.bb.order.controller.restcontroller;
 
-import bloomingblooms.domain.store.StoreInfoDto;
 import bloomingblooms.response.CommonResponse;
-import java.util.List;
-import kr.bb.order.controller.helper.GetStoreInfoFeignRequestFacade;
 import kr.bb.order.dto.response.settlement.LastMonthTop10SalesResponse;
-import kr.bb.order.dto.response.settlement.SettlementDto;
 import kr.bb.order.dto.response.settlement.SettlementResponse;
 import kr.bb.order.service.settlement.SettlementService;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class SettlementRestController {
 
   private final SettlementService settlementService;
-  private final GetStoreInfoFeignRequestFacade storeInfoFeignRequest;
 
   @GetMapping("/admin/settlement")
   public CommonResponse<SettlementResponse> getSettlements(
@@ -32,16 +27,13 @@ public class SettlementRestController {
       @RequestParam(required = false) String gugun,
       Pageable pageable) {
 
-    List<SettlementDto> settlementDtoList = settlementService.getSettlement(sido, gugun, storeId,
+      SettlementResponse response = settlementService.getSettlement(sido, gugun,storeId,
         year, month,
         pageable.getPageNumber(),
         pageable.getPageSize());
 
-    List<StoreInfoDto> storeInfoDtoList = storeInfoFeignRequest.handleFeign(storeId);
 
-    return CommonResponse.success(
-        SettlementResponse.builder().totalCnt(settlementDtoList.size()).month(month).year(year)
-            .store(storeInfoDtoList).settlementDtoList(settlementDtoList).build());
+    return CommonResponse.success(response);
 
   }
 
@@ -53,16 +45,12 @@ public class SettlementRestController {
       @RequestParam(required = false) Long storeId,
       Pageable pageable) {
 
-    List<SettlementDto> settlementDtoList = settlementService.getSettlementWithoutLocation(storeId,
+    SettlementResponse response = settlementService.getSettlementWithoutLocation(storeId,
         year, month,
         pageable.getPageNumber(),
         pageable.getPageSize());
-
-    List<StoreInfoDto> storeInfoDtoList = storeInfoFeignRequest.handleFeign(storeId);
-
-    return CommonResponse.success(
-        SettlementResponse.builder().totalCnt(settlementDtoList.size()).month(month).year(year)
-            .store(storeInfoDtoList).settlementDtoList(settlementDtoList).build());
+    
+    return CommonResponse.success(response);
 
   }
 

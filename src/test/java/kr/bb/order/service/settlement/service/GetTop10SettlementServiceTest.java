@@ -79,8 +79,8 @@ class GetTop10SettlementServiceTest {
     }
 
     for (int i = 0; i < bestSettlementDtoList.size() - 1; i++) {
-      long currentAmount = bestSettlementDtoList.get(i).getData();
-      long nextAmount = bestSettlementDtoList.get(i + 1).getData();
+      long currentAmount = bestSettlementDtoList.get(i).getData().get(0);
+      long nextAmount = bestSettlementDtoList.get(i + 1).getData().get(0);
       assertTrue(currentAmount >= nextAmount);
     }
     assertEquals(10,bestSettlementDtoList.size());
