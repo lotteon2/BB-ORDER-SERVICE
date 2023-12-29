@@ -46,7 +46,7 @@ public class SettlementRestController {
   }
 
 
-  @GetMapping("/stores/settlement")
+  @GetMapping("/store/settlement")
   public CommonResponse<SettlementResponse> getSettlements(
       @RequestParam(required = false) Integer year,
       @RequestParam(required = false) Integer month,
