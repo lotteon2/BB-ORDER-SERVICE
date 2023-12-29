@@ -1,9 +1,8 @@
 package kr.bb.order.service.settlement;
 
 
-import java.util.List;
 import kr.bb.order.dto.response.settlement.LastMonthTop10SalesResponse;
-import kr.bb.order.dto.response.settlement.SettlementDto;
+import kr.bb.order.dto.response.settlement.SettlementResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -18,14 +17,14 @@ public class SettlementService {
     return getTop10SettlementService.getTop10();
   }
 
-  public List<SettlementDto> getSettlementWithoutLocation( Long storeId, Integer year,
+  public SettlementResponse getSettlementWithoutLocation( Long storeId, Integer year,
       Integer month, int page,
       int size) {
     return getSettlementService.getSettlement(null,null,storeId, year, month, page, size);
   }
 
 
-  public List<SettlementDto> getSettlement(String sido, String gugun, Long storeId, Integer year,
+  public SettlementResponse getSettlement(String sido, String gugun, Long storeId, Integer year,
       Integer month, int page,
       int size) {
     return getSettlementService.getSettlement(sido,gugun,storeId, year, month, page, size);

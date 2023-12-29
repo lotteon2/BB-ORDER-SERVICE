@@ -1,5 +1,6 @@
 package kr.bb.order.dto.response.settlement;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,5 +12,5 @@ import lombok.NoArgsConstructor;
 @Getter
 public class BestSettlementDto {
   private String name;
-  private Integer data;
+  private List<Integer> data;
 }
