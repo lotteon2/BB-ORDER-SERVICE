@@ -2,6 +2,7 @@ package kr.bb.order.config;
 
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
+import kr.bb.order.entity.redis.SubscriptionOrderInfo;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,6 +48,15 @@ public class RedisConfig {
   @Bean
   public RedisTemplate<String, PickupOrderInfo> redisTemplateForPickup() {
     RedisTemplate<String, PickupOrderInfo> redisTemplate = new RedisTemplate<>();
+    redisTemplate.setKeySerializer(new StringRedisSerializer());
+    redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+    redisTemplate.setConnectionFactory(redisConnectionFactory());
+    return redisTemplate;
+  }
+
+  @Bean
+  public RedisTemplate<String, SubscriptionOrderInfo> redisTemplateForSubscription() {
+    RedisTemplate<String, SubscriptionOrderInfo> redisTemplate = new RedisTemplate<>();
     redisTemplate.setKeySerializer(new StringRedisSerializer());
     redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
     redisTemplate.setConnectionFactory(redisConnectionFactory());

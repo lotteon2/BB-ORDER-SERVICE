@@ -12,14 +12,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "deliveryServiceClient")
+@FeignClient(name = "deliveryServiceClient", url = "${endpoint.delivery-service}")
 public interface DeliveryServiceClient {
-    @PostMapping(value = "/delivery")
+    @PostMapping(value = "/client/delivery")
     CommonResponse<List<Long>> createDelivery(@RequestBody List<DeliveryInsertDto> dtoList);
 
-    @GetMapping(value = "/delivery/requests")  // key: deliveryId
+    @GetMapping(value = "/client/delivery/requests")  // key: deliveryId
     CommonResponse<Map<Long, DeliveryInfoDto>> getDeliveryInfo(@RequestParam List<Long> deliveryIds);
 
-    @PostMapping(value = "/delivery/delivery-address")
+    @PostMapping(value = "/client/delivery/delivery-address")
     CommonResponse<Void> createDeliveryAddress(@RequestBody DeliveryAddressInsertDto createDeliveryAddress);
 }
