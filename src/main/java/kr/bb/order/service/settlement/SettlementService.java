@@ -18,6 +18,12 @@ public class SettlementService {
     return getTop10SettlementService.getTop10();
   }
 
+  public List<SettlementDto> getSettlementWithoutLocation( Long storeId, Integer year,
+      Integer month, int page,
+      int size) {
+    return getSettlementService.getSettlement(null,null,storeId, year, month, page, size);
+  }
+
 
   public List<SettlementDto> getSettlement(String sido, String gugun, Long storeId, Integer year,
       Integer month, int page,

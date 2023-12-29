@@ -46,6 +46,27 @@ public class SettlementRestController {
   }
 
 
+  @GetMapping("/stores/settlement")
+  public CommonResponse<SettlementResponse> getSettlements(
+      @RequestParam(required = false) Integer year,
+      @RequestParam(required = false) Integer month,
+      @RequestParam(required = false) Long storeId,
+      Pageable pageable) {
+
+    List<SettlementDto> settlementDtoList = settlementService.getSettlementWithoutLocation(storeId,
+        year, month,
+        pageable.getPageNumber(),
+        pageable.getPageSize());
+
+    List<StoreInfoDto> storeInfoDtoList = storeInfoFeignRequest.handleFeign(storeId);
+
+    return CommonResponse.success(
+        SettlementResponse.builder().totalCnt(settlementDtoList.size()).month(month).year(year)
+            .store(storeInfoDtoList).settlementDtoList(settlementDtoList).build());
+
+  }
+
+
   @GetMapping("/admin/sales")
   public CommonResponse<LastMonthTop10SalesResponse> getSalesTop10() {
     return CommonResponse.success(settlementService.getTop10());
