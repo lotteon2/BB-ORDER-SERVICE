@@ -25,10 +25,15 @@ public class GetSettlementService {
   public SettlementResponse getSettlement(String sido, String gugun, Long storeId, Integer year,
       Integer month, int page,
       int size) {
-    Page<Settlement> settlementPage = getFilteredSettlements(sido, gugun, storeId, year, month,
-        page, size);
+    Page<Settlement> settlementPage;
+
+      settlementPage = getFilteredSettlements(sido, gugun, storeId, year, month,
+          page, size);
+
     return SettlementMapper.aggregateSettlements(settlementPage.getContent());
   }
+
+
 
   private Page<Settlement> getFilteredSettlements(String sido, String gugun, Long storeId,
       Integer year, Integer month,
