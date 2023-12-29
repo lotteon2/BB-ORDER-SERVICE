@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequiredArgsConstructor
 @RestController
 public class SettlementRestController {
@@ -32,6 +33,27 @@ public class SettlementRestController {
       Pageable pageable) {
 
     List<SettlementDto> settlementDtoList = settlementService.getSettlement(sido, gugun, storeId,
+        year, month,
+        pageable.getPageNumber(),
+        pageable.getPageSize());
+
+    List<StoreInfoDto> storeInfoDtoList = storeInfoFeignRequest.handleFeign(storeId);
+
+    return CommonResponse.success(
+        SettlementResponse.builder().totalCnt(settlementDtoList.size()).month(month).year(year)
+            .store(storeInfoDtoList).settlementDtoList(settlementDtoList).build());
+
+  }
+
+
+  @GetMapping("/store/settlement")
+  public CommonResponse<SettlementResponse> getSettlements(
+      @RequestParam(required = false) Integer year,
+      @RequestParam(required = false) Integer month,
+      @RequestParam(required = false) Long storeId,
+      Pageable pageable) {
+
+    List<SettlementDto> settlementDtoList = settlementService.getSettlementWithoutLocation(storeId,
         year, month,
         pageable.getPageNumber(),
         pageable.getPageSize());

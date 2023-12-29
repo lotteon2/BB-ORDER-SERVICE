@@ -20,14 +20,6 @@ public class GetSettlementService {
 
   private final SettlementJpaRepository repository;
 
-  private Page<Settlement> getFilteredSettlements(String sido, String gugun, Long storeId,
-      Integer year, Integer month,
-      int page, int size) {
-    PageRequest pageRequest = PageRequest.of(page, size);
-    Specification<Settlement> specification = SettlementSpecification.filterSettlements(sido,gugun,storeId,
-        year, month);
-    return repository.findAll(specification, pageRequest);
-  }
 
   public List<SettlementDto> getSettlement(String sido, String gugun, Long storeId, Integer year,
       Integer month, int page,
@@ -35,6 +27,16 @@ public class GetSettlementService {
     Page<Settlement> settlementPage = getFilteredSettlements(sido, gugun, storeId, year, month,
         page, size);
     return SettlementMapper.pageSettlementToDtoList(settlementPage.getContent());
+  }
+
+  private Page<Settlement> getFilteredSettlements(String sido, String gugun, Long storeId,
+      Integer year, Integer month,
+      int page, int size) {
+    PageRequest pageRequest = PageRequest.of(page, size);
+    Specification<Settlement> specification = SettlementSpecification.filterSettlements(sido, gugun,
+        storeId,
+        year, month);
+    return repository.findAll(specification, pageRequest);
   }
 
 
