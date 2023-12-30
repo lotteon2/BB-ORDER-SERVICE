@@ -1,9 +1,7 @@
 package kr.bb.order.entity.subscription;
 
-import javax.persistence.Column;
+import java.time.LocalDate;
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
@@ -21,12 +19,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class OrderSubscription extends BaseEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long orderSubscriptionId;
+    private String orderSubscriptionId;
     @NotNull
     private Long userId;
     @NotNull
-    private Long subscriptionProductId;
+    private String subscriptionProductId;
     @NotNull
     private Long deliveryId;
     @NotNull
@@ -34,5 +31,5 @@ public class OrderSubscription extends BaseEntity {
     @NotNull
     private Long productPrice;
     @NotNull
-    private Long deliveryDay;
+    private LocalDate deliveryDay;
 }

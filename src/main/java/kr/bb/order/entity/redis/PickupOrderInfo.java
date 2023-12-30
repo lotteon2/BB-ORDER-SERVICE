@@ -42,7 +42,7 @@ public class PickupOrderInfo {
   private String pgToken;
   private String orderType;
 
-  public static PickupOrderInfo transformDataForApi(
+  public static PickupOrderInfo convertToRedisDto(
       String tempOrderId,
       Long userId,
       String itemName,

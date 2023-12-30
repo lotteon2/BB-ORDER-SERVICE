@@ -13,6 +13,7 @@ import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.product.IsProductPriceValid;
+import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
+import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.OrderType;
@@ -35,6 +37,8 @@ import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
+import kr.bb.order.entity.redis.SubscriptionOrderInfo;
+import kr.bb.order.entity.subscription.OrderSubscription;
 import kr.bb.order.exception.PaymentExpiredException;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
@@ -51,6 +55,7 @@ import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderProductRepository;
+import kr.bb.order.repository.OrderSubscriptionRepository;
 import kr.bb.order.util.OrderUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,16 +72,19 @@ public class OrderService {
   private final PaymentServiceClient paymentServiceClient;
   private final RedisTemplate<String, OrderInfo> redisTemplate;
   private final RedisTemplate<String, PickupOrderInfo> redisTemplateForPickup;
+  private final RedisTemplate<String, SubscriptionOrderInfo> redisTemplateForSubscription;
   private final OrderManager orderManager;
   private final OrderDeliveryRepository orderDeliveryRepository;
   private final DeliveryServiceClient deliveryServiceClient;
   private final KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
   private final KafkaProducer<Map<Long, String>> cartItemDeleteKafkaProducer;
   private final KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
+  private final KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   private final OrderUtil orderUtil;
   private final OrderProductRepository orderProductRepository;
   private final OrderGroupRepository orderGroupRepository;
   private final OrderPickupRepository orderPickupRepository;
+  private final OrderSubscriptionRepository orderSubscriptionRepository;
   private final OrderSNSPublisher orderSNSPublisher;
   private final OrderSQSPublisher orderSQSPublisher;
   private OrderService orderService;
@@ -182,7 +190,7 @@ public class OrderService {
     long quantity = readyRequestDto.getQuantity();
     String tid = responseDto.getTid();
     PickupOrderInfo pickupOrderInfo =
-        PickupOrderInfo.transformDataForApi(
+        PickupOrderInfo.convertToRedisDto(
             tempOrderId, userId, itemName, quantity, isSubscriptionPay, tid, requestDto, orderType);
 
     redisTemplateForPickup.opsForValue().set(tempOrderId, pickupOrderInfo);
@@ -190,7 +198,54 @@ public class OrderService {
     return responseDto;
   }
 
-  // (바로주문, 장바구니 / 픽업주문) 타 서비스로 kafka 주문 요청 처리
+  // 구독 주문 준비 단계
+  @Transactional
+  public KakaopayReadyResponseDto readyForSubscriptionOrder(
+      Long userId, OrderForSubscriptionDto requestDto, OrderType orderType) {
+    OrderInfoByStore orderInfoByStore = createOrderInfoByStoreForSubscription(requestDto);
+    List<OrderInfoByStore> orderInfoByStores = List.of(orderInfoByStore);
+
+    // product-service로 가격 유효성 확인하기
+    List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
+    productServiceClient.validatePrice(priceCheckDtos);
+
+    // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
+    List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
+    storeServiceClient.validatePurchaseDetails(validatePriceDtos);
+
+    // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
+    orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
+
+    // 임시 주문id 및 결제준비용 dto 생성
+    String tempOrderId = orderUtil.generateUUID();
+    boolean isSubscriptionPay = true;
+
+    KakaopayReadyRequestDto readyRequestDto =
+        KakaopayReadyRequestDto.toDto(
+            userId,
+            tempOrderId,
+            orderType.toString(),
+            orderInfoByStores,
+            requestDto.getActualAmount(),
+            isSubscriptionPay);
+
+    // payment-service로 결제 준비 요청
+    KakaopayReadyResponseDto responseDto = paymentServiceClient.ready(readyRequestDto).getData();
+
+    // 주문정보와 tid를 redis에 저장
+    String itemName = readyRequestDto.getItemName();
+    long quantity = readyRequestDto.getQuantity();
+    String tid = responseDto.getTid();
+    SubscriptionOrderInfo subscriptionOrderInfo =
+        SubscriptionOrderInfo.convertToRedisDto(
+            tempOrderId, userId, itemName, quantity, isSubscriptionPay, tid, requestDto, orderType);
+
+    redisTemplateForSubscription.opsForValue().set(tempOrderId, subscriptionOrderInfo);
+
+    return responseDto;
+  }
+
+  // (바로주문, 장바구니 / 픽업주문 / 구독주문) 타 서비스로 kafka 주문 요청 처리 [쿠폰사용, 재고차감]
   @Transactional
   public void requestOrder(String orderId, String orderType, String pgToken) {
     // redis에서 정보 가져오기 및 TTL 갱신
@@ -216,10 +271,22 @@ public class OrderService {
       ProcessOrderDto processOrderDto =
           OrderCommonMapper.toDtoForOrderPickup(orderId, pickupOrderInfo);
       processOrderDtoKafkaProducer.send("coupon-use", processOrderDto);
+    } else {
+      SubscriptionOrderInfo subscriptionOrderInfo =
+          redisTemplateForSubscription.opsForValue().get(orderId);
+      if (subscriptionOrderInfo == null) throw new PaymentExpiredException();
+
+      subscriptionOrderInfo.setPgToken(pgToken);
+      redisTemplateForSubscription.opsForValue().set(orderId, subscriptionOrderInfo);
+      redisTemplateForSubscription.expire(orderId, 5, TimeUnit.MINUTES);
+
+      ProcessOrderDto processOrderDto =
+          OrderCommonMapper.toDtoForOrderSubscription(orderId, subscriptionOrderInfo);
+      processOrderDtoKafkaProducer.send("coupon-use", processOrderDto);
     }
   }
 
-  //  주문 저장하기
+  // 주문 저장하기
   public void processOrder(ProcessOrderDto processOrderDto) {
     String orderType = processOrderDto.getOrderType();
     if (orderType.equals(OrderType.ORDER_DELIVERY.toString())
@@ -243,7 +310,8 @@ public class OrderService {
       deliveryServiceClient.createDeliveryAddress(deliveryAddressInsertDto);
 
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList = OrderCommonMapper.createNewOrderEventListForDelivery(orderGroup, orderInfo);
+      List<NewOrderEventItem> newOrderEventList =
+          OrderCommonMapper.createNewOrderEventListForDelivery(orderGroup, orderInfo);
       orderSNSPublisher.newOrderEventPublish(newOrderEventList);
 
       // SQS로 고객에게 신규 주문 알리기
@@ -257,11 +325,44 @@ public class OrderService {
       OrderPickup orderPickup = orderService.processOrderPickup(processOrderDto, pickupOrderInfo);
 
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList = OrderCommonMapper.createNewOrderEventListForPickup(orderPickup, pickupOrderInfo);
+      List<NewOrderEventItem> newOrderEventList =
+          OrderCommonMapper.createNewOrderEventListForPickup(orderPickup, pickupOrderInfo);
       orderSNSPublisher.newOrderEventPublish(newOrderEventList);
 
       // SQS로 고객에게 신규 주문 알리기
-      orderSQSPublisher.publish(pickupOrderInfo.getUserId(), pickupOrderInfo.getOrdererPhoneNumber());
+      orderSQSPublisher.publish(
+          pickupOrderInfo.getUserId(), pickupOrderInfo.getOrdererPhoneNumber());
+    } else {
+      SubscriptionOrderInfo subscriptionOrderInfo =
+          redisTemplateForSubscription.opsForValue().get(processOrderDto.getOrderId());
+      if (subscriptionOrderInfo == null) throw new PaymentExpiredException();
+
+      // 자기자신을 주입받아 호출하여 내부호출 해결
+      OrderSubscription orderSubscription =
+          orderService.processOrderSubscription(processOrderDto, subscriptionOrderInfo);
+
+      // delivery-service로 신규 배송지 추가 / 기존 배송지 날짜 update하기
+      DeliveryAddressInsertDto deliveryAddressInsertDto =
+          DeliveryAddressMapper.toDto(
+              subscriptionOrderInfo.getDeliveryAddressId(),
+              subscriptionOrderInfo.getUserId(),
+              subscriptionOrderInfo.getRecipientName(),
+              subscriptionOrderInfo.getDeliveryZipcode(),
+              subscriptionOrderInfo.getDeliveryRoadName(),
+              subscriptionOrderInfo.getDeliveryAddressDetail(),
+              subscriptionOrderInfo.getOrdererPhoneNumber());
+
+      deliveryServiceClient.createDeliveryAddress(deliveryAddressInsertDto);
+
+      // SNS로 신규 주문 발생 이벤트 보내기
+      List<NewOrderEventItem> newOrderEventList =
+          OrderCommonMapper.createNewOrderEventListForSubscription(
+              orderSubscription, subscriptionOrderInfo);
+      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+
+      // SQS로 고객에게 신규 주문 알리기
+      orderSQSPublisher.publish(
+          subscriptionOrderInfo.getUserId(), subscriptionOrderInfo.getOrdererPhoneNumber());
     }
   }
 
@@ -269,10 +370,10 @@ public class OrderService {
   @Transactional
   public OrderGroup processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo) {
     // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
-    List<DeliveryInsertDto> dtoList = OrderCommonMapper.toDto(orderInfo);
+    List<DeliveryInsertDto> dtoList = OrderCommonMapper.toDeliveryInsertDto(orderInfo);
     List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
 
-    // payment-service 결제 승인 요청
+    // payment-service 최종 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto = KakaopayMapper.toDtoFromOrderInfo(orderInfo);
     paymentServiceClient.approve(approveRequestDto).getData();
 
@@ -329,9 +430,10 @@ public class OrderService {
 
   // (픽업주문) 주문 저장하기
   @Transactional
-  public OrderPickup processOrderPickup(ProcessOrderDto processOrderDto, PickupOrderInfo pickupOrderInfo) {
+  public OrderPickup processOrderPickup(
+      ProcessOrderDto processOrderDto, PickupOrderInfo pickupOrderInfo) {
 
-    // payment-service 결제 승인 요청
+    // payment-service 최종 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
         KakaopayMapper.toDtoFromPickupOrderInfo(pickupOrderInfo);
     LocalDateTime paymentDateTime = paymentServiceClient.approve(approveRequestDto).getData();
@@ -366,13 +468,49 @@ public class OrderService {
     return orderPickup;
   }
 
+  // (구독주문) 주문 저장하기
+  @Transactional
+  public OrderSubscription processOrderSubscription(
+      ProcessOrderDto processOrderDto, SubscriptionOrderInfo subscriptionOrderInfo) {
+    // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
+    List<DeliveryInsertDto> dtoList =
+        OrderCommonMapper.toDeliveryInsertDtoForSubscription(subscriptionOrderInfo);
+    List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
+
+    // payment-service 최종 결제 승인 요청
+    KakaopayApproveRequestDto approveRequestDto =
+        KakaopayMapper.toDtoFromSubscriptionOrderInfo(subscriptionOrderInfo, deliveryIds);
+    LocalDateTime paymentDateTime = paymentServiceClient.approve(approveRequestDto).getData();
+
+    OrderSubscription orderSubscription =
+        OrderSubscription.builder()
+            .orderSubscriptionId(processOrderDto.getOrderId())
+            .userId(processOrderDto.getUserId())
+            .subscriptionProductId(subscriptionOrderInfo.getProduct().getProductId())
+            .deliveryId(deliveryIds.get(0))
+            .productName(subscriptionOrderInfo.getItemName())
+            .productPrice(subscriptionOrderInfo.getProduct().getPrice())
+            .deliveryDay(LocalDate.now().plusDays(3))
+            .build();
+
+    orderSubscriptionRepository.save(orderSubscription);
+
+    // order-query 서비스로 구독 주문 Kafka send
+    SubscriptionCreateDto subscriptionCreateDto =
+        OrderCommonMapper.toSubscriptionCreateDto(
+            subscriptionOrderInfo, paymentDateTime, orderSubscription);
+    subscriptionCreateDtoKafkaProducer.send("subscription-create", subscriptionCreateDto);
+
+    return orderSubscription;
+  }
+
   public void updateStatus(UpdateOrderStatusDto statusDto) {
     OrderDelivery orderDelivery =
         orderDeliveryRepository
             .findById(statusDto.getOrderDeliveryId())
             .orElseThrow(EntityNotFoundException::new);
-    orderDelivery.updateStatus(statusDto.getStatus());
-    if (statusDto.getStatus().equals(OrderDeliveryStatus.COMPLETED.toString())) {
+    orderDelivery.updateStatus(OrderDeliveryStatus.valueOf(statusDto.getDeliveryStatus().name()));
+    if ("COMPLETED".equalsIgnoreCase(String.valueOf(statusDto.getDeliveryStatus()))) {
       orderDelivery
           .getOrderDeliveryProducts()
           .forEach(OrderDeliveryProduct::updateReviewAndCardStatus);
@@ -423,6 +561,30 @@ public class OrderService {
             .productThumbnailImage(requestDto.getProduct().getProductThumbnailImage())
             .build();
     products.add(productCreate);
+
+    return OrderInfoByStore.builder()
+        .storeId(requestDto.getStoreId())
+        .storeName(requestDto.getStoreName())
+        .products(products)
+        .totalAmount(requestDto.getTotalAmount())
+        .deliveryCost(requestDto.getDeliveryCost())
+        .couponId(requestDto.getCouponId())
+        .couponAmount(requestDto.getCouponAmount())
+        .actualAmount(requestDto.getActualAmount())
+        .build();
+  }
+
+  public OrderInfoByStore createOrderInfoByStoreForSubscription(
+      OrderForSubscriptionDto requestDto) {
+    ProductCreate productCreate =
+        ProductCreate.builder()
+            .productId(requestDto.getProducts().getProductId())
+            .productName(requestDto.getProducts().getProductName())
+            .quantity(requestDto.getProducts().getQuantity())
+            .price((requestDto.getProducts().getPrice()))
+            .productThumbnailImage(requestDto.getProducts().getProductThumbnailImage())
+            .build();
+    List<ProductCreate> products = List.of(productCreate);
 
     return OrderInfoByStore.builder()
         .storeId(requestDto.getStoreId())

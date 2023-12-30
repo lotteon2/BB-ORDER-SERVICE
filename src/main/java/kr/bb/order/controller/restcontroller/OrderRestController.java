@@ -4,6 +4,7 @@ import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.response.CommonResponse;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
+import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
 import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
@@ -41,7 +42,7 @@ public class OrderRestController {
     return CommonResponse.success(responseDto);
   }
 
-  // 바로 주문(배송) 승인 단계
+  // 바로 주문(배송), 픽업, 구독 승인 단계
   @GetMapping("/approve/{partnerOrderId}/{orderType}")
   public void requestOrder(
       @PathVariable("partnerOrderId") String orderId,
@@ -67,6 +68,15 @@ public class OrderRestController {
 
     KakaopayReadyResponseDto kakaopayReadyResponseDto =
         orderService.readyForPickupOrder(userId, requestDto, OrderType.ORDER_PICKUP);
+    return CommonResponse.success(kakaopayReadyResponseDto);
+  }
+
+  // 구독 주문 준비 단계
+  @PostMapping("/subscription")
+  public CommonResponse<KakaopayReadyResponseDto> readyForSubscriptionOrder(
+      @RequestHeader Long userId, @RequestBody OrderForSubscriptionDto requestDto) {
+    KakaopayReadyResponseDto kakaopayReadyResponseDto =
+        orderService.readyForSubscriptionOrder(userId, requestDto, OrderType.ORDER_SUBSCRIPTION);
     return CommonResponse.success(kakaopayReadyResponseDto);
   }
 

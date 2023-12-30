@@ -9,11 +9,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name="productServiceClient")
+@FeignClient(name="productServiceClient", url="${endpoint.product-service}")
 public interface ProductServiceClient {
-    @PostMapping(value="products/validate-price")
+    @PostMapping(value="/client/products/validate-price")
     CommonResponse<Void> validatePrice(@RequestBody List<IsProductPriceValid> dtoList);
 
-    @GetMapping(value="products/product-info")
+    @GetMapping(value="/client/products/product-info")
     CommonResponse<List<ProductInformation>> getProductInfo(@RequestBody List<String> productIds);
 }

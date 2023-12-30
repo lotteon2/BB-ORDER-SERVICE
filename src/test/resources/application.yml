@@ -65,6 +65,6 @@ logging:
 
 endpoint:
   product-service: localhost:8800
-  delivery-service: localhost:8081
+  delivery-service: localhost:8300
   payment-service: localhost:8100
   store-service: localhost:8700

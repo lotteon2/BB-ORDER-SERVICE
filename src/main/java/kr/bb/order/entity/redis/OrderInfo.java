@@ -69,7 +69,7 @@ public class OrderInfo extends BaseEntity {
         .deliveryZipcode(requestDto.getDeliveryZipcode())
         .deliveryRoadName(requestDto.getDeliveryRoadName())
         .deliveryAddressDetail(requestDto.getDeliveryAddressDetail())
-        .ordererPhoneNumber(requestDto.getOrdererPhoneNumber())
+        .recipientPhone(requestDto.getRecipientPhone())
         .deliveryRequest(requestDto.getDeliveryRequest())
         .tid(tid)
         .orderType(orderType.toString())
