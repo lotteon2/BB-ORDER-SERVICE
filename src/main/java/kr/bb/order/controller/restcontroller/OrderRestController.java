@@ -51,6 +51,18 @@ public class OrderRestController {
     orderService.requestOrder(orderId, orderType, pgToken);
   }
 
+  // 결제 준비 상태에서 결제 취소시
+  @GetMapping("/cancel")
+  public CommonResponse<String> cancel(){
+    return CommonResponse.success("카카오페이 결제 취소!");
+  }
+
+  // '결제승인' 단계에서 카카오페이 쪽의 오류 발생시 (ex. 잔액 부족)
+  @GetMapping("/fail")
+  public CommonResponse<String> fail(){
+    return CommonResponse.success("카카오페이 결제 실패!");
+  }
+
   // 장바구니에서 주문(배송) 준비 단계
   @PostMapping("/cart")
   public CommonResponse<KakaopayReadyResponseDto> readyForCartOrder(
