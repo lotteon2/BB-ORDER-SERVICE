@@ -218,7 +218,7 @@ public class OrderService {
 
     // 임시 주문id 및 결제준비용 dto 생성
     String tempOrderId = orderUtil.generateUUID();
-    boolean isSubscriptionPay = true;
+    Boolean isSubscriptionPay = true;
 
     KakaopayReadyRequestDto readyRequestDto =
         KakaopayReadyRequestDto.toDto(
@@ -499,7 +499,7 @@ public class OrderService {
     SubscriptionCreateDto subscriptionCreateDto =
         OrderCommonMapper.toSubscriptionCreateDto(
             subscriptionOrderInfo, paymentDateTime, orderSubscription);
-    subscriptionCreateDtoKafkaProducer.send("subscription-create", subscriptionCreateDto);
+//    subscriptionCreateDtoKafkaProducer.send("subscription-create", subscriptionCreateDto);
 
     return orderSubscription;
   }

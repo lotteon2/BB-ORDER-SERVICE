@@ -38,7 +38,6 @@ public class OrderListServiceTest {
   @MockBean private PaymentServiceClient paymentServiceClient;
   @MockBean private ProductServiceClient productServiceClient;
   @MockBean private DeliveryServiceClient deliveryServiceClient;
-  @Autowired private EntityManager em;
 
   @Test
   @DisplayName("주문 목록 조회 - 회원")
