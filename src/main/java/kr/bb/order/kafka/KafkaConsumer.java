@@ -13,7 +13,7 @@ public class KafkaConsumer<T> {
   private final OrderService orderService;
   private final KafkaProducer<ProcessOrderDto> kafkaProducer;
 
-  @KafkaListener(topics = "order-create")
+  @KafkaListener(topics = "order-create", groupId = "order")
   public void processOrder(ProcessOrderDto processOrderDto ) {
     try {
       orderService.processOrder(processOrderDto);
@@ -26,7 +26,7 @@ public class KafkaConsumer<T> {
     }
   }
 
-  @KafkaListener(topics = "order-delivery-status")
+  @KafkaListener(topics = "order-delivery-status", groupId = "order")
   public void updateOrderDeliveryStatus(UpdateOrderStatusDto updateOrderStatusDto) {
       orderService.updateStatus(updateOrderStatusDto);
   }

@@ -55,7 +55,7 @@ public class KakaopayMapper {
         .tid(subscriptionOrderInfo.getTid())
         .pgToken(subscriptionOrderInfo.getPgToken())
         .deliveryId(deliveryIds.get(0))
-            // phoneNumber 추가하기
+        .phoneNumber(subscriptionOrderInfo.getOrdererPhoneNumber())
         .build();
   }
 }

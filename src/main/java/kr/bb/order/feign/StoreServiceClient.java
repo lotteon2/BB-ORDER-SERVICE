@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient(name = "storeServiceClient", url="${endpoint.store-service}")
 public interface StoreServiceClient {
-  @PostMapping("/client/store/validate-purhcase")
+  @PostMapping("/client/stores/coupons/validate-purchase")
   CommonResponse<Void> validatePurchaseDetails(@RequestBody List<ValidatePriceDto> dtos);
 
-  @GetMapping("/client/store/store-name")
+  @GetMapping("/client/stores/store-name")
   CommonResponse<Map<Long, String>> getStoreName(@RequestParam List<Long> storeIds);
 }
