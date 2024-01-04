@@ -97,7 +97,7 @@ public class OrderRestController {
   public CommonResponse<OrderDeliveryPageInfoDto> getOrderDeliveryListForUser(
       @RequestHeader Long userId,
       @PageableDefault(page = 0, size = 5) Pageable pageable,
-      @RequestParam("sort") String status) {
+      @RequestParam("status") String status) {
 
     OrderDeliveryStatus orderDeliveryStatus = parseOrderDeliveryStatus(status);
 
@@ -110,7 +110,7 @@ public class OrderRestController {
   @GetMapping("/store/delivery")
   public CommonResponse<OrderDeliveryPageInfoForSeller> getOrderDeliveryListForSeller(
       @PageableDefault(page = 0, size = 5) Pageable pageable,
-      @RequestParam("sort") String status,
+      @RequestParam("status") String status,
       @RequestParam("storeId") Long storeId) {
 
     OrderDeliveryStatus orderDeliveryStatus = parseOrderDeliveryStatus(status);

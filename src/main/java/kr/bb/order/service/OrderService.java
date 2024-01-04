@@ -14,6 +14,8 @@ import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.product.IsProductPriceValid;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
+import bloomingblooms.response.CommonResponse;
+import bloomingblooms.response.CommonResponse.Result;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -65,7 +67,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class OrderService {
   private final ProductServiceClient productServiceClient;
   private final StoreServiceClient storeServiceClient;
@@ -103,12 +104,12 @@ public class OrderService {
     // product-service로 가격 유효성 확인하기
     List<IsProductPriceValid> priceCheckDtos =
         createPriceCheckDto(requestDto.getOrderInfoByStores());
-    productServiceClient.validatePrice(priceCheckDtos);
+    validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
-    List<ValidatePriceDto> couponAndDeliveryCheckDtos =
+    List<ValidatePriceDto> validatePriceDtos =
         createCouponAndDeliveryCheckDto(requestDto.getOrderInfoByStores());
-    storeServiceClient.validatePurchaseDetails(couponAndDeliveryCheckDtos);
+    validatePurchaseDetails(validatePriceDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(
@@ -128,7 +129,7 @@ public class OrderService {
             isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
-    KakaopayReadyResponseDto responseDto = paymentServiceClient.ready(readyRequestDto).getData();
+    KakaopayReadyResponseDto responseDto = ready(readyRequestDto);
 
     // 주문정보와 tid를 redis에 저장
     String itemName = readyRequestDto.getItemName();
@@ -160,11 +161,11 @@ public class OrderService {
 
     // product-service로 가격 유효성 확인하기
     List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
-    productServiceClient.validatePrice(priceCheckDtos);
+    validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    storeServiceClient.validatePurchaseDetails(validatePriceDtos);
+    validatePurchaseDetails(validatePriceDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
@@ -183,7 +184,7 @@ public class OrderService {
             isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
-    KakaopayReadyResponseDto responseDto = paymentServiceClient.ready(readyRequestDto).getData();
+    KakaopayReadyResponseDto responseDto = ready(readyRequestDto);
 
     // 주문정보와 tid를 redis에 저장
     String itemName = readyRequestDto.getItemName();
@@ -207,11 +208,11 @@ public class OrderService {
 
     // product-service로 가격 유효성 확인하기
     List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
-    productServiceClient.validatePrice(priceCheckDtos);
+    validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    storeServiceClient.validatePurchaseDetails(validatePriceDtos);
+    validatePurchaseDetails(validatePriceDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
@@ -230,7 +231,7 @@ public class OrderService {
             isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
-    KakaopayReadyResponseDto responseDto = paymentServiceClient.ready(readyRequestDto).getData();
+    KakaopayReadyResponseDto responseDto = ready(readyRequestDto);
 
     // 주문정보와 tid를 redis에 저장
     String itemName = readyRequestDto.getItemName();
@@ -255,7 +256,7 @@ public class OrderService {
 
       orderInfo.setPgToken(pgToken);
       redisTemplate.opsForValue().set(orderId, orderInfo);
-      redisTemplate.expire(orderId, 5, TimeUnit.MINUTES);
+      redisTemplate.expire(orderId, 15, TimeUnit.MINUTES);
 
       ProcessOrderDto processOrderDto =
           OrderCommonMapper.toProcessOrderDto(orderId, orderType, orderInfo);
@@ -307,7 +308,7 @@ public class OrderService {
               orderInfo.getDeliveryAddressDetail(),
               orderInfo.getOrdererPhoneNumber());
 
-      deliveryServiceClient.createDeliveryAddress(deliveryAddressInsertDto);
+      createDeliveryAddress(deliveryAddressInsertDto);
 
       // SNS로 신규 주문 발생 이벤트 보내기
       List<NewOrderEventItem> newOrderEventList =
@@ -352,7 +353,7 @@ public class OrderService {
               subscriptionOrderInfo.getDeliveryAddressDetail(),
               subscriptionOrderInfo.getOrdererPhoneNumber());
 
-      deliveryServiceClient.createDeliveryAddress(deliveryAddressInsertDto);
+      createDeliveryAddress(deliveryAddressInsertDto);
 
       // SNS로 신규 주문 발생 이벤트 보내기
       List<NewOrderEventItem> newOrderEventList =
@@ -368,14 +369,15 @@ public class OrderService {
 
   // (바로주문, 장바구니) 주문 저장하기
   @Transactional
+  // 만약 성공하면 다른 곳에서도 추가하기. (데이터 읽기 로직과 쓰기를 별도의 서비스 레이어로 분리하여 트랜잭션을 관리도 가능)
   public OrderGroup processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo) {
     // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
     List<DeliveryInsertDto> dtoList = OrderCommonMapper.toDeliveryInsertDto(orderInfo);
-    List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
+    List<Long> deliveryIds = createDelivery(dtoList);
 
     // payment-service 최종 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto = KakaopayMapper.toDtoFromOrderInfo(orderInfo);
-    paymentServiceClient.approve(approveRequestDto).getData();
+    LocalDateTime paymentDateTime = approve(approveRequestDto);
 
     OrderGroup orderGroup =
         OrderGroup.builder()
@@ -436,7 +438,7 @@ public class OrderService {
     // payment-service 최종 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
         KakaopayMapper.toDtoFromPickupOrderInfo(pickupOrderInfo);
-    LocalDateTime paymentDateTime = paymentServiceClient.approve(approveRequestDto).getData();
+    LocalDateTime paymentDateTime = approve(approveRequestDto);
 
     LocalDateTime pickupDateTime =
         parseDateTime(pickupOrderInfo.getPickupDate(), pickupOrderInfo.getPickupTime());
@@ -475,12 +477,13 @@ public class OrderService {
     // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
     List<DeliveryInsertDto> dtoList =
         OrderCommonMapper.toDeliveryInsertDtoForSubscription(subscriptionOrderInfo);
-    List<Long> deliveryIds = deliveryServiceClient.createDelivery(dtoList).getData();
+
+    List<Long> deliveryIds = createDelivery(dtoList);
 
     // payment-service 최종 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
         KakaopayMapper.toDtoFromSubscriptionOrderInfo(subscriptionOrderInfo, deliveryIds);
-    LocalDateTime paymentDateTime = paymentServiceClient.approve(approveRequestDto).getData();
+    LocalDateTime paymentDateTime = approve(approveRequestDto);
 
     OrderSubscription orderSubscription =
         OrderSubscription.builder()
@@ -499,7 +502,7 @@ public class OrderService {
     SubscriptionCreateDto subscriptionCreateDto =
         OrderCommonMapper.toSubscriptionCreateDto(
             subscriptionOrderInfo, paymentDateTime, orderSubscription);
-//    subscriptionCreateDtoKafkaProducer.send("subscription-create", subscriptionCreateDto);
+        subscriptionCreateDtoKafkaProducer.send("subscription-create", subscriptionCreateDto);
 
     return orderSubscription;
   }
@@ -596,5 +599,58 @@ public class OrderService {
         .couponAmount(requestDto.getCouponAmount())
         .actualAmount(requestDto.getActualAmount())
         .build();
+  }
+
+  /*
+     FEIGN 통신
+  */
+  private void validatePrice(List<IsProductPriceValid> priceCheckDtos) {
+    CommonResponse<Void> productCommonResponse = productServiceClient.validatePrice(priceCheckDtos);
+    if (productCommonResponse.getResult() == CommonResponse.Result.FAIL) {
+      throw new RuntimeException(productCommonResponse.getMessage());
+    }
+  }
+
+  private void validatePurchaseDetails(List<ValidatePriceDto> validatePriceDtos) {
+    CommonResponse<Void> storeCommonResponse =
+        storeServiceClient.validatePurchaseDetails(validatePriceDtos);
+    if (storeCommonResponse.getResult() == CommonResponse.Result.FAIL) {
+      throw new RuntimeException(storeCommonResponse.getMessage());
+    }
+  }
+
+  private void createDeliveryAddress(DeliveryAddressInsertDto deliveryAddressInsertDto){
+    CommonResponse<Void> deliveryCommonResponse =
+            deliveryServiceClient.createDeliveryAddress(deliveryAddressInsertDto);
+    if (deliveryCommonResponse.getResult() == Result.FAIL) {
+      throw new RuntimeException(deliveryCommonResponse.getMessage());
+    }
+  }
+
+
+  private KakaopayReadyResponseDto ready(KakaopayReadyRequestDto readyRequestDto) {
+    CommonResponse<KakaopayReadyResponseDto> paymentCommonResponse =
+        paymentServiceClient.ready(readyRequestDto);
+    if (paymentCommonResponse.getResult() == CommonResponse.Result.FAIL) {
+      throw new RuntimeException(paymentCommonResponse.getMessage());
+    }
+    return paymentCommonResponse.getData();
+  }
+
+  private List<Long> createDelivery(List<DeliveryInsertDto> dtoList) {
+    CommonResponse<List<Long>> deliveryCommonResponse =
+        deliveryServiceClient.createDelivery(dtoList);
+    if (deliveryCommonResponse.getResult() == CommonResponse.Result.FAIL) {
+      throw new RuntimeException(deliveryCommonResponse.getMessage());
+    }
+    return deliveryCommonResponse.getData();
+  }
+
+  private LocalDateTime approve(KakaopayApproveRequestDto requestDto){
+    CommonResponse<LocalDateTime> paymentCommonResponse = paymentServiceClient.approve(requestDto);
+    if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
+      throw new RuntimeException(paymentCommonResponse.getMessage());
+    }
+    return paymentCommonResponse.getData();
   }
 }

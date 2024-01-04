@@ -14,6 +14,6 @@ public interface ProductServiceClient {
     @PostMapping(value="/client/products/validate-price")
     CommonResponse<Void> validatePrice(@RequestBody List<IsProductPriceValid> dtoList);
 
-    @GetMapping(value="/client/products/product-info")
+    @PostMapping(value="/client/products/product-info")
     CommonResponse<List<ProductInformation>> getProductInfo(@RequestBody List<String> productIds);
 }
