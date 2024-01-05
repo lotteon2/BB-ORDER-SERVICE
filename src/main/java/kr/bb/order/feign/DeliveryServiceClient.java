@@ -17,8 +17,8 @@ public interface DeliveryServiceClient {
     @PostMapping(value = "/client/delivery")
     CommonResponse<List<Long>> createDelivery(@RequestBody List<DeliveryInsertDto> dtoList);
 
-    @GetMapping(value = "/client/delivery/requests")  // key: deliveryId
-    CommonResponse<Map<Long, DeliveryInfoDto>> getDeliveryInfo(@RequestParam List<Long> deliveryIds);
+    @PostMapping(value = "/client/delivery/requests")  // key: deliveryId
+    CommonResponse<Map<Long, DeliveryInfoDto>> getDeliveryInfo(@RequestBody List<Long> deliveryIds);
 
     @PostMapping(value = "/client/delivery/delivery-address")
     CommonResponse<Void> createDeliveryAddress(@RequestBody DeliveryAddressInsertDto createDeliveryAddress);
