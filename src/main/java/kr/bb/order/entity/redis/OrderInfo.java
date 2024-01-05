@@ -1,11 +1,12 @@
 package kr.bb.order.entity.redis;
 
+import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.OrderInfoByStore;
+import bloomingblooms.domain.order.OrderMethod;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import javax.persistence.Id;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
-import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.common.BaseEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -42,6 +43,7 @@ public class OrderInfo extends BaseEntity {
   private String tid;
   private String pgToken;
   private String orderType;
+  private String orderMethod;
 
   public static OrderInfo convertToRedisDto(
       String tempOrderId,
@@ -51,7 +53,7 @@ public class OrderInfo extends BaseEntity {
       boolean isSubscriptionPay,
       String tid,
       OrderForDeliveryRequest requestDto,
-      OrderType orderType) {
+      OrderType orderType, OrderMethod orderMethod) {
 
     return OrderInfo.builder()
         .tempOrderId(tempOrderId)
@@ -73,6 +75,7 @@ public class OrderInfo extends BaseEntity {
         .deliveryRequest(requestDto.getDeliveryRequest())
         .tid(tid)
         .orderType(orderType.toString())
+        .orderMethod(orderMethod.toString())
         .build();
   }
 

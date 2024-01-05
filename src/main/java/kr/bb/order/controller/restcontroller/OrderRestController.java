@@ -1,5 +1,7 @@
 package kr.bb.order.controller.restcontroller;
 
+import bloomingblooms.domain.notification.order.OrderType;
+import bloomingblooms.domain.order.OrderMethod;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.response.CommonResponse;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
@@ -10,7 +12,6 @@ import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
-import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.service.OrderDetailsService;
 import kr.bb.order.service.OrderListService;
@@ -38,7 +39,7 @@ public class OrderRestController {
   public CommonResponse<KakaopayReadyResponseDto> readyForDirectOrder(
       @RequestHeader Long userId, @RequestBody OrderForDeliveryRequest requestDto) {
     KakaopayReadyResponseDto responseDto =
-        orderService.readyForOrder(userId, requestDto, OrderType.ORDER_DELIVERY);
+        orderService.readyForOrder(userId, requestDto, OrderType.DELIVERY, OrderMethod.DIRECT);
     return CommonResponse.success(responseDto);
   }
 
@@ -69,7 +70,7 @@ public class OrderRestController {
       @RequestHeader Long userId, @RequestBody OrderForDeliveryRequest requestDto) {
 
     KakaopayReadyResponseDto kakaopayReadyResponseDto =
-        orderService.readyForOrder(userId, requestDto, OrderType.ORDER_CART);
+        orderService.readyForOrder(userId, requestDto, OrderType.DELIVERY, OrderMethod.CART);
     return CommonResponse.success(kakaopayReadyResponseDto);
   }
 
@@ -79,7 +80,7 @@ public class OrderRestController {
       @RequestHeader Long userId, @RequestBody OrderForPickupDto requestDto) {
 
     KakaopayReadyResponseDto kakaopayReadyResponseDto =
-        orderService.readyForPickupOrder(userId, requestDto, OrderType.ORDER_PICKUP);
+        orderService.readyForPickupOrder(userId, requestDto, OrderType.PICKUP);
     return CommonResponse.success(kakaopayReadyResponseDto);
   }
 
@@ -88,7 +89,7 @@ public class OrderRestController {
   public CommonResponse<KakaopayReadyResponseDto> readyForSubscriptionOrder(
       @RequestHeader Long userId, @RequestBody OrderForSubscriptionDto requestDto) {
     KakaopayReadyResponseDto kakaopayReadyResponseDto =
-        orderService.readyForSubscriptionOrder(userId, requestDto, OrderType.ORDER_SUBSCRIPTION);
+        orderService.readyForSubscriptionOrder(userId, requestDto, OrderType.SUBSCRIBE);
     return CommonResponse.success(kakaopayReadyResponseDto);
   }
 
@@ -135,7 +136,7 @@ public class OrderRestController {
   }
 
   @GetMapping("/store/{storeId}/weekly/sales")
-  public CommonResponse<WeeklySalesInfoDto> getWeeklySalesInfo(@PathVariable Long storeId){
+  public CommonResponse<WeeklySalesInfoDto> getWeeklySalesInfo(@PathVariable Long storeId) {
     return CommonResponse.success(orderDetailsService.getWeeklySalesInfo(storeId));
   }
 
