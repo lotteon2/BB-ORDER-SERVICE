@@ -534,7 +534,7 @@ public class OrderService {
 
   public List<IsProductPriceValid> createPriceCheckDto(List<OrderInfoByStore> orderInfoByStores) {
     List<IsProductPriceValid> list = new ArrayList<>();
-    for (bloomingblooms.domain.order.OrderInfoByStore orderInfoByStore : orderInfoByStores) {
+    for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
       for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
         String productId = productCreate.getProductId();
         Long price = productCreate.getPrice();
@@ -549,8 +549,10 @@ public class OrderService {
       List<OrderInfoByStore> orderInfoByStores) {
     List<ValidatePriceDto> list = new ArrayList<>();
     for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
-      ValidatePriceDto dto = ValidatePriceDto.toDto(orderInfoByStore);
-      list.add(dto);
+      if(orderInfoByStore.getCouponId() != 0){
+        ValidatePriceDto dto = ValidatePriceDto.toDto(orderInfoByStore);
+        list.add(dto);
+      }
     }
     return list;
   }
