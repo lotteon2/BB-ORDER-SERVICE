@@ -3,8 +3,10 @@ package kr.bb.order.service;
 import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
+import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.NewOrderEvent.NewOrderEventItem;
 import bloomingblooms.domain.order.OrderInfoByStore;
+import bloomingblooms.domain.order.OrderMethod;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
 import bloomingblooms.domain.order.ValidatePriceDto;
@@ -14,8 +16,6 @@ import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.product.IsProductPriceValid;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
-import bloomingblooms.response.CommonResponse;
-import bloomingblooms.response.CommonResponse.Result;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -32,7 +32,6 @@ import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
 import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
-import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
@@ -43,6 +42,7 @@ import kr.bb.order.entity.redis.SubscriptionOrderInfo;
 import kr.bb.order.entity.subscription.OrderSubscription;
 import kr.bb.order.exception.PaymentExpiredException;
 import kr.bb.order.feign.DeliveryServiceClient;
+import kr.bb.order.feign.FeignHandler;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
@@ -88,6 +88,7 @@ public class OrderService {
   private final OrderSubscriptionRepository orderSubscriptionRepository;
   private final OrderSNSPublisher orderSNSPublisher;
   private final OrderSQSPublisher orderSQSPublisher;
+  private final FeignHandler feignHandler;
   private OrderService orderService;
 
   @Autowired
@@ -98,18 +99,18 @@ public class OrderService {
   // 바로 주문 / 장바구니 주문 준비 단계
   @Transactional
   public KakaopayReadyResponseDto readyForOrder(
-      Long userId, OrderForDeliveryRequest requestDto, OrderType orderType) {
+      Long userId, OrderForDeliveryRequest requestDto, OrderType orderType, OrderMethod orderMethod ) {
     // 결제금액, 재고유무, 쿠폰유효유무 feign을 통해 확인하기
 
     // product-service로 가격 유효성 확인하기
     List<IsProductPriceValid> priceCheckDtos =
         createPriceCheckDto(requestDto.getOrderInfoByStores());
-    validatePrice(priceCheckDtos);
+    feignHandler.validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos =
         createCouponAndDeliveryCheckDto(requestDto.getOrderInfoByStores());
-    validatePurchaseDetails(validatePriceDtos);
+    feignHandler.validatePurchaseDetails(validatePriceDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(
@@ -129,7 +130,7 @@ public class OrderService {
             isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
-    KakaopayReadyResponseDto responseDto = ready(readyRequestDto);
+    KakaopayReadyResponseDto responseDto = feignHandler.ready(readyRequestDto);
 
     // 주문정보와 tid를 redis에 저장
     String itemName = readyRequestDto.getItemName();
@@ -143,7 +144,7 @@ public class OrderService {
             isSubscriptionPay,
             responseDto.getTid(),
             requestDto,
-            orderType);
+            orderType, orderMethod);
 
     redisTemplate.opsForValue().set(tempOrderId, orderInfo);
 
@@ -161,11 +162,11 @@ public class OrderService {
 
     // product-service로 가격 유효성 확인하기
     List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
-    validatePrice(priceCheckDtos);
+    feignHandler.validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    validatePurchaseDetails(validatePriceDtos);
+    feignHandler.validatePurchaseDetails(validatePriceDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
@@ -184,7 +185,7 @@ public class OrderService {
             isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
-    KakaopayReadyResponseDto responseDto = ready(readyRequestDto);
+    KakaopayReadyResponseDto responseDto = feignHandler.ready(readyRequestDto);
 
     // 주문정보와 tid를 redis에 저장
     String itemName = readyRequestDto.getItemName();
@@ -208,11 +209,11 @@ public class OrderService {
 
     // product-service로 가격 유효성 확인하기
     List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
-    validatePrice(priceCheckDtos);
+    feignHandler.validatePrice(priceCheckDtos);
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    validatePurchaseDetails(validatePriceDtos);
+    feignHandler.validatePurchaseDetails(validatePriceDtos);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
@@ -231,7 +232,7 @@ public class OrderService {
             isSubscriptionPay);
 
     // payment-service로 결제 준비 요청
-    KakaopayReadyResponseDto responseDto = ready(readyRequestDto);
+    KakaopayReadyResponseDto responseDto = feignHandler.ready(readyRequestDto);
 
     // 주문정보와 tid를 redis에 저장
     String itemName = readyRequestDto.getItemName();
@@ -250,7 +251,7 @@ public class OrderService {
   @Transactional
   public void requestOrder(String orderId, String orderType, String pgToken) {
     // redis에서 정보 가져오기 및 TTL 갱신
-    if (orderType.equals(OrderType.ORDER_DELIVERY.toString())) {
+    if (orderType.equals(OrderType.DELIVERY.toString())) {
       OrderInfo orderInfo = redisTemplate.opsForValue().get(orderId);
       if (orderInfo == null) throw new PaymentExpiredException();
 
@@ -261,7 +262,7 @@ public class OrderService {
       ProcessOrderDto processOrderDto =
           OrderCommonMapper.toProcessOrderDto(orderId, orderType, orderInfo);
       processOrderDtoKafkaProducer.send("coupon-use", processOrderDto);
-    } else if (orderType.equals(OrderType.ORDER_PICKUP.toString())) {
+    } else if (orderType.equals(OrderType.PICKUP.toString())) {
       PickupOrderInfo pickupOrderInfo = redisTemplateForPickup.opsForValue().get(orderId);
       if (pickupOrderInfo == null) throw new PaymentExpiredException();
 
@@ -289,9 +290,10 @@ public class OrderService {
 
   // 주문 저장하기
   public void processOrder(ProcessOrderDto processOrderDto) {
+    String orderMethod = processOrderDto.getOrderMethod();
     String orderType = processOrderDto.getOrderType();
-    if (orderType.equals(OrderType.ORDER_DELIVERY.toString())
-        || orderType.equals(OrderType.ORDER_CART.toString())) {
+    if (orderType.equals(OrderType.DELIVERY.toString())
+        || orderMethod.equals(OrderMethod.CART.toString())) {
       OrderInfo orderInfo = redisTemplate.opsForValue().get(processOrderDto.getOrderId());
       if (orderInfo == null) throw new PaymentExpiredException();
       // 자기자신을 주입받아 호출하여 내부호출 해결
@@ -308,7 +310,7 @@ public class OrderService {
               orderInfo.getDeliveryAddressDetail(),
               orderInfo.getOrdererPhoneNumber());
 
-      createDeliveryAddress(deliveryAddressInsertDto);
+      feignHandler.createDeliveryAddress(deliveryAddressInsertDto);
 
       // SNS로 신규 주문 발생 이벤트 보내기
       List<NewOrderEventItem> newOrderEventList =
@@ -318,7 +320,7 @@ public class OrderService {
       // SQS로 고객에게 신규 주문 알리기
       orderSQSPublisher.publish(orderInfo.getUserId(), orderInfo.getOrdererPhoneNumber());
 
-    } else if (orderType.equals(OrderType.ORDER_PICKUP.toString())) {
+    } else if (orderType.equals(OrderType.PICKUP.toString())) {
       PickupOrderInfo pickupOrderInfo =
           redisTemplateForPickup.opsForValue().get(processOrderDto.getOrderId());
       if (pickupOrderInfo == null) throw new PaymentExpiredException();
@@ -353,7 +355,7 @@ public class OrderService {
               subscriptionOrderInfo.getDeliveryAddressDetail(),
               subscriptionOrderInfo.getOrdererPhoneNumber());
 
-      createDeliveryAddress(deliveryAddressInsertDto);
+      feignHandler.createDeliveryAddress(deliveryAddressInsertDto);
 
       // SNS로 신규 주문 발생 이벤트 보내기
       List<NewOrderEventItem> newOrderEventList =
@@ -373,11 +375,11 @@ public class OrderService {
   public OrderGroup processOrderDelivery(ProcessOrderDto processOrderDto, OrderInfo orderInfo) {
     // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
     List<DeliveryInsertDto> dtoList = OrderCommonMapper.toDeliveryInsertDto(orderInfo);
-    List<Long> deliveryIds = createDelivery(dtoList);
+    List<Long> deliveryIds = feignHandler.createDelivery(dtoList);
 
     // payment-service 최종 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto = KakaopayMapper.toDtoFromOrderInfo(orderInfo);
-    LocalDateTime paymentDateTime = approve(approveRequestDto);
+    LocalDateTime paymentDateTime = feignHandler.approve(approveRequestDto);
 
     OrderGroup orderGroup =
         OrderGroup.builder()
@@ -414,7 +416,7 @@ public class OrderService {
     }
 
     // 장바구니에서 주문이면 장바구니에서 해당 상품들 비우기 kafka 요청
-    if (orderInfo.getOrderType().equals(OrderType.ORDER_CART.toString())) {
+    if (orderInfo.getOrderMethod().equals(OrderMethod.CART.toString())) {
       List<String> productIds =
           orderInfo.getOrderInfoByStores().stream()
               .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())
@@ -438,7 +440,7 @@ public class OrderService {
     // payment-service 최종 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
         KakaopayMapper.toDtoFromPickupOrderInfo(pickupOrderInfo);
-    LocalDateTime paymentDateTime = approve(approveRequestDto);
+    LocalDateTime paymentDateTime = feignHandler.approve(approveRequestDto);
 
     LocalDateTime pickupDateTime =
         parseDateTime(pickupOrderInfo.getPickupDate(), pickupOrderInfo.getPickupTime());
@@ -478,12 +480,12 @@ public class OrderService {
     List<DeliveryInsertDto> dtoList =
         OrderCommonMapper.toDeliveryInsertDtoForSubscription(subscriptionOrderInfo);
 
-    List<Long> deliveryIds = createDelivery(dtoList);
+    List<Long> deliveryIds = feignHandler.createDelivery(dtoList);
 
     // payment-service 최종 결제 승인 요청
     KakaopayApproveRequestDto approveRequestDto =
         KakaopayMapper.toDtoFromSubscriptionOrderInfo(subscriptionOrderInfo, deliveryIds);
-    LocalDateTime paymentDateTime = approve(approveRequestDto);
+    LocalDateTime paymentDateTime = feignHandler.approve(approveRequestDto);
 
     OrderSubscription orderSubscription =
         OrderSubscription.builder()
@@ -599,58 +601,5 @@ public class OrderService {
         .couponAmount(requestDto.getCouponAmount())
         .actualAmount(requestDto.getActualAmount())
         .build();
-  }
-
-  /*
-     FEIGN 통신
-  */
-  private void validatePrice(List<IsProductPriceValid> priceCheckDtos) {
-    CommonResponse<Void> productCommonResponse = productServiceClient.validatePrice(priceCheckDtos);
-    if (productCommonResponse.getResult() == CommonResponse.Result.FAIL) {
-      throw new RuntimeException(productCommonResponse.getMessage());
-    }
-  }
-
-  private void validatePurchaseDetails(List<ValidatePriceDto> validatePriceDtos) {
-    CommonResponse<Void> storeCommonResponse =
-        storeServiceClient.validatePurchaseDetails(validatePriceDtos);
-    if (storeCommonResponse.getResult() == CommonResponse.Result.FAIL) {
-      throw new RuntimeException(storeCommonResponse.getMessage());
-    }
-  }
-
-  private void createDeliveryAddress(DeliveryAddressInsertDto deliveryAddressInsertDto){
-    CommonResponse<Void> deliveryCommonResponse =
-            deliveryServiceClient.createDeliveryAddress(deliveryAddressInsertDto);
-    if (deliveryCommonResponse.getResult() == Result.FAIL) {
-      throw new RuntimeException(deliveryCommonResponse.getMessage());
-    }
-  }
-
-
-  private KakaopayReadyResponseDto ready(KakaopayReadyRequestDto readyRequestDto) {
-    CommonResponse<KakaopayReadyResponseDto> paymentCommonResponse =
-        paymentServiceClient.ready(readyRequestDto);
-    if (paymentCommonResponse.getResult() == CommonResponse.Result.FAIL) {
-      throw new RuntimeException(paymentCommonResponse.getMessage());
-    }
-    return paymentCommonResponse.getData();
-  }
-
-  private List<Long> createDelivery(List<DeliveryInsertDto> dtoList) {
-    CommonResponse<List<Long>> deliveryCommonResponse =
-        deliveryServiceClient.createDelivery(dtoList);
-    if (deliveryCommonResponse.getResult() == CommonResponse.Result.FAIL) {
-      throw new RuntimeException(deliveryCommonResponse.getMessage());
-    }
-    return deliveryCommonResponse.getData();
-  }
-
-  private LocalDateTime approve(KakaopayApproveRequestDto requestDto){
-    CommonResponse<LocalDateTime> paymentCommonResponse = paymentServiceClient.approve(requestDto);
-    if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
-      throw new RuntimeException(paymentCommonResponse.getMessage());
-    }
-    return paymentCommonResponse.getData();
   }
 }
