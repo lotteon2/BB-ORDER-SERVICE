@@ -5,6 +5,7 @@ import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.NewOrderEvent.NewOrderEventItem;
 import bloomingblooms.domain.order.NewOrderEvent.ProductCount;
 import bloomingblooms.domain.order.OrderInfoByStore;
+import bloomingblooms.domain.order.OrderMethod;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
 import bloomingblooms.domain.pickup.PickupCreateDto;
@@ -90,6 +91,7 @@ public class OrderCommonMapper {
         .products(products)
         .userId(orderInfo.getUserId())
         .phoneNumber(orderInfo.getOrdererPhoneNumber())
+        .orderMethod(orderInfo.getOrderMethod())
         .build();
   }
 
@@ -108,6 +110,7 @@ public class OrderCommonMapper {
         .products(product)
         .userId(pickupOrderInfo.getUserId())
         .phoneNumber(pickupOrderInfo.getOrdererPhoneNumber())
+        .orderMethod(OrderMethod.DIRECT.getOrderMethod())
         .build();
   }
 
@@ -126,6 +129,7 @@ public class OrderCommonMapper {
         .products(product)
         .userId(subscriptionOrderInfo.getUserId())
         .phoneNumber(subscriptionOrderInfo.getOrdererPhoneNumber())
+        .orderMethod(OrderMethod.DIRECT.getOrderMethod())
         .build();
   }
 

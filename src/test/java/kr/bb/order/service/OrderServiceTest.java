@@ -13,7 +13,9 @@ import static org.mockito.Mockito.when;
 
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.notification.delivery.DeliveryStatus;
+import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.OrderInfoByStore;
+import bloomingblooms.domain.order.OrderMethod;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
@@ -29,7 +31,6 @@ import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
 import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
-import kr.bb.order.entity.OrderType;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.redis.OrderInfo;
@@ -38,6 +39,7 @@ import kr.bb.order.entity.redis.SubscriptionOrderInfo;
 import kr.bb.order.entity.subscription.OrderSubscription;
 import kr.bb.order.exception.InvalidOrderAmountException;
 import kr.bb.order.feign.DeliveryServiceClient;
+import kr.bb.order.feign.FeignHandler;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
@@ -63,7 +65,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @Testcontainers
@@ -91,6 +92,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private OrderSubscriptionRepository orderSubscriptionRepository;
   @MockBean private OrderSNSPublisher orderSNSPublisher;
   @MockBean private OrderSQSPublisher orderSQSPublisher;
+  @MockBean private FeignHandler feignHandler;
 
   @BeforeEach
   void setup() {
@@ -115,7 +117,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             orderPickupRepository,
             orderSubscriptionRepository,
             orderSNSPublisher,
-            orderSQSPublisher);
+            orderSQSPublisher,
+                feignHandler);
   }
 
   @AfterEach
@@ -131,15 +134,14 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     Long sumOfActualAmount = 90500L;
     OrderForDeliveryRequest request = createOrderForDeliveryRequest(sumOfActualAmount);
 
-    when(productServiceClient.validatePrice(any())).thenReturn(CommonResponse.success(null));
-    when(storeServiceClient.validatePurchaseDetails(any()))
-        .thenReturn(CommonResponse.success(null));
+    doNothing().when(feignHandler).validatePrice(any());
+    doNothing().when(feignHandler).validatePurchaseDetails(any());
     KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
+    when(feignHandler.ready(any())).thenReturn(mockResponseDto);
     when(orderUtil.generateUUID()).thenReturn(orderId);
 
     KakaopayReadyResponseDto responseDto =
-        orderService.readyForOrder(userId, request, OrderType.ORDER_DELIVERY);
+        orderService.readyForOrder(userId, request, OrderType.DELIVERY, OrderMethod.DIRECT);
 
     assertNotNull(responseDto);
   }
@@ -152,14 +154,15 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     Long wrongAmount = 25000L;
     OrderForDeliveryRequest request = createOrderForDeliveryRequest(wrongAmount);
 
-    when(productServiceClient.validatePrice(any())).thenReturn(CommonResponse.success(null));
-    when(storeServiceClient.validatePurchaseDetails(any()))
-        .thenReturn(CommonResponse.success(null));
+    doNothing().when(feignHandler).validatePrice(any());
+    doNothing().when(feignHandler).validatePurchaseDetails(any());
     KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
+    when(feignHandler.ready(any())).thenReturn(mockResponseDto);
     when(orderUtil.generateUUID()).thenReturn(orderId);
 
-    assertThatThrownBy(() -> orderService.readyForOrder(userId, request, OrderType.ORDER_DELIVERY))
+    assertThatThrownBy(
+            () ->
+                orderService.readyForOrder(userId, request, OrderType.DELIVERY, OrderMethod.DIRECT))
         .isInstanceOf(InvalidOrderAmountException.class)
         .hasMessage("유효하지 않은 주문 금액입니다");
   }
@@ -172,15 +175,14 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     OrderForPickupDto request = createOrderForPickupRequest();
 
-    when(productServiceClient.validatePrice(any())).thenReturn(CommonResponse.success(null));
-    when(storeServiceClient.validatePurchaseDetails(any()))
-        .thenReturn(CommonResponse.success(null));
+    doNothing().when(feignHandler).validatePrice(any());
+    doNothing().when(feignHandler).validatePurchaseDetails(any());
     KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
+    when(feignHandler.ready(any())).thenReturn(mockResponseDto);
     when(orderUtil.generateUUID()).thenReturn(orderId);
 
     KakaopayReadyResponseDto responseDto =
-        orderService.readyForPickupOrder(userId, request, OrderType.ORDER_PICKUP);
+        orderService.readyForPickupOrder(userId, request, OrderType.PICKUP);
 
     assertNotNull(responseDto);
   }
@@ -193,15 +195,14 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     OrderForSubscriptionDto request = createOrderForSubscriptionRequest();
 
-    when(productServiceClient.validatePrice(any())).thenReturn(CommonResponse.success(null));
-    when(storeServiceClient.validatePurchaseDetails(any()))
-        .thenReturn(CommonResponse.success(null));
+    doNothing().when(feignHandler).validatePrice(any());
+    doNothing().when(feignHandler).validatePurchaseDetails(any());
     KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    when(paymentServiceClient.ready(any())).thenReturn(CommonResponse.success(mockResponseDto));
+    when(feignHandler.ready(any())).thenReturn(mockResponseDto);
     when(orderUtil.generateUUID()).thenReturn(orderId);
 
     KakaopayReadyResponseDto responseDto =
-        orderService.readyForSubscriptionOrder(userId, request, OrderType.ORDER_PICKUP);
+            orderService.readyForSubscriptionOrder(userId, request, OrderType.SUBSCRIBE);
 
     assertNotNull(responseDto);
   }
@@ -211,10 +212,10 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   public void requestOrderForDelivery() {
     // given
     String orderId = "임시orderId";
-    String orderType = OrderType.ORDER_DELIVERY.toString();
+    String orderType = OrderType.DELIVERY.toString();
     String pgToken = "임시pgToken";
 
-    OrderInfo orderInfo = createOrderInfo(orderId, OrderType.valueOf(orderType));
+    OrderInfo orderInfo = createOrderInfo(orderId, OrderType.valueOf(orderType), OrderMethod.CART);
     redisTemplate.opsForValue().set(orderId, orderInfo);
 
     orderService.requestOrder(orderId, orderType, pgToken);
@@ -231,7 +232,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   public void requestOrderForPickup() {
     // given
     String orderId = "임시orderId";
-    String orderType = OrderType.ORDER_PICKUP.toString();
+    String orderType = OrderType.PICKUP.toString();
     String pgToken = "임시pgToken";
 
     PickupOrderInfo pickupOrderInfo = createPickupOrderInfo(orderId);
@@ -250,7 +251,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   public void requestOrderForSubscription() {
     // given
     String orderId = "임시orderId";
-    String orderType = OrderType.ORDER_SUBSCRIPTION.toString();
+    String orderType = OrderType.SUBSCRIBE.toString();
     String pgToken = "임시pgToken";
 
     SubscriptionOrderInfo subscriptionOrderInfo = createSubscriptionOrderInfo(orderId);
@@ -270,27 +271,26 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     // given
     String orderGroupId = "임시orderId";
     String orderDeliveryId = "임시가게주문id";
-    String orderType = OrderType.ORDER_DELIVERY.toString();
 
-    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.DELIVERY, OrderMethod.DIRECT);
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
-    List<Long> deliveryIds = new ArrayList<>();
-    deliveryIds.add(1L);
-    CommonResponse<List<Long>> success = CommonResponse.success(deliveryIds);
-
-    when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
-    when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
+    when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
+    when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
     when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
 
     ProcessOrderDto processOrderDto =
-        OrderCommonMapper.toProcessOrderDto(orderGroupId, orderType, orderInfo);
+        OrderCommonMapper.toProcessOrderDto(orderGroupId, OrderType.DELIVERY.toString(), orderInfo);
+    doNothing().when(feignHandler).createDeliveryAddress(any());
+    doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
+    doNothing().when(orderSQSPublisher).publish(any(), any());
 
     // when
     kafkaConsumer.processOrder(processOrderDto);
     // then
     List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
     assertThat(orderDelivery).hasSize(1);
+
   }
 
   @Test
@@ -299,17 +299,13 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     // given
     String orderGroupId = "임시orderId";
     String orderDeliveryId = "임시가게주문id";
-    String orderType = OrderType.ORDER_DELIVERY.toString();
+    String orderType = OrderType.DELIVERY.toString();
 
-    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType), OrderMethod.DIRECT);
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
-    List<Long> deliveryIds = new ArrayList<>();
-    deliveryIds.add(1L);
-    CommonResponse<List<Long>> success = CommonResponse.success(deliveryIds);
-
-    when(deliveryServiceClient.createDelivery(any())).thenReturn(success);
-    when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
+    when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
+    when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
     when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
 
     ProcessOrderDto processOrderDto =
@@ -318,7 +314,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     doNothing().when(processOrderDtoKafkaProducer).send("order-create-rollback", processOrderDto);
 
     // when
-    doThrow(RuntimeException.class).when(deliveryServiceClient).createDeliveryAddress(any());
+    doThrow(RuntimeException.class).when(feignHandler).createDeliveryAddress(any());
     kafkaConsumer.processOrder(processOrderDto);
     // then
     verify(processOrderDtoKafkaProducer).send("order-create-rollback", processOrderDto);
@@ -330,22 +326,26 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     // given
     String orderGroupId = "임시orderId";
     String orderDeliveryId = "임시가게주문id";
-    String orderType = OrderType.ORDER_CART.toString();
-    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.DELIVERY, OrderMethod.CART);
 
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
-    when(deliveryServiceClient.createDelivery(any())).thenReturn(CommonResponse.success(List.of(1L)));
-    when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
+    when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
+    when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
     when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
     doNothing().when(processOrderDtoKafkaProducer).send(eq("delete-from-cart"), any());
 
+    doNothing().when(feignHandler).createDeliveryAddress(any());
+    doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
+    doNothing().when(orderSQSPublisher).publish(any(), any());
+
     // when
     kafkaConsumer.processOrder(
-        OrderCommonMapper.toProcessOrderDto(orderGroupId, orderType, orderInfo));
+        OrderCommonMapper.toProcessOrderDto(orderGroupId, OrderType.DELIVERY.toString(), orderInfo));
     // then
     List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
     assertThat(orderDelivery).hasSize(1);
+
   }
 
   @Test
@@ -358,7 +358,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     redisTemplateForPickup.opsForValue().set(orderPickupId, pickupOrderInfo);
 
-    when(deliveryServiceClient.createDelivery(any())).thenReturn(CommonResponse.success(List.of(1L)));
+    when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
     when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
     doNothing().when(pickupCreateDtoKafkaProducer).send(eq("pickup-create"), any());
 
@@ -369,6 +369,10 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         orderPickupRepository.findById(orderPickupId).orElseThrow(EntityNotFoundException::new);
     // then
     assertThat(orderPickup.getOrderPickupId()).isEqualTo(orderPickupId);
+
+    doNothing().when(feignHandler).createDeliveryAddress(any());
+    doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
+    doNothing().when(orderSQSPublisher).publish(any(), any());
   }
 
   @Test
@@ -378,13 +382,16 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     SubscriptionOrderInfo subscriptionOrderInfo = createSubscriptionOrderInfo(orderSubscriptionId);
     redisTemplateForSubscription.opsForValue().set(orderSubscriptionId, subscriptionOrderInfo);
 
-    when(deliveryServiceClient.createDelivery(any())).thenReturn(CommonResponse.success(List.of(1L)));
-    when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(LocalDateTime.now()));
+    when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
+    when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
 
-    when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
     doNothing().when(subscriptionCreateDtoKafkaProducer).send(eq("subscription-create"), any());
 
     // when
+    doNothing().when(feignHandler).createDeliveryAddress(any());
+    doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
+    doNothing().when(orderSQSPublisher).publish(any(), any());
+
     kafkaConsumer.processOrder(
         OrderCommonMapper.toDtoForOrderSubscription(orderSubscriptionId, subscriptionOrderInfo));
     OrderSubscription orderSubscription =
@@ -401,10 +408,10 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   void paymentShouldBeWithinTimeLimit() throws JsonProcessingException {
     // given
     String orderGroupId = "임시orderId";
-    String orderType = OrderType.ORDER_DELIVERY.toString();
-    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType));
+    String orderType = OrderType.DELIVERY.toString();
+    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.DELIVERY, OrderMethod.DIRECT);
 
-    when(deliveryServiceClient.createDelivery(any())).thenReturn(CommonResponse.success(List.of(1L)));
+    when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
 
     doNothing()
         .when(processOrderDtoKafkaProducer)
@@ -423,7 +430,10 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @DisplayName("배송 상태를 kafka를 통해 넘겨받는다")
   void updateOrderStatus() throws JsonProcessingException {
     UpdateOrderStatusDto updateOrderStatusDto =
-        UpdateOrderStatusDto.builder().orderDeliveryId("가게주문id").deliveryStatus(DeliveryStatus.COMPLETED).build();
+        UpdateOrderStatusDto.builder()
+            .orderDeliveryId("가게주문id")
+            .deliveryStatus(DeliveryStatus.COMPLETED)
+            .build();
 
     kafkaConsumer.updateOrderDeliveryStatus(updateOrderStatusDto);
     OrderDelivery orderDelivery =
@@ -554,7 +564,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .build();
   }
 
-  public OrderInfo createOrderInfo(String orderId, OrderType orderType) {
+  public OrderInfo createOrderInfo(String orderId, OrderType orderType, OrderMethod orderMethod) {
     return OrderInfo.builder()
         .tempOrderId(orderId)
         .userId(1L)
@@ -573,6 +583,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .deliveryRequest("배송 요청사항")
         .tid("tid고유번호")
         .orderType(orderType.toString())
+        .orderMethod(orderMethod.toString())
         .build();
   }
 
@@ -606,7 +617,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .ordererPhoneNumber("주문자 전화번호")
         .ordererEmail("주문자 이메일")
         .tid("tid고유번호")
-        .orderType(OrderType.ORDER_PICKUP.toString())
+        .orderType(OrderType.PICKUP.toString())
         .build();
   }
 
@@ -645,7 +656,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .deliveryRequest("요청사항")
         .deliveryAddressId(1L)
         .tid("tid고유번호")
-        .orderType(OrderType.ORDER_SUBSCRIPTION.toString())
+        .orderType(OrderType.SUBSCRIBE.toString())
         .build();
   }
 }
