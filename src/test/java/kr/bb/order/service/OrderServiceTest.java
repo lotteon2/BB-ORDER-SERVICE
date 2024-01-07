@@ -47,6 +47,8 @@ import kr.bb.order.infra.OrderSNSPublisher;
 import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.kafka.KafkaConsumer;
 import kr.bb.order.kafka.KafkaProducer;
+import kr.bb.order.kafka.OrderSubscriptionBatchDto;
+import kr.bb.order.kafka.SubscriptionDateDtoList;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
@@ -85,6 +87,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @MockBean private KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   @MockBean private KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   @Autowired private KafkaConsumer<ProcessOrderDto> kafkaConsumer;
+  @MockBean private KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   @MockBean private OrderUtil orderUtil;
   @Autowired private OrderProductRepository orderProductRepository;
   @Autowired private OrderGroupRepository orderGroupRepository;
@@ -98,9 +101,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   void setup() {
     orderService =
         new OrderService(
-            productServiceClient,
-            storeServiceClient,
-            paymentServiceClient,
             redisTemplate,
             redisTemplateForPickup,
             redisTemplateForSubscription,
@@ -111,6 +111,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             cartItemDeleteProducer,
             pickupCreateDtoKafkaProducer,
             subscriptionCreateDtoKafkaProducer,
+            subscriptionDateDtoListKafkaProducer,
             orderUtil,
             orderProductRepository,
             orderGroupRepository,
@@ -118,7 +119,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             orderSubscriptionRepository,
             orderSNSPublisher,
             orderSQSPublisher,
-                feignHandler);
+            feignHandler);
   }
 
   @AfterEach
@@ -202,7 +203,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     when(orderUtil.generateUUID()).thenReturn(orderId);
 
     KakaopayReadyResponseDto responseDto =
-            orderService.readyForSubscriptionOrder(userId, request, OrderType.SUBSCRIBE);
+        orderService.readyForSubscriptionOrder(userId, request, OrderType.SUBSCRIBE);
 
     assertNotNull(responseDto);
   }
@@ -290,7 +291,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     // then
     List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
     assertThat(orderDelivery).hasSize(1);
-
   }
 
   @Test
@@ -301,7 +301,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     String orderDeliveryId = "임시가게주문id";
     String orderType = OrderType.DELIVERY.toString();
 
-    OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.valueOf(orderType), OrderMethod.DIRECT);
+    OrderInfo orderInfo =
+        createOrderInfo(orderGroupId, OrderType.valueOf(orderType), OrderMethod.DIRECT);
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
@@ -341,11 +342,11 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     // when
     kafkaConsumer.processOrder(
-        OrderCommonMapper.toProcessOrderDto(orderGroupId, OrderType.DELIVERY.toString(), orderInfo));
+        OrderCommonMapper.toProcessOrderDto(
+            orderGroupId, OrderType.DELIVERY.toString(), orderInfo));
     // then
     List<OrderDelivery> orderDelivery = orderDeliveryRepository.findByOrderGroupId(orderGroupId);
     assertThat(orderDelivery).hasSize(1);
-
   }
 
   @Test
@@ -440,6 +441,21 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         orderDeliveryRepository.findById("가게주문id").orElseThrow(EntityNotFoundException::new);
 
     assertThat(orderDelivery.getOrderDeliveryStatus().toString()).isEqualTo("COMPLETED");
+  }
+
+  @Test
+  @DisplayName("배치를 통해 매달 정기결제 진행")
+  void processBatchSubscription() {
+    OrderSubscriptionBatchDto orderSubscriptionBatchDto = OrderSubscriptionBatchDto.builder()
+            .orderSubscriptionIds(List.of("주문_구독_id_1", "주문_구독_id_2"))
+            .build();
+
+    doNothing().when(feignHandler).processSubscription(orderSubscriptionBatchDto);
+    doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
+    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(subscriptionDateDtoListKafkaProducer).send(eq("subscription-date-update"), any());
+
+    orderService.processSubscriptionBatch(orderSubscriptionBatchDto);
   }
 
   public OrderForDeliveryRequest createOrderForDeliveryRequest(Long sumOfActualAmount) {

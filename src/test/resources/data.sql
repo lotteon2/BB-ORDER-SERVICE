@@ -30,3 +30,8 @@ VALUES (1, '꽃id-1', 39800, 1, 'DISABLED', 'ABLE', '가게주문id', DATEADD('D
         DATEADD('DAY', -2, NOW())),
        (5, '꽃id-3', 7500, 1, 'DONE', 'DISABLED', '가게주문id4', DATEADD('DAY', -1, NOW()),
         DATEADD('DAY', -1, NOW()));
+
+INSERT INTO order_subscription (order_subscription_id, created_at, is_deleted, updated_at, delivery_day, delivery_id, end_date, payment_date, phone_number, product_name, product_price, store_id, subscription_product_id, user_id)
+VALUES
+    ('주문_구독_id_1', '2022-01-01 10:00:00', 0, '2022-01-01 10:00:00', '2022-01-18', 1, '2022-01-31 23:59:59', '2022-01-15 12:00:00', '010-1234-5678', '상품 1', 10000, 1, 'A123', 1),
+    ('주문_구독_id_2', '2022-02-01 10:00:00', 0, '2022-02-01 10:00:00', '2022-02-18', 2, '2022-02-28 23:59:59', '2022-02-15 12:00:00', '010-2345-6789', '상품 2', 20000, 2, 'B456', 2);
