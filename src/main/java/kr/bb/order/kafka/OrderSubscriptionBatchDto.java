@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+// TODO: MVN REPO 로 빼기
 public class OrderSubscriptionBatchDto {
   private List<String> orderSubscriptionIds;
 }
