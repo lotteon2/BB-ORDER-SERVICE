@@ -4,6 +4,8 @@ import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.OrderMethod;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.response.CommonResponse;
+import java.io.IOException;
+import javax.servlet.http.HttpServletResponse;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
 import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
@@ -17,6 +19,7 @@ import kr.bb.order.service.OrderDetailsService;
 import kr.bb.order.service.OrderListService;
 import kr.bb.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,6 +37,9 @@ public class OrderRestController {
   private final OrderListService orderListService;
   private final OrderDetailsService orderDetailsService;
 
+  @Value("${host.front-url}")
+  private String FRONTEND_URL;
+
   // 바로 주문(배송) 준비 단계
   @PostMapping("/delivery")
   public CommonResponse<KakaopayReadyResponseDto> readyForDirectOrder(
@@ -48,20 +54,23 @@ public class OrderRestController {
   public void requestOrder(
       @PathVariable("partnerOrderId") String orderId,
       @PathVariable("orderType") String orderType,
-      @RequestParam("pg_token") String pgToken) {
+      @RequestParam("pg_token") String pgToken,
+      HttpServletResponse httpServletResponse)
+      throws IOException {
     orderService.requestOrder(orderId, orderType, pgToken);
+    httpServletResponse.sendRedirect(String.format("%s/payment/approve", FRONTEND_URL));
   }
 
   // 결제 준비 상태에서 결제 취소시
   @GetMapping("/cancel")
-  public CommonResponse<String> cancel() {
-    return CommonResponse.success("카카오페이 결제 취소!");
+  public void cancel(HttpServletResponse httpServletResponse) throws IOException {
+    httpServletResponse.sendRedirect(String.format("%s/payment/cancel", FRONTEND_URL));
   }
 
   // '결제승인' 단계에서 카카오페이 쪽의 오류 발생시 (ex. 잔액 부족)
   @GetMapping("/fail")
-  public CommonResponse<String> fail() {
-    return CommonResponse.success("카카오페이 결제 실패!");
+  public void fail(HttpServletResponse httpServletResponse) throws IOException {
+    httpServletResponse.sendRedirect(String.format("%s/payment/fail", FRONTEND_URL));
   }
 
   // 장바구니에서 주문(배송) 준비 단계
@@ -147,5 +156,4 @@ public class OrderRestController {
       throw new RuntimeException("올바르지 않은 정렬값 입니다: " + status);
     }
   }
-  
 }

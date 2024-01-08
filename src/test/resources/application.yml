@@ -63,6 +63,9 @@ logging:
       hibernate:
         SQL: DEBUG
 
+host:
+  front-url: http://localhost:3000
+
 endpoint:
   product-service: localhost:8800
   delivery-service: localhost:8300

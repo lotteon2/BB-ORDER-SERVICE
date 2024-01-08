@@ -589,7 +589,7 @@ public class OrderService {
       List<OrderInfoByStore> orderInfoByStores) {
     List<ValidatePriceDto> list = new ArrayList<>();
     for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
-      if (orderInfoByStore.getCouponId() != 0) {
+      if (orderInfoByStore.getCouponId() != null) {
         ValidatePriceDto dto = ValidatePriceDto.toDto(orderInfoByStore);
         list.add(dto);
       }
