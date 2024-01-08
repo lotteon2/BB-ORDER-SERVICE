@@ -10,6 +10,7 @@ import bloomingblooms.domain.product.IsProductPriceValid;
 import bloomingblooms.response.CommonResponse;
 import java.time.LocalDateTime;
 import java.util.List;
+import kr.bb.order.kafka.OrderSubscriptionBatchDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -72,4 +73,12 @@ public class FeignHandler {
     }
     return paymentCommonResponse.getData();
   }
+
+  public void processSubscription(OrderSubscriptionBatchDto orderSubscriptionBatchDto) {
+    CommonResponse<Void> paymentCommonResponse = paymentServiceClient.subscription(orderSubscriptionBatchDto);
+    if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
+      throw new RuntimeException(paymentCommonResponse.getMessage());
+    }
+  }
+
 }

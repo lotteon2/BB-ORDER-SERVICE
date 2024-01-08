@@ -16,6 +16,7 @@ import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.product.IsProductPriceValid;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
+import bloomingblooms.domain.subscription.SubscriptionDateDto;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -43,12 +44,11 @@ import kr.bb.order.entity.subscription.OrderSubscription;
 import kr.bb.order.exception.PaymentExpiredException;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.FeignHandler;
-import kr.bb.order.feign.PaymentServiceClient;
-import kr.bb.order.feign.ProductServiceClient;
-import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.infra.OrderSNSPublisher;
 import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.kafka.KafkaProducer;
+import kr.bb.order.kafka.OrderSubscriptionBatchDto;
+import kr.bb.order.kafka.SubscriptionDateDtoList;
 import kr.bb.order.mapper.DeliveryAddressMapper;
 import kr.bb.order.mapper.KakaopayMapper;
 import kr.bb.order.mapper.OrderCommonMapper;
@@ -68,9 +68,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-  private final ProductServiceClient productServiceClient;
-  private final StoreServiceClient storeServiceClient;
-  private final PaymentServiceClient paymentServiceClient;
   private final RedisTemplate<String, OrderInfo> redisTemplate;
   private final RedisTemplate<String, PickupOrderInfo> redisTemplateForPickup;
   private final RedisTemplate<String, SubscriptionOrderInfo> redisTemplateForSubscription;
@@ -81,6 +78,7 @@ public class OrderService {
   private final KafkaProducer<Map<Long, String>> cartItemDeleteKafkaProducer;
   private final KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
+  private final KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   private final OrderUtil orderUtil;
   private final OrderProductRepository orderProductRepository;
   private final OrderGroupRepository orderGroupRepository;
@@ -99,7 +97,10 @@ public class OrderService {
   // 바로 주문 / 장바구니 주문 준비 단계
   @Transactional
   public KakaopayReadyResponseDto readyForOrder(
-      Long userId, OrderForDeliveryRequest requestDto, OrderType orderType, OrderMethod orderMethod ) {
+      Long userId,
+      OrderForDeliveryRequest requestDto,
+      OrderType orderType,
+      OrderMethod orderMethod) {
     // 결제금액, 재고유무, 쿠폰유효유무 feign을 통해 확인하기
 
     // product-service로 가격 유효성 확인하기
@@ -144,7 +145,8 @@ public class OrderService {
             isSubscriptionPay,
             responseDto.getTid(),
             requestDto,
-            orderType, orderMethod);
+            orderType,
+            orderMethod);
 
     redisTemplate.opsForValue().set(tempOrderId, orderInfo);
 
@@ -496,6 +498,9 @@ public class OrderService {
             .productName(subscriptionOrderInfo.getItemName())
             .productPrice(subscriptionOrderInfo.getProduct().getPrice())
             .deliveryDay(LocalDate.now().plusDays(3))
+            .storeId(subscriptionOrderInfo.getStoreId())
+            .phoneNumber(subscriptionOrderInfo.getOrdererPhoneNumber())
+            .paymentDate(LocalDateTime.now())
             .build();
 
     orderSubscriptionRepository.save(orderSubscription);
@@ -504,7 +509,7 @@ public class OrderService {
     SubscriptionCreateDto subscriptionCreateDto =
         OrderCommonMapper.toSubscriptionCreateDto(
             subscriptionOrderInfo, paymentDateTime, orderSubscription);
-        subscriptionCreateDtoKafkaProducer.send("subscription-create", subscriptionCreateDto);
+    subscriptionCreateDtoKafkaProducer.send("subscription-create", subscriptionCreateDto);
 
     return orderSubscription;
   }
@@ -520,6 +525,41 @@ public class OrderService {
           .getOrderDeliveryProducts()
           .forEach(OrderDeliveryProduct::updateReviewAndCardStatus);
     }
+  }
+
+  @Transactional
+  public void processSubscriptionBatch(OrderSubscriptionBatchDto orderSubscriptionBatchDto) {
+    // payment-service로 결제 요청
+    feignHandler.processSubscription(orderSubscriptionBatchDto);
+
+    List<OrderSubscription> orderSubscriptionList =
+        orderSubscriptionRepository.findAllById(
+            orderSubscriptionBatchDto.getOrderSubscriptionIds());
+
+    for (OrderSubscription orderSubscription : orderSubscriptionList) {
+      // SNS로 신규 주문 발생 이벤트 보내기
+      List<NewOrderEventItem> newOrderEventList =
+          OrderCommonMapper.createNewOrderEventListForSubscription(orderSubscription);
+      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+
+      // SQS로 고객에게 신규 주문 알리기
+      orderSQSPublisher.publish(orderSubscription.getUserId(), orderSubscription.getPhoneNumber());
+    }
+
+    // 정기구독 배송일/결제일 업데이트
+    List<SubscriptionDateDto> subscriptionDateDtos =
+        orderSubscriptionList.stream()
+            .map(
+                orderSubscription ->
+                    SubscriptionDateDto.builder()
+                        .subscriptionId(orderSubscription.getOrderSubscriptionId())
+                        .nextDeliveryDate(orderSubscription.getDeliveryDay())
+                        .nextPaymentDate(orderSubscription.getPaymentDate().toLocalDate())
+                        .build())
+            .collect(Collectors.toList());
+    SubscriptionDateDtoList subscriptionDateDtoList =
+        SubscriptionDateDtoList.builder().subscriptionDateDtoList(subscriptionDateDtos).build();
+    subscriptionDateDtoListKafkaProducer.send("subscription-date-update", subscriptionDateDtoList);
   }
 
   private LocalDateTime parseDateTime(String pickupDate, String pickupTime) {
@@ -549,7 +589,7 @@ public class OrderService {
       List<OrderInfoByStore> orderInfoByStores) {
     List<ValidatePriceDto> list = new ArrayList<>();
     for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
-      if(orderInfoByStore.getCouponId() != 0){
+      if (orderInfoByStore.getCouponId() != 0) {
         ValidatePriceDto dto = ValidatePriceDto.toDto(orderInfoByStore);
         list.add(dto);
       }

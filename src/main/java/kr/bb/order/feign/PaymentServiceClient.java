@@ -7,6 +7,7 @@ import bloomingblooms.domain.payment.PaymentInfoDto;
 import bloomingblooms.response.CommonResponse;
 import java.time.LocalDateTime;
 import java.util.List;
+import kr.bb.order.kafka.OrderSubscriptionBatchDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,4 +27,7 @@ public interface PaymentServiceClient {
 
   @GetMapping(value = "/client/paymentDate")
   CommonResponse<String> getPaymentDate(@RequestParam String orderGroupId);
+
+  @PostMapping(value = "/client/subscription")
+  CommonResponse<Void> subscription(@RequestBody OrderSubscriptionBatchDto orderSubscriptionBatchDto);
 }

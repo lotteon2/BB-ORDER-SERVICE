@@ -260,4 +260,22 @@ public class OrderCommonMapper {
             .build();
     return List.of(newOrderEventItem);
   }
+
+  public static List<NewOrderEventItem> createNewOrderEventListForSubscription(
+      OrderSubscription orderSubscription) {
+    ProductCount productCount =
+        ProductCount.builder()
+            .productId(orderSubscription.getSubscriptionProductId())
+            .quantity(1L)
+            .build();
+    NewOrderEventItem newOrderEventItem =
+        NewOrderEventItem.builder()
+            .orderId(orderSubscription.getOrderSubscriptionId())
+            .productName(orderSubscription.getProductName())
+            .storeId(orderSubscription.getStoreId())
+            .orderType(OrderType.SUBSCRIBE)
+            .products(List.of(productCount))
+            .build();
+    return List.of(newOrderEventItem);
+  }
 }

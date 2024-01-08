@@ -30,4 +30,9 @@ public class KafkaConsumer<T> {
   public void updateOrderDeliveryStatus(UpdateOrderStatusDto updateOrderStatusDto) {
       orderService.updateStatus(updateOrderStatusDto);
   }
+
+  @KafkaListener(topics = "subscription-batch", groupId ="order")
+  public void processSubscriptionBatch(OrderSubscriptionBatchDto orderSubscriptionBatchDto){
+    orderService.processSubscriptionBatch(orderSubscriptionBatchDto);
+  }
 }
