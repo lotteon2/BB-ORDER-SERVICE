@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
@@ -78,7 +79,11 @@ public class OrderCommonMapper {
     List<Long> couponIds =
         orderInfo.getOrderInfoByStores().stream()
             .map(OrderInfoByStore::getCouponId)
+            .filter(Objects::nonNull)
             .collect(Collectors.toList());
+
+    System.out.println("couponIds = " + couponIds);
+
     Map<String, Long> products =
         orderInfo.getOrderInfoByStores().stream()
             .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())

@@ -83,7 +83,7 @@ public class OrderListService {
     Long totalCnt = (long) orderDeliveriesPerPage.getTotalPages();
 
     List<String> orderGroupIds =
-        orderDeliveriesPerPage.stream()
+        orderDeliveriesPerPage.getContent().stream()
             .map(orderDelivery -> orderDelivery.getOrderGroup().getOrderGroupId())
             .collect(Collectors.toList());
 
