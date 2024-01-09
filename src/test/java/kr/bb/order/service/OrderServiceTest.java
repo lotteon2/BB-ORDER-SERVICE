@@ -625,7 +625,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .product(productCreate)
         .totalAmount(50000L)
         .deliveryCost(5000L)
-        .couponId(0L)
+        .couponId(null)
         .couponAmount(0L)
         .actualAmount(45000L)
         .isSubscriptionPay(false)

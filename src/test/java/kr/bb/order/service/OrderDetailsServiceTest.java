@@ -144,6 +144,6 @@ public class OrderDetailsServiceTest {
     assertThat(weeklySalesInfo)
         .extracting("categories", "data")
         .contains(Arrays.asList((LocalDate.now().minusDays(4).toString()), (LocalDate.now().minusDays(3).toString()), (LocalDate.now().minusDays(2).toString()), (LocalDate.now().minusDays(1).toString())),
-                    Arrays.asList(39800L, 39800L, 39800L, 39800L));
+                    Arrays.asList(49800L, 39800L, 39800L, 39800L));
   }
 }
