@@ -21,7 +21,9 @@ public class KafkaConsumer<T> {
       orderService.processOrder(processOrderDto);
     } catch (Exception e) {
       // TODO : SQS & 문자로 주문 실패 알려주기 (주문&결제 실패시)
-      log.error("proccess order failed rollback will begin. Error is : {}",e.getMessage());
+      log.error("proccess order failed rollback will begin. Error is : {}",e.toString());
+      e.printStackTrace();
+      log.error(String.valueOf(e.getCause()));
 
       // Kafka로 롤백 보상 패턴 실행
       kafkaProducer.send("order-create-rollback", processOrderDto);

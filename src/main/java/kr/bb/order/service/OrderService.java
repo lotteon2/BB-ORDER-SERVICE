@@ -4,7 +4,7 @@ import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.notification.order.OrderType;
-import bloomingblooms.domain.order.NewOrderEvent.NewOrderEventItem;
+import bloomingblooms.domain.order.NewOrderEvent;
 import bloomingblooms.domain.order.OrderInfoByStore;
 import bloomingblooms.domain.order.OrderMethod;
 import bloomingblooms.domain.order.ProcessOrderDto;
@@ -317,12 +317,12 @@ public class OrderService {
       feignHandler.createDeliveryAddress(deliveryAddressInsertDto);
 
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList =
+      NewOrderEvent newOrderEvent =
           OrderCommonMapper.createNewOrderEventListForDelivery(orderGroup, orderInfo);
 
       log.info("userId ={}", orderInfo.getUserId());
 
-      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+      orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
       orderSQSPublisher.publish(orderInfo.getUserId(), orderInfo.getOrdererPhoneNumber());
@@ -335,9 +335,9 @@ public class OrderService {
       OrderPickup orderPickup = orderService.processOrderPickup(processOrderDto, pickupOrderInfo);
 
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList =
+      NewOrderEvent newOrderEvent =
           OrderCommonMapper.createNewOrderEventListForPickup(orderPickup, pickupOrderInfo);
-      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+      orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
       orderSQSPublisher.publish(
@@ -365,10 +365,10 @@ public class OrderService {
       feignHandler.createDeliveryAddress(deliveryAddressInsertDto);
 
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList =
+      NewOrderEvent newOrderEvent =
           OrderCommonMapper.createNewOrderEventListForSubscription(
               orderSubscription, subscriptionOrderInfo);
-      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+      orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
       orderSQSPublisher.publish(
@@ -543,9 +543,9 @@ public class OrderService {
 
     for (OrderSubscription orderSubscription : orderSubscriptionList) {
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList =
+      NewOrderEvent newOrderEvent =
           OrderCommonMapper.createNewOrderEventListForSubscription(orderSubscription);
-      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+      orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
       orderSQSPublisher.publish(orderSubscription.getUserId(), orderSubscription.getPhoneNumber());
