@@ -1,10 +1,8 @@
 package kr.bb.order.infra;
 
 import bloomingblooms.domain.order.NewOrderEvent;
-import bloomingblooms.domain.order.NewOrderEvent.NewOrderEventItem;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,12 +21,12 @@ public class OrderSNSPublisher {
   @Value("${cloud.aws.sns.new-order-event.arn}")
   private String arn;
 
-  public void newOrderEventPublish(List<NewOrderEventItem> newOrderEventList) {
+  public void newOrderEventPublish(NewOrderEvent newOrderEvent) {
     try {
       PublishResponse publish =
           snsClient.publish(
               PublishRequest.builder()
-                  .message(objectMapper.writeValueAsString(newOrderEventList))
+                  .message(objectMapper.writeValueAsString(newOrderEvent))
                   .topicArn(arn)
                   .build());
       if (publish.sdkHttpResponse().isSuccessful()) {
