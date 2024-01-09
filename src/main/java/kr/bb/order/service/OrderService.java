@@ -60,11 +60,13 @@ import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.repository.OrderSubscriptionRepository;
 import kr.bb.order.util.OrderUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -317,6 +319,9 @@ public class OrderService {
       // SNS로 신규 주문 발생 이벤트 보내기
       List<NewOrderEventItem> newOrderEventList =
           OrderCommonMapper.createNewOrderEventListForDelivery(orderGroup, orderInfo);
+
+      log.info("userId ={}", orderInfo.getUserId());
+
       orderSNSPublisher.newOrderEventPublish(newOrderEventList);
 
       // SQS로 고객에게 신규 주문 알리기
