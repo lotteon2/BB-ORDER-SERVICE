@@ -428,7 +428,7 @@ public class OrderService {
       for (String productId : productIds) {
         userIdToProductIdMap.put(orderInfo.getUserId(), productId);
       }
-      cartItemDeleteKafkaProducer.send("delete-from-cart", userIdToProductIdMap);
+      cartItemDeleteKafkaProducer.send("cart-delete", userIdToProductIdMap);
     }
 
     return orderGroup;
