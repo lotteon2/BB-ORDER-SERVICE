@@ -102,7 +102,14 @@ public class OrderCommonMapper {
 
   public static ProcessOrderDto toDtoForOrderPickup(
       String orderId, PickupOrderInfo pickupOrderInfo) {
-    List<Long> couponIds = List.of(pickupOrderInfo.getCouponId());
+
+    List<Long> couponIds = new ArrayList<>();
+    try {
+      couponIds.add(pickupOrderInfo.getCouponId());
+    } catch (NullPointerException e) {
+      couponIds = new ArrayList<>();
+    }
+
     Map<String, Long> product =
         Map.of(
             pickupOrderInfo.getProduct().getProductId(),
@@ -121,7 +128,14 @@ public class OrderCommonMapper {
 
   public static ProcessOrderDto toDtoForOrderSubscription(
       String orderId, SubscriptionOrderInfo subscriptionOrderInfo) {
-    List<Long> couponIds = List.of(subscriptionOrderInfo.getCouponId());
+
+    List<Long> couponIds = new ArrayList<>();
+    try {
+      couponIds.add(subscriptionOrderInfo.getCouponId());
+    } catch (NullPointerException e) {
+      couponIds = new ArrayList<>();
+    }
+
     Map<String, Long> product =
         Map.of(
             subscriptionOrderInfo.getProduct().getProductId(),
@@ -157,7 +171,7 @@ public class OrderCommonMapper {
         .totalDiscountPrice(pickupOrderInfo.getCouponAmount())
         .actualPrice(pickupOrderInfo.getActualAmount())
         .paymentDateTime(paymentDateTime)
-        .reservationStatus(OrderPickupStatus.PENDING.getMessage())
+        .reservationStatus(OrderPickupStatus.PENDING.toString())
         .reviewStatus(orderPickupProduct.getReviewIsWritten().toString())
         .cardStatus(orderPickupProduct.getCardIsWritten().toString())
         .productThumbnail(pickupOrderInfo.getProduct().getProductThumbnailImage())

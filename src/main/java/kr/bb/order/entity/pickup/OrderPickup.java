@@ -32,6 +32,9 @@ public class OrderPickup extends BaseEntity {
     @Column(name="user_id", nullable = false)
     private Long userId;
 
+    @Column(name="store_id", nullable = false)
+    private Long storeId;
+
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name="order_pickup_status", nullable = false)
