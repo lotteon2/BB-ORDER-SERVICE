@@ -9,6 +9,7 @@ import bloomingblooms.domain.order.OrderInfoByStore;
 import bloomingblooms.domain.order.OrderMethod;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
+import bloomingblooms.domain.order.ValidatePolicyDto;
 import bloomingblooms.domain.order.ValidatePriceDto;
 import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
@@ -113,7 +114,11 @@ public class OrderService {
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos =
         createCouponAndDeliveryCheckDto(requestDto.getOrderInfoByStores());
-    feignHandler.validatePurchaseDetails(validatePriceDtos);
+    ValidatePolicyDto validatePolicyDto = ValidatePolicyDto.builder()
+            .validatePriceDtos(validatePriceDtos)
+            .orderType(OrderType.DELIVERY)
+            .build();
+    feignHandler.validatePurchaseDetails(validatePolicyDto);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(
@@ -170,7 +175,12 @@ public class OrderService {
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    feignHandler.validatePurchaseDetails(validatePriceDtos);
+    ValidatePolicyDto validatePolicyDto = ValidatePolicyDto.builder()
+            .validatePriceDtos(validatePriceDtos)
+            .orderType(OrderType.PICKUP)
+            .build();
+
+    feignHandler.validatePurchaseDetails(validatePolicyDto);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
@@ -217,7 +227,11 @@ public class OrderService {
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    feignHandler.validatePurchaseDetails(validatePriceDtos);
+    ValidatePolicyDto validatePolicyDto = ValidatePolicyDto.builder()
+            .validatePriceDtos(validatePriceDtos)
+            .orderType(OrderType.SUBSCRIBE)
+            .build();
+    feignHandler.validatePurchaseDetails(validatePolicyDto);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());

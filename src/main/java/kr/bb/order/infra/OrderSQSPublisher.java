@@ -4,7 +4,7 @@ import bloomingblooms.domain.notification.NotificationData;
 import bloomingblooms.domain.notification.NotificationKind;
 import bloomingblooms.domain.notification.NotificationURL;
 import bloomingblooms.domain.notification.PublishNotificationInformation;
-import bloomingblooms.domain.notification.question.InqueryResponseNotification;
+import bloomingblooms.domain.order.OrderStatusNotification;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,16 +24,16 @@ public class OrderSQSPublisher {
 
   public void publish(Long userId, String phoneNumber) {
     try {
-      InqueryResponseNotification inqueryResponseNotification =
-          InqueryResponseNotification.builder().userId(userId).phoneNumber(phoneNumber).build();
+      OrderStatusNotification orderStatusNotification =
+          OrderStatusNotification.builder().userId(userId).phoneNumber(phoneNumber).build();
       PublishNotificationInformation publishNotificationInformation =
           PublishNotificationInformation.getData(
               NotificationURL.ORDER_SUCCESS, NotificationKind.ORDER_SUCCESS);
-      NotificationData<InqueryResponseNotification> inqueryResponseNotificationData =
-          NotificationData.notifyData(inqueryResponseNotification, publishNotificationInformation);
+      NotificationData<OrderStatusNotification> orderStatusNotificationNotificationData =
+          NotificationData.notifyData(orderStatusNotification, publishNotificationInformation);
       SendMessageRequest sendMessageRequest =
           new SendMessageRequest(
-              queueUrl, objectMapper.writeValueAsString(inqueryResponseNotificationData));
+              queueUrl, objectMapper.writeValueAsString(orderStatusNotificationNotificationData));
       sqs.sendMessage(sendMessageRequest);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
