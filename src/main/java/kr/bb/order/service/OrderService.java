@@ -114,7 +114,8 @@ public class OrderService {
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos =
         createCouponAndDeliveryCheckDto(requestDto.getOrderInfoByStores());
-    ValidatePolicyDto validatePolicyDto = ValidatePolicyDto.builder()
+    ValidatePolicyDto validatePolicyDto =
+        ValidatePolicyDto.builder()
             .validatePriceDtos(validatePriceDtos)
             .orderType(OrderType.DELIVERY)
             .build();
@@ -175,7 +176,8 @@ public class OrderService {
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    ValidatePolicyDto validatePolicyDto = ValidatePolicyDto.builder()
+    ValidatePolicyDto validatePolicyDto =
+        ValidatePolicyDto.builder()
             .validatePriceDtos(validatePriceDtos)
             .orderType(OrderType.PICKUP)
             .build();
@@ -227,7 +229,8 @@ public class OrderService {
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    ValidatePolicyDto validatePolicyDto = ValidatePolicyDto.builder()
+    ValidatePolicyDto validatePolicyDto =
+        ValidatePolicyDto.builder()
             .validatePriceDtos(validatePriceDtos)
             .orderType(OrderType.SUBSCRIBE)
             .build();
@@ -410,7 +413,7 @@ public class OrderService {
     orderGroupRepository.save(orderGroup);
 
     // 주문 정보 저장
-    for (int i = 0; i <orderInfo.getOrderInfoByStores().size(); i++) {
+    for (int i = 0; i < orderInfo.getOrderInfoByStores().size(); i++) {
       // 1. 주문_배송 entity
       String orderDeliveryId = orderUtil.generateUUID();
       OrderDelivery orderDelivery =
@@ -468,6 +471,7 @@ public class OrderService {
         OrderPickup.builder()
             .orderPickupId(processOrderDto.getOrderId())
             .userId(pickupOrderInfo.getUserId())
+            .storeId(pickupOrderInfo.getStoreId())
             .orderPickupTotalAmount(pickupOrderInfo.getTotalAmount())
             .orderPickupCouponAmount(pickupOrderInfo.getCouponAmount())
             .orderPickupDatetime(pickupDateTime)

@@ -48,11 +48,13 @@ public class OrderListService {
     List<OrderGroup> orderGroupsList = orderGroupsPerPage.getContent();
 
     Long totalCnt = (long) orderGroupsPerPage.getTotalPages();
+    // 각 value: 주문그룹별 가게 수
     List<Long> storeCounts =
         orderGroupsList.stream()
             .map(orderGroup -> (long) orderGroup.getOrderDeliveryList().size())
             .collect(Collectors.toList());
 
+    // 주문그룹별 대표 상품id
     List<String> productIds = getProductIds(orderGroupsList);
     List<ProductInformation> productInfo = productServiceClient.getProductInfo(productIds).getData();
     Map<String, ProductInformation> productInfoDtoMap = productInfo.stream().collect(Collectors.toMap(
