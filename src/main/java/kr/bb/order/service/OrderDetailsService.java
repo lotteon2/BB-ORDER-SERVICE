@@ -184,4 +184,10 @@ public class OrderDetailsService {
     }
     return WeeklySalesInfoDto.builder().categories(dates).data(totalAmounts).build();
   }
+
+  public Long getDeliveryId(String orderId) {
+    OrderDelivery orderDelivery =
+        orderDeliveryRepository.findById(orderId).orElseThrow(EntityNotFoundException::new);
+    return orderDelivery.getDeliveryId();
+  }
 }

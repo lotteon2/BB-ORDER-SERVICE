@@ -105,10 +105,8 @@ public class OrderCommonMapper {
       String orderId, PickupOrderInfo pickupOrderInfo) {
 
     List<Long> couponIds = new ArrayList<>();
-    try {
+    if(pickupOrderInfo.getCouponId() != null) {
       couponIds.add(pickupOrderInfo.getCouponId());
-    } catch (NullPointerException e) {
-      couponIds = new ArrayList<>();
     }
 
     Map<String, Long> product =
@@ -131,10 +129,8 @@ public class OrderCommonMapper {
       String orderId, SubscriptionOrderInfo subscriptionOrderInfo) {
 
     List<Long> couponIds = new ArrayList<>();
-    try {
+    if(subscriptionOrderInfo.getCouponId() != null) {
       couponIds.add(subscriptionOrderInfo.getCouponId());
-    } catch (NullPointerException e) {
-      couponIds = new ArrayList<>();
     }
 
     Map<String, Long> product =
