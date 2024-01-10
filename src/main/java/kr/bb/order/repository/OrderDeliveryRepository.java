@@ -26,7 +26,7 @@ public interface OrderDeliveryRepository extends JpaRepository<OrderDelivery, St
   @Query(
       "SELECT od.createdAt AS date, SUM(od.orderDeliveryTotalAmount) as totalAmount "
           + "FROM OrderDelivery od "
-          + "WHERE od.storeId = :storeId AND od.createdAt >= :startDate AND od.createdAt <= :endDate "
+          + "WHERE od.storeId = :storeId AND DATE(od.createdAt) BETWEEN :startDate AND :endDate "
           + "GROUP BY DATE(od.createdAt)")
   List<Object[]> findWeeklySales(Long storeId, LocalDateTime startDate, LocalDateTime endDate);
 
