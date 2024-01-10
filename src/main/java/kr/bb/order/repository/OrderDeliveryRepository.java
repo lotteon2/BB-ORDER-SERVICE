@@ -24,7 +24,7 @@ public interface OrderDeliveryRepository extends JpaRepository<OrderDelivery, St
       Long storeId, Pageable pageable, @Param("status") OrderDeliveryStatus status);
 
   @Query(
-      "SELECT od.createdAt AS date, SUM(od.orderDeliveryTotalAmount) as totalAmount "
+      "SELECT DATE(od.createdAt) AS date, SUM(od.orderDeliveryTotalAmount) as totalAmount "
           + "FROM OrderDelivery od "
           + "WHERE od.storeId = :storeId AND od.createdAt >= :startDate AND od.createdAt <= :endDate "
           + "GROUP BY DATE(od.createdAt)")

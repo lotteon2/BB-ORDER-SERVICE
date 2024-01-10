@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface OrderSubscriptionRepository extends JpaRepository<OrderSubscription, String> {
   @Query(
-      "SELECT os.createdAt AS date, SUM(os.productPrice) as totalAmount "
+      "SELECT DATE(os.createdAt) AS date, SUM(os.productPrice) as totalAmount "
           + "FROM OrderSubscription os "
           + "WHERE os.storeId = :storeId AND os.createdAt >= :startDate AND os.createdAt <= :endDate "
           + "GROUP BY DATE(os.createdAt)")
