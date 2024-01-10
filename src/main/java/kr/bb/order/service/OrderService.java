@@ -410,7 +410,7 @@ public class OrderService {
     orderGroupRepository.save(orderGroup);
 
     // 주문 정보 저장
-    for (int i = 0; i < deliveryIds.size(); i++) {
+    for (int i = 0; i <orderInfo.getOrderInfoByStores().size(); i++) {
       // 1. 주문_배송 entity
       String orderDeliveryId = orderUtil.generateUUID();
       OrderDelivery orderDelivery =
@@ -425,13 +425,11 @@ public class OrderService {
 
       // 2. 주문_상품 entity
       List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
-      for (OrderInfoByStore orderInfoByStore : orderInfo.getOrderInfoByStores()) {
-        for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
-          OrderDeliveryProduct orderDeliveryProduct = OrderProductMapper.toEntity(productCreate);
-          // 연관관계 매핑 : 편의 메서드 적용
-          orderDeliveryProduct.setOrderDelivery(orderDelivery);
-          orderDeliveryProducts.add(orderDeliveryProduct);
-        }
+      for (ProductCreate productCreate : orderInfo.getOrderInfoByStores().get(i).getProducts()) {
+        OrderDeliveryProduct orderDeliveryProduct = OrderProductMapper.toEntity(productCreate);
+        // 연관관계 매핑 : 편의 메서드 적용
+        orderDeliveryProduct.setOrderDelivery(orderDelivery);
+        orderDeliveryProducts.add(orderDeliveryProduct);
       }
       orderProductRepository.saveAll(orderDeliveryProducts);
     }
