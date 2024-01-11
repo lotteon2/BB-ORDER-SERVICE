@@ -2,15 +2,16 @@ package kr.bb.order.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.entity.pickup.OrderPickup;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface OrderPickupRepository extends JpaRepository<OrderPickup, String> {
   @Query(
-      "SELECT op.createdAt AS date, SUM(op.orderPickupTotalAmount) as totalAmount "
-          + "FROM OrderPickup op "
-          + "WHERE op.storeId = :storeId AND DATE(op.createdAt) BETWEEN :startDate AND :endDate "
-          + "GROUP BY DATE(op.createdAt)")
-  List<Object[]> findWeeklySales(Long storeId, LocalDateTime startDate, LocalDateTime endDate);
+      value = "SELECT DATE(op.created_at) as date, SUM(op.order_pickup_total_amount) as totalSales "
+          + "FROM order_pickup op "
+          + "WHERE op.store_id = :storeId AND DATE(op.created_at) BETWEEN :startDate AND :endDate "
+          + "GROUP BY DATE(op.created_at)", nativeQuery = true)
+  List<WeeklySalesDto> findWeeklySales(Long storeId, String startDate, String endDate);
 }

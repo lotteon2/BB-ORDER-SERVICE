@@ -1,7 +1,7 @@
 package kr.bb.order.repository;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
@@ -24,10 +24,10 @@ public interface OrderDeliveryRepository extends JpaRepository<OrderDelivery, St
       Long storeId, Pageable pageable, @Param("status") OrderDeliveryStatus status);
 
   @Query(
-      "SELECT od.createdAt AS date, SUM(od.orderDeliveryTotalAmount) as totalAmount "
-          + "FROM OrderDelivery od "
-          + "WHERE od.storeId = :storeId AND DATE(od.createdAt) BETWEEN :startDate AND :endDate "
-          + "GROUP BY DATE(od.createdAt)")
-  List<Object[]> findWeeklySales(Long storeId, LocalDateTime startDate, LocalDateTime endDate);
+      value = " SELECT DATE(od.created_at) AS date, SUM(od.order_delivery_total_amount) AS totalSales "
+          + "FROM order_delivery od "
+          + "WHERE od.store_id  = :storeId AND DATE(od.created_at) BETWEEN :startDate AND :endDate "
+          + "GROUP BY DATE(od.created_at)", nativeQuery = true)
+  List<WeeklySalesDto> findWeeklySales(Long storeId, String startDate, String endDate);
 
 }

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
+import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStore;
@@ -134,12 +135,15 @@ public class OrderDetailsService {
     LocalDateTime endDate = LocalDateTime.now().minusDays(1); // 어제 날짜
     LocalDateTime startDate = endDate.minusDays(6); // 7일 전
 
-    List<Object[]> weeklySalesDataForDelivery =
-        orderDeliveryRepository.findWeeklySales(storeId, startDate, endDate);
-    List<Object[]> weeklySalesDataForPickup =
-        orderPickupRepository.findWeeklySales(storeId, startDate, endDate);
-    List<Object[]> weeklySalesDataForSubscription =
-        orderSubscriptionRepository.findWeeklySales(storeId, startDate, endDate);
+    String startDateStr = startDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+    String endDateStr = endDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+    List<WeeklySalesDto> weeklySalesDataForDelivery =
+        orderDeliveryRepository.findWeeklySales(storeId, startDateStr, endDateStr);
+    List<WeeklySalesDto> weeklySalesDataForPickup =
+        orderPickupRepository.findWeeklySales(storeId, startDateStr, endDateStr);
+    List<WeeklySalesDto> weeklySalesDataForSubscription =
+        orderSubscriptionRepository.findWeeklySales(storeId, startDateStr, endDateStr);
 
     List<String> lastSevenDays = new ArrayList<>();
     for (int i = 0; i < 7; i++) {
@@ -154,33 +158,31 @@ public class OrderDetailsService {
       weeklySalesMap.put(lastSevenDays.get(i), 0L);
     }
 
-    for (Object[] objectsForDelivery : weeklySalesDataForDelivery) {
-      LocalDateTime localDateTime = (LocalDateTime) objectsForDelivery[0];
-      String key = localDateTime.toLocalDate().toString();
+    for (WeeklySalesDto dto : weeklySalesDataForDelivery) {
+      String key = dto.getDate().toString();
       Long amount = weeklySalesMap.get(key);
-      weeklySalesMap.put(key, amount + Long.valueOf(objectsForDelivery[1].toString()));
+      weeklySalesMap.put(key, (amount + dto.getTotalSales()));
     }
 
-    for (Object[] objectsForPickup : weeklySalesDataForPickup) {
-      LocalDateTime localDateTime = (LocalDateTime) objectsForPickup[0];
-      String key = localDateTime.toLocalDate().toString();
+    for(WeeklySalesDto dto : weeklySalesDataForPickup){
+      String key = dto.getDate().toString();
       Long amount = weeklySalesMap.get(key);
-      weeklySalesMap.put(key, amount + Long.valueOf(objectsForPickup[1].toString()));
+      weeklySalesMap.put(key, amount + dto.getTotalSales());
     }
 
-    for (Object[] objectsForSubscription : weeklySalesDataForSubscription) {
-      LocalDateTime localDateTime = (LocalDateTime) objectsForSubscription[0];
-      String key = localDateTime.toLocalDate().toString();
+    for(WeeklySalesDto dto : weeklySalesDataForSubscription){
+      String key = dto.getDate().toString();
       Long amount = weeklySalesMap.get(key);
-      weeklySalesMap.put(key, amount + Long.valueOf((objectsForSubscription[1].toString())));
+      weeklySalesMap.put(key, amount + dto.getTotalSales());
     }
 
     List<String> dates = new ArrayList<>();
     List<Long> totalAmounts = new ArrayList<>();
     for (Entry<String, Long> elements : weeklySalesMap.entrySet()) {
-      if (elements.getValue() == 0L) continue;
-      dates.add(elements.getKey());
-      totalAmounts.add(elements.getValue());
+      if (elements.getValue() != 0L) {
+        dates.add(elements.getKey());
+        totalAmounts.add(elements.getValue());
+      }
     }
     return WeeklySalesInfoDto.builder().categories(dates).data(totalAmounts).build();
   }
