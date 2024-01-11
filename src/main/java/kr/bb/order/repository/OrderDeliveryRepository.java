@@ -1,9 +1,9 @@
 package kr.bb.order.repository;
 
+import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import java.util.List;
 import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
-import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +21,7 @@ public interface OrderDeliveryRepository extends JpaRepository<OrderDelivery, St
   @Query(
       "SELECT od FROM OrderDelivery od WHERE od.storeId = :storeId AND od.orderDeliveryStatus = :status ORDER BY od.createdAt DESC")
   Page<OrderDelivery> findByStoreIdSortedByCreatedAtDesc(
-      Long storeId, Pageable pageable, @Param("status") OrderDeliveryStatus status);
+      Long storeId, Pageable pageable, @Param("status") DeliveryStatus status);
 
   @Query(
       value = " SELECT DATE(od.created_at) AS date, SUM(od.order_delivery_total_amount) AS totalSales "

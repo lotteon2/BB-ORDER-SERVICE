@@ -1,6 +1,7 @@
 package kr.bb.order.service;
 
 import bloomingblooms.domain.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import bloomingblooms.domain.payment.PaymentInfoDto;
 import bloomingblooms.domain.product.ProductInformation;
 import java.util.ArrayList;
@@ -14,7 +15,6 @@ import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.delivery.OrderDelivery;
-import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
@@ -23,9 +23,7 @@ import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,11 +38,11 @@ public class OrderListService {
   private final DeliveryServiceClient deliveryServiceClient;
 
   public OrderDeliveryPageInfoDto getUserOrderDeliveryList(
-      Long userId, Pageable pageable, OrderDeliveryStatus orderDeliveryStatus) {
+      Long userId, Pageable pageable, DeliveryStatus deliveryStatus) {
     // pageable만큼의 orderGroup을 최신 날짜순으로 가져온다.
     Page<OrderGroup> orderGroupsPerPage =
         orderGroupRepository.findByUserIdAndOrderDeliveryStatusSortedByCreatedAtDesc(
-            userId, pageable, orderDeliveryStatus);
+            userId, pageable, deliveryStatus);
     List<OrderGroup> orderGroupsList = orderGroupsPerPage.getContent();
 
     Long totalCnt = (long) orderGroupsList.size();
@@ -78,7 +76,7 @@ public class OrderListService {
 //}
 
   public OrderDeliveryPageInfoForSeller getOrderDeliveryListForSeller(
-          Pageable pageable, OrderDeliveryStatus status, Long storeId) {
+          Pageable pageable, DeliveryStatus status, Long storeId) {
     Page<OrderDelivery> orderDeliveriesPerPage =
         orderDeliveryRepository.findByStoreIdSortedByCreatedAtDesc(storeId, pageable, status);
 
