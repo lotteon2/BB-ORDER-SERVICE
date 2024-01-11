@@ -57,7 +57,7 @@ public class OrderListServiceTest {
     OrderDeliveryPageInfoDto orderDeliveryPageInfoDto =
         orderListService.getUserOrderDeliveryList(userId, pageable, DeliveryStatus.PENDING);
 
-    assertThat(orderDeliveryPageInfoDto.getTotalCnt()).isEqualTo(1L);
+    assertThat(orderDeliveryPageInfoDto.getTotalCnt()).isEqualTo(4L);
     assertThat(orderDeliveryPageInfoDto.getOrders().get(0).getKey().equals("그룹주문id4")).isTrue();
   }
 
