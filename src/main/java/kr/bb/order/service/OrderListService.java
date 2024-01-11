@@ -47,7 +47,7 @@ public class OrderListService {
             userId, pageable, orderDeliveryStatus);
     List<OrderGroup> orderGroupsList = orderGroupsPerPage.getContent();
 
-    Long totalCnt = (long) orderGroupsPerPage.getTotalPages();
+    Long totalCnt = (long) orderGroupsList.size();
     // 각 value: 주문그룹별 가게 수
     List<Long> storeCounts =
         orderGroupsList.stream()
@@ -82,7 +82,7 @@ public class OrderListService {
     Page<OrderDelivery> orderDeliveriesPerPage =
         orderDeliveryRepository.findByStoreIdSortedByCreatedAtDesc(storeId, pageable, status);
 
-    Long totalCnt = (long) orderDeliveriesPerPage.getTotalPages();
+    Long totalCnt = (long) orderDeliveriesPerPage.getContent().size();
 
     List<String> orderGroupIds =
         orderDeliveriesPerPage.getContent().stream()
