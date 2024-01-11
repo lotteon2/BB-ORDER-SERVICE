@@ -1,5 +1,6 @@
 package kr.bb.order.controller.restcontroller;
 
+import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.OrderMethod;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
@@ -14,7 +15,6 @@ import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
-import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.service.OrderDetailsService;
 import kr.bb.order.service.OrderListService;
 import kr.bb.order.service.OrderService;
@@ -109,7 +109,7 @@ public class OrderRestController {
       @PageableDefault(page = 0, size = 5) Pageable pageable,
       @RequestParam("status") String status) {
 
-    OrderDeliveryStatus orderDeliveryStatus = parseOrderDeliveryStatus(status);
+    DeliveryStatus orderDeliveryStatus = parseOrderDeliveryStatus(status);
 
     OrderDeliveryPageInfoDto orderDeliveryPageInfoDto =
         orderListService.getUserOrderDeliveryList(userId, pageable, orderDeliveryStatus);
@@ -123,10 +123,10 @@ public class OrderRestController {
       @RequestParam("status") String status,
       @RequestParam("storeId") Long storeId) {
 
-    OrderDeliveryStatus orderDeliveryStatus = parseOrderDeliveryStatus(status);
+    DeliveryStatus deliveryStatus = parseOrderDeliveryStatus(status);
 
     OrderDeliveryPageInfoForSeller orderDeliveryPageInfoForSeller =
-        orderListService.getOrderDeliveryListForSeller(pageable, orderDeliveryStatus, storeId);
+        orderListService.getOrderDeliveryListForSeller(pageable, deliveryStatus, storeId);
     return CommonResponse.success(orderDeliveryPageInfoForSeller);
   }
 
@@ -149,9 +149,9 @@ public class OrderRestController {
     return CommonResponse.success(orderDetailsService.getWeeklySalesInfo(storeId));
   }
 
-  public OrderDeliveryStatus parseOrderDeliveryStatus(String status) {
+  public DeliveryStatus parseOrderDeliveryStatus(String status) {
     try {
-      return OrderDeliveryStatus.valueOf(status);
+      return DeliveryStatus.valueOf(status);
     } catch (IllegalArgumentException e) {
       throw new RuntimeException("올바르지 않은 정렬값 입니다: " + status);
     }

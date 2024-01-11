@@ -21,6 +21,7 @@ import bloomingblooms.domain.order.ProductCreate;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
+import bloomingblooms.dto.command.CartDeleteCommand;
 import bloomingblooms.response.CommonResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -52,6 +53,7 @@ import kr.bb.order.kafka.SubscriptionDateDtoList;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
+import kr.bb.order.repository.OrderPickupProductRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.repository.OrderSubscriptionRepository;
@@ -83,13 +85,14 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private OrderDeliveryRepository orderDeliveryRepository;
   @MockBean private DeliveryServiceClient deliveryServiceClient;
   @MockBean private KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
-  @MockBean private KafkaProducer<Map<Long, String>> cartItemDeleteProducer;
+  @MockBean private KafkaProducer<CartDeleteCommand> cartItemDeleteProducer;
   @MockBean private KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   @MockBean private KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   @Autowired private KafkaConsumer<ProcessOrderDto> kafkaConsumer;
   @MockBean private KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   @MockBean private OrderUtil orderUtil;
   @Autowired private OrderProductRepository orderProductRepository;
+  @Autowired private OrderPickupProductRepository orderPickupProductRepository;
   @Autowired private OrderGroupRepository orderGroupRepository;
   @Autowired private OrderPickupRepository orderPickupRepository;
   @Autowired private OrderSubscriptionRepository orderSubscriptionRepository;
@@ -114,6 +117,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             subscriptionDateDtoListKafkaProducer,
             orderUtil,
             orderProductRepository,
+            orderPickupProductRepository,
             orderGroupRepository,
             orderPickupRepository,
             orderSubscriptionRepository,
@@ -446,14 +450,17 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Test
   @DisplayName("배치를 통해 매달 정기결제 진행")
   void processBatchSubscription() {
-    OrderSubscriptionBatchDto orderSubscriptionBatchDto = OrderSubscriptionBatchDto.builder()
+    OrderSubscriptionBatchDto orderSubscriptionBatchDto =
+        OrderSubscriptionBatchDto.builder()
             .orderSubscriptionIds(List.of("주문_구독_id_1", "주문_구독_id_2"))
             .build();
 
     doNothing().when(feignHandler).processSubscription(orderSubscriptionBatchDto);
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
     doNothing().when(orderSQSPublisher).publish(any(), any());
-    doNothing().when(subscriptionDateDtoListKafkaProducer).send(eq("subscription-date-update"), any());
+    doNothing()
+        .when(subscriptionDateDtoListKafkaProducer)
+        .send(eq("subscription-date-update"), any());
 
     orderService.processSubscriptionBatch(orderSubscriptionBatchDto);
   }

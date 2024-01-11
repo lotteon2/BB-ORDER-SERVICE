@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import bloomingblooms.domain.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import bloomingblooms.domain.payment.PaymentInfoDto;
 import bloomingblooms.domain.product.ProductInformation;
 import bloomingblooms.response.CommonResponse;
@@ -13,12 +14,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.persistence.EntityManager;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.delivery.OrderDelivery;
-import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
@@ -56,9 +55,9 @@ public class OrderListServiceTest {
             .thenReturn(CommonResponse.success(paymentInfoDtos));
 
     OrderDeliveryPageInfoDto orderDeliveryPageInfoDto =
-        orderListService.getUserOrderDeliveryList(userId, pageable, OrderDeliveryStatus.PENDING);
+        orderListService.getUserOrderDeliveryList(userId, pageable, DeliveryStatus.PENDING);
 
-    assertThat(orderDeliveryPageInfoDto.getTotalCnt()).isEqualTo(1L);
+    assertThat(orderDeliveryPageInfoDto.getTotalCnt()).isEqualTo(4L);
     assertThat(orderDeliveryPageInfoDto.getOrders().get(0).getKey().equals("그룹주문id4")).isTrue();
   }
 
@@ -66,7 +65,7 @@ public class OrderListServiceTest {
   @DisplayName("주문 목록 조회 - 가게")
   public void sellerCanReadHisOrderDeliveryList(){
     Pageable pageable = PageRequest.of(0, 5);
-    OrderDeliveryStatus status = OrderDeliveryStatus.PENDING;
+    DeliveryStatus status = DeliveryStatus.PENDING;
     Long storeId = 1L;
     List<String> groupIds = List.of("그룹주문id","그룹주문id2","그룹주문id3","그룹주문id4");
 

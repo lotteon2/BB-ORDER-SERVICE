@@ -18,14 +18,14 @@ import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.product.IsProductPriceValid;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionDateDto;
+import bloomingblooms.dto.command.CartDeleteCommand;
+import bloomingblooms.dto.command.CartDeleteDto;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
@@ -35,7 +35,6 @@ import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.delivery.OrderDelivery;
-import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.redis.OrderInfo;
@@ -56,6 +55,7 @@ import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.mapper.OrderProductMapper;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
+import kr.bb.order.repository.OrderPickupProductRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.repository.OrderSubscriptionRepository;
@@ -78,12 +78,13 @@ public class OrderService {
   private final OrderDeliveryRepository orderDeliveryRepository;
   private final DeliveryServiceClient deliveryServiceClient;
   private final KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
-  private final KafkaProducer<Map<Long, String>> cartItemDeleteKafkaProducer;
+  private final KafkaProducer<CartDeleteCommand> cartItemDeleteKafkaProducer;
   private final KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   private final OrderUtil orderUtil;
   private final OrderProductRepository orderProductRepository;
+  private final OrderPickupProductRepository orderPickupProductRepository;
   private final OrderGroupRepository orderGroupRepository;
   private final OrderPickupRepository orderPickupRepository;
   private final OrderSubscriptionRepository orderSubscriptionRepository;
@@ -444,11 +445,15 @@ public class OrderService {
               .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())
               .map(ProductCreate::getProductId)
               .collect(Collectors.toList());
-      Map<Long, String> userIdToProductIdMap = new HashMap<>();
+
+      List<CartDeleteDto> cartDeleteDtos = new ArrayList<>();
       for (String productId : productIds) {
-        userIdToProductIdMap.put(orderInfo.getUserId(), productId);
+        cartDeleteDtos.add(
+            CartDeleteDto.builder().productId(productId).userId(orderInfo.getUserId()).build());
       }
-      cartItemDeleteKafkaProducer.send("cart-delete", userIdToProductIdMap);
+      CartDeleteCommand cartDeleteCommand =
+          CartDeleteCommand.builder().cartDeleteDtoList(cartDeleteDtos).build();
+      cartItemDeleteKafkaProducer.send("cart-delete", cartDeleteCommand);
     }
 
     return orderGroup;
@@ -485,6 +490,7 @@ public class OrderService {
             .build();
 
     orderPickupProduct.setOrderPickup(orderPickup);
+    orderPickupProductRepository.save(orderPickupProduct);
     orderPickupRepository.save(orderPickup);
 
     // order-query 서비스로 픽업 주문 Kafka send
@@ -535,12 +541,13 @@ public class OrderService {
     return orderSubscription;
   }
 
+  @Transactional
   public void updateStatus(UpdateOrderStatusDto statusDto) {
     OrderDelivery orderDelivery =
         orderDeliveryRepository
             .findById(statusDto.getOrderDeliveryId())
             .orElseThrow(EntityNotFoundException::new);
-    orderDelivery.updateStatus(OrderDeliveryStatus.valueOf(statusDto.getDeliveryStatus().name()));
+    orderDelivery.updateStatus(statusDto.getDeliveryStatus());
     if ("COMPLETED".equalsIgnoreCase(String.valueOf(statusDto.getDeliveryStatus()))) {
       orderDelivery
           .getOrderDeliveryProducts()
