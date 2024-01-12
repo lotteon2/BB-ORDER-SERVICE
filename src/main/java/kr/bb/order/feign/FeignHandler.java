@@ -10,6 +10,7 @@ import bloomingblooms.domain.product.IsProductPriceValid;
 import bloomingblooms.response.CommonResponse;
 import java.time.LocalDateTime;
 import java.util.List;
+import kr.bb.order.dto.feign.KakaopayCancelRequestDto;
 import kr.bb.order.kafka.OrderSubscriptionBatchDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -81,4 +82,10 @@ public class FeignHandler {
     }
   }
 
+  public void cancel(KakaopayCancelRequestDto requestDto){
+    CommonResponse<Void> paymentCommonResponse = paymentServiceClient.cancel(requestDto);
+    if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
+      throw new RuntimeException(paymentCommonResponse.getMessage());
+    }
+  }
 }
