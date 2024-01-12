@@ -21,12 +21,11 @@ public interface OrderSubscriptionRepository extends JpaRepository<OrderSubscrip
   List<WeeklySalesDto> findWeeklySales(Long storeId, String startDate, String endDate);
 
   @Query(
-      "SELECT NEW kr.bb.order.util.StoreIdAndTotalAmountProjection(o.storeId, o.productPrice)"
-          +
+      "SELECT NEW kr.bb.order.util.StoreIdAndTotalAmountProjection(o.storeId, o.productPrice)"+
           "FROM OrderSubscription o " +
           "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate AND NOT o.subscriptionStatus = :subscriptionStatus")
   List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate,
-      @Param("subscriptionStatus  ") SubscriptionStatus subscriptionStatus);
+      @Param("subscriptionStatus") SubscriptionStatus subscriptionStatus);
 }
