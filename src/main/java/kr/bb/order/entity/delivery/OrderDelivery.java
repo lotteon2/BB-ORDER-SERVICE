@@ -1,5 +1,6 @@
 package kr.bb.order.entity.delivery;
 
+import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import bloomingblooms.domain.order.OrderInfoByStore;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +48,7 @@ public class OrderDelivery extends BaseEntity {
   @Builder.Default
   @Enumerated(EnumType.STRING)
   @Column(name = "order_delivery_status", nullable = false)
-  private OrderDeliveryStatus orderDeliveryStatus = OrderDeliveryStatus.PENDING;
+  private DeliveryStatus orderDeliveryStatus = DeliveryStatus.PENDING;
 
   @Column(name = "order_delivery_total_amount", nullable = false)
   private Long orderDeliveryTotalAmount;
@@ -79,7 +80,7 @@ public class OrderDelivery extends BaseEntity {
     this.orderDeliveryProducts = orderDeliveryProducts;
   }
 
-  public void updateStatus(OrderDeliveryStatus newStatus){
+  public void updateStatus(DeliveryStatus newStatus){
     this.orderDeliveryStatus = newStatus;
   }
 }

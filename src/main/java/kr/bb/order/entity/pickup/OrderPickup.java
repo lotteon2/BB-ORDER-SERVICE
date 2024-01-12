@@ -26,12 +26,13 @@ public class OrderPickup extends BaseEntity {
     @Id
     private String orderPickupId;
 
-    @OneToOne(mappedBy = "orderPickup", cascade = CascadeType.PERSIST, orphanRemoval = true)
+    @OneToOne(mappedBy = "orderPickup")
     private OrderPickupProduct orderPickupProduct;
 
     @Column(name="user_id", nullable = false)
     private Long userId;
 
+    @Column(name="store_id", nullable = false)
     private Long storeId;
 
     @Builder.Default

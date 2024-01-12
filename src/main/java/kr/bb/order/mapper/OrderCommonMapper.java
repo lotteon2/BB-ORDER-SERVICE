@@ -2,6 +2,7 @@ package kr.bb.order.mapper;
 
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.notification.order.OrderType;
+import bloomingblooms.domain.order.NewOrderEvent;
 import bloomingblooms.domain.order.NewOrderEvent.NewOrderEventItem;
 import bloomingblooms.domain.order.NewOrderEvent.ProductCount;
 import bloomingblooms.domain.order.OrderInfoByStore;
@@ -102,7 +103,12 @@ public class OrderCommonMapper {
 
   public static ProcessOrderDto toDtoForOrderPickup(
       String orderId, PickupOrderInfo pickupOrderInfo) {
-    List<Long> couponIds = List.of(pickupOrderInfo.getCouponId());
+
+    List<Long> couponIds = new ArrayList<>();
+    if(pickupOrderInfo.getCouponId() != null) {
+      couponIds.add(pickupOrderInfo.getCouponId());
+    }
+
     Map<String, Long> product =
         Map.of(
             pickupOrderInfo.getProduct().getProductId(),
@@ -121,7 +127,12 @@ public class OrderCommonMapper {
 
   public static ProcessOrderDto toDtoForOrderSubscription(
       String orderId, SubscriptionOrderInfo subscriptionOrderInfo) {
-    List<Long> couponIds = List.of(subscriptionOrderInfo.getCouponId());
+
+    List<Long> couponIds = new ArrayList<>();
+    if(subscriptionOrderInfo.getCouponId() != null) {
+      couponIds.add(subscriptionOrderInfo.getCouponId());
+    }
+
     Map<String, Long> product =
         Map.of(
             subscriptionOrderInfo.getProduct().getProductId(),
@@ -157,7 +168,7 @@ public class OrderCommonMapper {
         .totalDiscountPrice(pickupOrderInfo.getCouponAmount())
         .actualPrice(pickupOrderInfo.getActualAmount())
         .paymentDateTime(paymentDateTime)
-        .reservationStatus(OrderPickupStatus.PENDING.getMessage())
+        .reservationStatus(OrderPickupStatus.PENDING.toString())
         .reviewStatus(orderPickupProduct.getReviewIsWritten().toString())
         .cardStatus(orderPickupProduct.getCardIsWritten().toString())
         .productThumbnail(pickupOrderInfo.getProduct().getProductThumbnailImage())
@@ -200,7 +211,7 @@ public class OrderCommonMapper {
         .build();
   }
 
-  public static List<NewOrderEventItem> createNewOrderEventListForDelivery(
+  public static NewOrderEvent createNewOrderEventListForDelivery(
       OrderGroup orderGroup, OrderInfo orderInfo) {
     List<OrderDelivery> orderDeliveryList = orderGroup.getOrderDeliveryList();
 
@@ -224,10 +235,10 @@ public class OrderCommonMapper {
               .build();
       newOrderEventItems.add(newOrderEventItem);
     }
-    return newOrderEventItems;
+    return NewOrderEvent.builder().orders(newOrderEventItems).build();
   }
 
-  public static List<NewOrderEventItem> createNewOrderEventListForPickup(
+  public static NewOrderEvent createNewOrderEventListForPickup(
       OrderPickup orderPickup, PickupOrderInfo pickupOrderInfo) {
     ProductCount productCount =
         ProductCount.builder()
@@ -244,10 +255,10 @@ public class OrderCommonMapper {
             .products(productCountList)
             .build();
 
-    return List.of(newOrderEventItem);
+    return NewOrderEvent.builder().orders(List.of(newOrderEventItem)).build();
   }
 
-  public static List<NewOrderEventItem> createNewOrderEventListForSubscription(
+  public static NewOrderEvent createNewOrderEventListForSubscription(
       OrderSubscription orderSubscription, SubscriptionOrderInfo subscriptionOrderInfo) {
     ProductCount productCount =
         ProductCount.builder()
@@ -263,10 +274,10 @@ public class OrderCommonMapper {
             .orderType(OrderType.valueOf(subscriptionOrderInfo.getOrderType()))
             .products(productCountList)
             .build();
-    return List.of(newOrderEventItem);
+    return NewOrderEvent.builder().orders(List.of(newOrderEventItem)).build();
   }
 
-  public static List<NewOrderEventItem> createNewOrderEventListForSubscription(
+  public static NewOrderEvent createNewOrderEventListForSubscription(
       OrderSubscription orderSubscription) {
     ProductCount productCount =
         ProductCount.builder()
@@ -281,6 +292,6 @@ public class OrderCommonMapper {
             .orderType(OrderType.SUBSCRIBE)
             .products(List.of(productCount))
             .build();
-    return List.of(newOrderEventItem);
+    return NewOrderEvent.builder().orders(List.of(newOrderEventItem)).build();
   }
 }

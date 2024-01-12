@@ -1,5 +1,6 @@
 package kr.bb.order.entity;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -29,7 +30,7 @@ public class OrderPickupProduct extends BaseEntity {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long orderPickupProductId;
 
-  @OneToOne(fetch = FetchType.LAZY)
+  @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST, orphanRemoval = true)
   @JoinColumn(name = "order_pickup_id")
   private OrderPickup orderPickup;
 

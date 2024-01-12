@@ -2,7 +2,7 @@ package kr.bb.order.feign;
 
 import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
-import bloomingblooms.domain.order.ValidatePriceDto;
+import bloomingblooms.domain.order.ValidatePolicyDto;
 import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
@@ -32,9 +32,9 @@ public class FeignHandler {
     }
   }
 
-  public void validatePurchaseDetails(List<ValidatePriceDto> validatePriceDtos) {
+  public void validatePurchaseDetails(ValidatePolicyDto validatePolicyDto) {
     CommonResponse<Void> storeCommonResponse =
-        storeServiceClient.validatePurchaseDetails(validatePriceDtos);
+        storeServiceClient.validatePurchaseDetails(validatePolicyDto);
     if (storeCommonResponse.getResult() == CommonResponse.Result.FAIL) {
       throw new RuntimeException(storeCommonResponse.getMessage());
     }

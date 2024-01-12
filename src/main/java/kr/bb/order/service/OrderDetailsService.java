@@ -1,15 +1,18 @@
 package kr.bb.order.service;
 
+import bloomingblooms.domain.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.product.ProductInformation;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
-import bloomingblooms.domain.product.ProductInformation;
-import bloomingblooms.domain.delivery.DeliveryInfoDto;
+import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStore;
@@ -22,6 +25,8 @@ import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.repository.OrderDeliveryRepository;
+import kr.bb.order.repository.OrderPickupRepository;
+import kr.bb.order.repository.OrderSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class OrderDetailsService {
   private final OrderDeliveryRepository orderDeliveryRepository;
+  private final OrderPickupRepository orderPickupRepository;
+  private final OrderSubscriptionRepository orderSubscriptionRepository;
   private final ProductServiceClient productServiceClient;
   private final StoreServiceClient storeServiceClient;
   private final DeliveryServiceClient deliveryServiceClient;
@@ -124,27 +131,65 @@ public class OrderDetailsService {
         orderDelivery, productReadList, storeNameMap, paymentDate, deliveryInfoMap);
   }
 
-  public WeeklySalesInfoDto getWeeklySalesInfo(Long storeId){
+  public WeeklySalesInfoDto getWeeklySalesInfo(Long storeId) {
     LocalDateTime endDate = LocalDateTime.now().minusDays(1); // 어제 날짜
     LocalDateTime startDate = endDate.minusDays(6); // 7일 전
-    List<Object[]> weeklySalesData = orderDeliveryRepository.findWeeklySales(storeId, startDate,
-            endDate);
+
+    String startDateStr = startDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+    String endDateStr = endDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+    List<WeeklySalesDto> weeklySalesDataForDelivery =
+        orderDeliveryRepository.findWeeklySales(storeId, startDateStr, endDateStr);
+    List<WeeklySalesDto> weeklySalesDataForPickup =
+        orderPickupRepository.findWeeklySales(storeId, startDateStr, endDateStr);
+    List<WeeklySalesDto> weeklySalesDataForSubscription =
+        orderSubscriptionRepository.findWeeklySales(storeId, startDateStr, endDateStr);
+
+    List<String> lastSevenDays = new ArrayList<>();
+    for (int i = 0; i < 7; i++) {
+      LocalDate date = startDate.toLocalDate().plusDays(i);
+      String formattedDate = date.format(DateTimeFormatter.ISO_LOCAL_DATE);
+      lastSevenDays.add(formattedDate);
+    }
+
+    // 총 7일치 매출 선언 및 초기화
+    LinkedHashMap<String, Long> weeklySalesMap = new LinkedHashMap<>();
+    for (int i = 0; i < 7; i++) {
+      weeklySalesMap.put(lastSevenDays.get(i), 0L);
+    }
+
+    for (WeeklySalesDto dto : weeklySalesDataForDelivery) {
+      String key = dto.getDate().toString();
+      Long amount = weeklySalesMap.get(key);
+      weeklySalesMap.put(key, (amount + dto.getTotalSales()));
+    }
+
+    for(WeeklySalesDto dto : weeklySalesDataForPickup){
+      String key = dto.getDate().toString();
+      Long amount = weeklySalesMap.get(key);
+      weeklySalesMap.put(key, amount + dto.getTotalSales());
+    }
+
+    for(WeeklySalesDto dto : weeklySalesDataForSubscription){
+      String key = dto.getDate().toString();
+      Long amount = weeklySalesMap.get(key);
+      weeklySalesMap.put(key, amount + dto.getTotalSales());
+    }
 
     List<String> dates = new ArrayList<>();
     List<Long> totalAmounts = new ArrayList<>();
-
-    for(Object[] result : weeklySalesData){
-      if(result[0] != null){
-        LocalDateTime dateTime = (LocalDateTime) result[0];
-        String dateString = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        dates.add(dateString);
-        totalAmounts.add((Long) result[1]);
+    for (Entry<String, Long> elements : weeklySalesMap.entrySet()) {
+      if (elements.getValue() != 0L) {
+        dates.add(elements.getKey());
+        totalAmounts.add(elements.getValue());
       }
     }
+    return WeeklySalesInfoDto.builder().categories(dates).data(totalAmounts).build();
+  }
 
-    return WeeklySalesInfoDto.builder()
-            .categories(dates)
-            .data(totalAmounts)
-            .build();
+  public Long getDeliveryId(String orderId) {
+    OrderDelivery orderDelivery =
+        orderDeliveryRepository.findById(orderId).orElseThrow(EntityNotFoundException::new);
+    return orderDelivery.getDeliveryId();
   }
 }

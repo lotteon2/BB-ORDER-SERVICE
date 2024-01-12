@@ -21,12 +21,12 @@ import bloomingblooms.domain.order.ProductCreate;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
+import bloomingblooms.dto.command.CartDeleteCommand;
 import bloomingblooms.response.CommonResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
@@ -52,8 +52,9 @@ import kr.bb.order.kafka.SubscriptionDateDtoList;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
+import kr.bb.order.repository.OrderPickupProductRepository;
 import kr.bb.order.repository.OrderPickupRepository;
-import kr.bb.order.repository.OrderProductRepository;
+import kr.bb.order.repository.OrderDeliveryProductRepository;
 import kr.bb.order.repository.OrderSubscriptionRepository;
 import kr.bb.order.util.OrderUtil;
 import org.junit.jupiter.api.AfterEach;
@@ -63,6 +64,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -83,20 +85,21 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private OrderDeliveryRepository orderDeliveryRepository;
   @MockBean private DeliveryServiceClient deliveryServiceClient;
   @MockBean private KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
-  @MockBean private KafkaProducer<Map<Long, String>> cartItemDeleteProducer;
+  @MockBean private KafkaProducer<CartDeleteCommand> cartItemDeleteProducer;
   @MockBean private KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   @MockBean private KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   @Autowired private KafkaConsumer<ProcessOrderDto> kafkaConsumer;
   @MockBean private KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   @MockBean private OrderUtil orderUtil;
-  @Autowired private OrderProductRepository orderProductRepository;
+  @Autowired private OrderDeliveryProductRepository orderProductRepository;
+  @Autowired private OrderPickupProductRepository orderPickupProductRepository;
   @Autowired private OrderGroupRepository orderGroupRepository;
   @Autowired private OrderPickupRepository orderPickupRepository;
   @Autowired private OrderSubscriptionRepository orderSubscriptionRepository;
   @MockBean private OrderSNSPublisher orderSNSPublisher;
   @MockBean private OrderSQSPublisher orderSQSPublisher;
   @MockBean private FeignHandler feignHandler;
-
+  @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
   @BeforeEach
   void setup() {
     orderService =
@@ -114,6 +117,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             subscriptionDateDtoListKafkaProducer,
             orderUtil,
             orderProductRepository,
+            orderPickupProductRepository,
             orderGroupRepository,
             orderPickupRepository,
             orderSubscriptionRepository,
@@ -446,14 +450,17 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Test
   @DisplayName("배치를 통해 매달 정기결제 진행")
   void processBatchSubscription() {
-    OrderSubscriptionBatchDto orderSubscriptionBatchDto = OrderSubscriptionBatchDto.builder()
+    OrderSubscriptionBatchDto orderSubscriptionBatchDto =
+        OrderSubscriptionBatchDto.builder()
             .orderSubscriptionIds(List.of("주문_구독_id_1", "주문_구독_id_2"))
             .build();
 
     doNothing().when(feignHandler).processSubscription(orderSubscriptionBatchDto);
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
     doNothing().when(orderSQSPublisher).publish(any(), any());
-    doNothing().when(subscriptionDateDtoListKafkaProducer).send(eq("subscription-date-update"), any());
+    doNothing()
+        .when(subscriptionDateDtoListKafkaProducer)
+        .send(eq("subscription-date-update"), any());
 
     orderService.processSubscriptionBatch(orderSubscriptionBatchDto);
   }
@@ -625,7 +632,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .product(productCreate)
         .totalAmount(50000L)
         .deliveryCost(5000L)
-        .couponId(0L)
+        .couponId(null)
         .couponAmount(0L)
         .actualAmount(45000L)
         .isSubscriptionPay(false)

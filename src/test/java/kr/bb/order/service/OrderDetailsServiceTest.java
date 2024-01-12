@@ -4,16 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import bloomingblooms.domain.delivery.DeliveryInfoDto;
+import bloomingblooms.domain.product.ProductInformation;
 import bloomingblooms.response.CommonResponse;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import bloomingblooms.domain.product.ProductInformation;
-import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
@@ -26,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -36,6 +36,7 @@ public class OrderDetailsServiceTest {
   @MockBean private StoreServiceClient storeServiceClient;
   @MockBean private DeliveryServiceClient deliveryServiceClient;
   @MockBean private PaymentServiceClient paymentServiceClient;
+  @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
 
   @Test
   @DisplayName("주문 상세 조회 - 회원")
@@ -143,7 +144,21 @@ public class OrderDetailsServiceTest {
 
     assertThat(weeklySalesInfo)
         .extracting("categories", "data")
-        .contains(Arrays.asList((LocalDate.now().minusDays(4).toString()), (LocalDate.now().minusDays(3).toString()), (LocalDate.now().minusDays(2).toString()), (LocalDate.now().minusDays(1).toString())),
-                    Arrays.asList(39800L, 39800L, 39800L, 39800L));
+        .contains(
+            Arrays.asList(
+                (LocalDate.now().minusDays(4).toString()),
+                (LocalDate.now().minusDays(3).toString()),
+                (LocalDate.now().minusDays(2).toString()),
+                (LocalDate.now().minusDays(1).toString())),
+            Arrays.asList(49800L, 39800L, 39800L, 39800L));
+  }
+
+  @Test
+  @DisplayName("Feign 요청으로 인한 배송id 반환하기")
+  void getDeliveryId() {
+    String orderDeliveryId = "가게주문id";
+    Long deliveryId = orderDetailsService.getDeliveryId(orderDeliveryId);
+
+    assertThat(deliveryId).isEqualTo(1L);
   }
 }

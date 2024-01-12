@@ -4,11 +4,12 @@ import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.notification.order.OrderType;
-import bloomingblooms.domain.order.NewOrderEvent.NewOrderEventItem;
+import bloomingblooms.domain.order.NewOrderEvent;
 import bloomingblooms.domain.order.OrderInfoByStore;
 import bloomingblooms.domain.order.OrderMethod;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
+import bloomingblooms.domain.order.ValidatePolicyDto;
 import bloomingblooms.domain.order.ValidatePriceDto;
 import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
@@ -17,14 +18,14 @@ import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.product.IsProductPriceValid;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionDateDto;
+import bloomingblooms.dto.command.CartDeleteCommand;
+import bloomingblooms.dto.command.CartDeleteDto;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
@@ -34,7 +35,6 @@ import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.delivery.OrderDelivery;
-import kr.bb.order.entity.delivery.OrderDeliveryStatus;
 import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.redis.OrderInfo;
@@ -53,18 +53,21 @@ import kr.bb.order.mapper.DeliveryAddressMapper;
 import kr.bb.order.mapper.KakaopayMapper;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.mapper.OrderProductMapper;
+import kr.bb.order.repository.OrderDeliveryProductRepository;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
+import kr.bb.order.repository.OrderPickupProductRepository;
 import kr.bb.order.repository.OrderPickupRepository;
-import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.repository.OrderSubscriptionRepository;
 import kr.bb.order.util.OrderUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -75,12 +78,13 @@ public class OrderService {
   private final OrderDeliveryRepository orderDeliveryRepository;
   private final DeliveryServiceClient deliveryServiceClient;
   private final KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
-  private final KafkaProducer<Map<Long, String>> cartItemDeleteKafkaProducer;
+  private final KafkaProducer<CartDeleteCommand> cartItemDeleteKafkaProducer;
   private final KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   private final OrderUtil orderUtil;
-  private final OrderProductRepository orderProductRepository;
+  private final OrderDeliveryProductRepository orderDeliveryProductRepository;
+  private final OrderPickupProductRepository orderPickupProductRepository;
   private final OrderGroupRepository orderGroupRepository;
   private final OrderPickupRepository orderPickupRepository;
   private final OrderSubscriptionRepository orderSubscriptionRepository;
@@ -111,7 +115,12 @@ public class OrderService {
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos =
         createCouponAndDeliveryCheckDto(requestDto.getOrderInfoByStores());
-    feignHandler.validatePurchaseDetails(validatePriceDtos);
+    ValidatePolicyDto validatePolicyDto =
+        ValidatePolicyDto.builder()
+            .validatePriceDtos(validatePriceDtos)
+            .orderType(OrderType.DELIVERY)
+            .build();
+    feignHandler.validatePurchaseDetails(validatePolicyDto);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(
@@ -168,7 +177,13 @@ public class OrderService {
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    feignHandler.validatePurchaseDetails(validatePriceDtos);
+    ValidatePolicyDto validatePolicyDto =
+        ValidatePolicyDto.builder()
+            .validatePriceDtos(validatePriceDtos)
+            .orderType(OrderType.PICKUP)
+            .build();
+
+    feignHandler.validatePurchaseDetails(validatePolicyDto);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
@@ -215,7 +230,12 @@ public class OrderService {
 
     // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
     List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    feignHandler.validatePurchaseDetails(validatePriceDtos);
+    ValidatePolicyDto validatePolicyDto =
+        ValidatePolicyDto.builder()
+            .validatePriceDtos(validatePriceDtos)
+            .orderType(OrderType.SUBSCRIBE)
+            .build();
+    feignHandler.validatePurchaseDetails(validatePolicyDto);
 
     // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
     orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
@@ -315,9 +335,12 @@ public class OrderService {
       feignHandler.createDeliveryAddress(deliveryAddressInsertDto);
 
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList =
+      NewOrderEvent newOrderEvent =
           OrderCommonMapper.createNewOrderEventListForDelivery(orderGroup, orderInfo);
-      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+
+      log.info("userId ={}", orderInfo.getUserId());
+
+      orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
       orderSQSPublisher.publish(orderInfo.getUserId(), orderInfo.getOrdererPhoneNumber());
@@ -330,9 +353,9 @@ public class OrderService {
       OrderPickup orderPickup = orderService.processOrderPickup(processOrderDto, pickupOrderInfo);
 
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList =
+      NewOrderEvent newOrderEvent =
           OrderCommonMapper.createNewOrderEventListForPickup(orderPickup, pickupOrderInfo);
-      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+      orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
       orderSQSPublisher.publish(
@@ -360,10 +383,10 @@ public class OrderService {
       feignHandler.createDeliveryAddress(deliveryAddressInsertDto);
 
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList =
+      NewOrderEvent newOrderEvent =
           OrderCommonMapper.createNewOrderEventListForSubscription(
               orderSubscription, subscriptionOrderInfo);
-      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+      orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
       orderSQSPublisher.publish(
@@ -391,7 +414,7 @@ public class OrderService {
     orderGroupRepository.save(orderGroup);
 
     // 주문 정보 저장
-    for (int i = 0; i < deliveryIds.size(); i++) {
+    for (int i = 0; i < orderInfo.getOrderInfoByStores().size(); i++) {
       // 1. 주문_배송 entity
       String orderDeliveryId = orderUtil.generateUUID();
       OrderDelivery orderDelivery =
@@ -406,15 +429,13 @@ public class OrderService {
 
       // 2. 주문_상품 entity
       List<OrderDeliveryProduct> orderDeliveryProducts = new ArrayList<>();
-      for (OrderInfoByStore orderInfoByStore : orderInfo.getOrderInfoByStores()) {
-        for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
-          OrderDeliveryProduct orderDeliveryProduct = OrderProductMapper.toEntity(productCreate);
-          // 연관관계 매핑 : 편의 메서드 적용
-          orderDeliveryProduct.setOrderDelivery(orderDelivery);
-          orderDeliveryProducts.add(orderDeliveryProduct);
-        }
+      for (ProductCreate productCreate : orderInfo.getOrderInfoByStores().get(i).getProducts()) {
+        OrderDeliveryProduct orderDeliveryProduct = OrderProductMapper.toEntity(productCreate);
+        // 연관관계 매핑 : 편의 메서드 적용
+        orderDeliveryProduct.setOrderDelivery(orderDelivery);
+        orderDeliveryProducts.add(orderDeliveryProduct);
       }
-      orderProductRepository.saveAll(orderDeliveryProducts);
+      orderDeliveryProductRepository.saveAll(orderDeliveryProducts);
     }
 
     // 장바구니에서 주문이면 장바구니에서 해당 상품들 비우기 kafka 요청
@@ -424,11 +445,15 @@ public class OrderService {
               .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())
               .map(ProductCreate::getProductId)
               .collect(Collectors.toList());
-      Map<Long, String> userIdToProductIdMap = new HashMap<>();
+
+      List<CartDeleteDto> cartDeleteDtos = new ArrayList<>();
       for (String productId : productIds) {
-        userIdToProductIdMap.put(orderInfo.getUserId(), productId);
+        cartDeleteDtos.add(
+            CartDeleteDto.builder().productId(productId).userId(orderInfo.getUserId()).build());
       }
-      cartItemDeleteKafkaProducer.send("delete-from-cart", userIdToProductIdMap);
+      CartDeleteCommand cartDeleteCommand =
+          CartDeleteCommand.builder().cartDeleteDtoList(cartDeleteDtos).build();
+      cartItemDeleteKafkaProducer.send("cart-delete", cartDeleteCommand);
     }
 
     return orderGroup;
@@ -451,6 +476,7 @@ public class OrderService {
         OrderPickup.builder()
             .orderPickupId(processOrderDto.getOrderId())
             .userId(pickupOrderInfo.getUserId())
+            .storeId(pickupOrderInfo.getStoreId())
             .orderPickupTotalAmount(pickupOrderInfo.getTotalAmount())
             .orderPickupCouponAmount(pickupOrderInfo.getCouponAmount())
             .orderPickupDatetime(pickupDateTime)
@@ -464,6 +490,7 @@ public class OrderService {
             .build();
 
     orderPickupProduct.setOrderPickup(orderPickup);
+    orderPickupProductRepository.save(orderPickupProduct);
     orderPickupRepository.save(orderPickup);
 
     // order-query 서비스로 픽업 주문 Kafka send
@@ -514,16 +541,21 @@ public class OrderService {
     return orderSubscription;
   }
 
+  @Transactional
   public void updateStatus(UpdateOrderStatusDto statusDto) {
     OrderDelivery orderDelivery =
         orderDeliveryRepository
             .findById(statusDto.getOrderDeliveryId())
             .orElseThrow(EntityNotFoundException::new);
-    orderDelivery.updateStatus(OrderDeliveryStatus.valueOf(statusDto.getDeliveryStatus().name()));
+    orderDelivery.updateStatus(statusDto.getDeliveryStatus());
     if ("COMPLETED".equalsIgnoreCase(String.valueOf(statusDto.getDeliveryStatus()))) {
       orderDelivery
           .getOrderDeliveryProducts()
           .forEach(OrderDeliveryProduct::updateReviewAndCardStatus);
+    }
+
+    if("PROCESSING".equalsIgnoreCase(String.valueOf(statusDto.getDeliveryStatus()))){
+      orderSQSPublisher.publishDeliveryNotification(orderDelivery.getOrderGroup().getUserId(), statusDto.getPhoneNumber());
     }
   }
 
@@ -538,9 +570,9 @@ public class OrderService {
 
     for (OrderSubscription orderSubscription : orderSubscriptionList) {
       // SNS로 신규 주문 발생 이벤트 보내기
-      List<NewOrderEventItem> newOrderEventList =
+      NewOrderEvent newOrderEvent =
           OrderCommonMapper.createNewOrderEventListForSubscription(orderSubscription);
-      orderSNSPublisher.newOrderEventPublish(newOrderEventList);
+      orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
       orderSQSPublisher.publish(orderSubscription.getUserId(), orderSubscription.getPhoneNumber());
@@ -589,10 +621,8 @@ public class OrderService {
       List<OrderInfoByStore> orderInfoByStores) {
     List<ValidatePriceDto> list = new ArrayList<>();
     for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
-      if (orderInfoByStore.getCouponId() != null) {
-        ValidatePriceDto dto = ValidatePriceDto.toDto(orderInfoByStore);
-        list.add(dto);
-      }
+      ValidatePriceDto dto = ValidatePriceDto.toDto(orderInfoByStore);
+      list.add(dto);
     }
     return list;
   }

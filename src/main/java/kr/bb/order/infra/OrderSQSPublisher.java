@@ -4,7 +4,8 @@ import bloomingblooms.domain.notification.NotificationData;
 import bloomingblooms.domain.notification.NotificationKind;
 import bloomingblooms.domain.notification.NotificationURL;
 import bloomingblooms.domain.notification.PublishNotificationInformation;
-import bloomingblooms.domain.notification.question.InqueryResponseNotification;
+import bloomingblooms.domain.notification.delivery.DeliveryNotification;
+import bloomingblooms.domain.order.OrderStatusNotification;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -18,34 +19,51 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class OrderSQSPublisher {
-
   private final AmazonSQS sqs;
   private final ObjectMapper objectMapper;
 
   @Value("${cloud.aws.sqs.new-order-status-queue.url}")
   private String queueUrl;
+
+  @Value("${cloud.aws.sqs.delivery-status-update-notification-queue.url}")
+  private String deliveryStatusQueueUrl;
+
   @Value("${settlement-notification-queue.url}")
   private String settlementQueueUrl;
 
   public void publish(Long userId, String phoneNumber) {
     try {
-      InqueryResponseNotification inqueryResponseNotification =
-          InqueryResponseNotification.builder().userId(userId).phoneNumber(phoneNumber).build();
+      OrderStatusNotification orderStatusNotification =
+          OrderStatusNotification.builder().userId(userId).phoneNumber(phoneNumber).build();
       PublishNotificationInformation publishNotificationInformation =
           PublishNotificationInformation.getData(
               NotificationURL.ORDER_SUCCESS, NotificationKind.ORDER_SUCCESS);
-      NotificationData<InqueryResponseNotification> inqueryResponseNotificationData =
-          NotificationData.notifyData(inqueryResponseNotification, publishNotificationInformation);
+      NotificationData<OrderStatusNotification> orderStatusNotificationNotificationData =
+          NotificationData.notifyData(orderStatusNotification, publishNotificationInformation);
       SendMessageRequest sendMessageRequest =
           new SendMessageRequest(
-              queueUrl, objectMapper.writeValueAsString(inqueryResponseNotificationData));
+              queueUrl, objectMapper.writeValueAsString(orderStatusNotificationNotificationData));
       sqs.sendMessage(sendMessageRequest);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
   }
 
-  public void publishStoreSettlement(List<Long> storeIdList) {
+  public void publishDeliveryNotification(Long userId, String phoneNumber){
+    try{
+      DeliveryNotification deliveryNotification =
+              DeliveryNotification.builder().userId(userId).phoneNumber(phoneNumber).build();
+      PublishNotificationInformation publishNotificationInformation = PublishNotificationInformation.getData(NotificationURL.DELIVERY, NotificationKind.DELIVERY);
+      NotificationData<DeliveryNotification> deliveryNotificationNotificationData = NotificationData.notifyData(deliveryNotification, publishNotificationInformation);
+      SendMessageRequest sendMessageRequest =
+              new SendMessageRequest(deliveryStatusQueueUrl, objectMapper.writeValueAsString(deliveryNotificationNotificationData));
+      sqs.sendMessage(sendMessageRequest);
+    } catch (JsonProcessingException e) {
+        throw new RuntimeException(e);
+    }
+  }
+
+    public void publishStoreSettlement(List<Long> storeIdList) {
     try {
       SettlementNotification settlementNotification =
           SettlementNotification.builder().storeIdList(storeIdList).build();
