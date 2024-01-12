@@ -37,7 +37,7 @@ class ProjectionReturnTypeTest {
         .orderPickupId("1")
         .userId(123L)
         .storeId(456L)
-        .orderPickupStatus(OrderPickupStatus.PENDING)
+        .orderPickupStatus(OrderPickupStatus.COMPLETED)
         .orderPickupTotalAmount(100L)
         .orderPickupCouponAmount(10L)
         .orderPickupIsComplete(false)
@@ -56,8 +56,8 @@ class ProjectionReturnTypeTest {
     LocalDateTime startDate = LocalDateTime.of(2024, 1, 1, 0, 0);
     LocalDateTime endDate = LocalDateTime.of(2024, 1, 13, 0, 0);
 
-    List<StoreIdAndTotalAmountProjection> result = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRange(
-        startDate, endDate);
+    List<StoreIdAndTotalAmountProjection> result = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(
+        startDate, endDate,OrderPickupStatus.CANCELED);
 
     assertNotNull(result);
     assertEquals(1,result.size());
@@ -73,8 +73,8 @@ class ProjectionReturnTypeTest {
     LocalDateTime startDate = LocalDateTime.of(2023, 12, 1, 0, 0);
     LocalDateTime endDate = LocalDateTime.of(2023, 12, 13, 0, 0);
 
-    List<StoreIdAndTotalAmountProjection> result = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRange(
-        startDate, endDate);
+    List<StoreIdAndTotalAmountProjection> result = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(
+        startDate, endDate,OrderPickupStatus.CANCELED);
 
     assertNotNull(result);
     assertEquals(1,result.size());
