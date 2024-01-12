@@ -7,9 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import kr.bb.order.dto.request.settlement.SettlementStoreInfoResponse;
+import kr.bb.order.dto.request.settlement.StoreSettlementDto;
+import kr.bb.order.dto.request.settlement.UpdateSettlementCommand;
 import kr.bb.order.entity.settlement.Settlement;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.infra.OrderSQSPublisher;
+import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.repository.settlement.SettlementJpaRepository;
 import kr.bb.order.util.StoreIdAndTotalAmountProjection;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +32,8 @@ public class SettlementDataHandler {
   private final ProcessingSettlementDataService processingSettlementDataService;
   private final StoreServiceClient storeServiceClient;
   private final OrderSQSPublisher orderSQSPublisher;
+  private final KafkaProducer<UpdateSettlementCommand> kafkaProducer;
+
 
   @Transactional
   @SqsListener(
@@ -36,25 +41,39 @@ public class SettlementDataHandler {
       deletionPolicy = SqsMessageDeletionPolicy.NEVER)
   public void handleTheSettlementEvent(
       @Payload String message, @Headers Map<String, String> headers, Acknowledgment ack) {
-    //save settlements
-    List<Long> storeIdList = saveSettlement();
-    //send SQS
-    orderSQSPublisher.publishStoreSettlement(storeIdList);
+
+    List<StoreIdAndTotalAmountProjection> storeIdAndTotalAmountProjections = saveSettlement();
+    orderSQSPublisher.publishStoreSettlement(
+        getStoreIdFromProjection(storeIdAndTotalAmountProjections));
+    kafkaProducer.send("settlement",
+        convertToUpdateSettlementCommand(storeIdAndTotalAmountProjections));
 
     ack.acknowledge();
 
   }
 
+  private UpdateSettlementCommand convertToUpdateSettlementCommand(
+      List<StoreIdAndTotalAmountProjection> storeIdAndTotalAmountProjections) {
+
+    List<StoreSettlementDto> storeSettlementDtoList = storeIdAndTotalAmountProjections.stream()
+        .map(projection -> StoreSettlementDto.builder()
+            .storeId(projection.getStoreId())
+            .settlementAmount(projection.getTotalAmount())
+            .build())
+        .collect(Collectors.toList());
+
+    return new UpdateSettlementCommand(storeSettlementDtoList);
+  }
 
   /**
    * @return return the List<Long> for publish the SQS publish
    */
 
-  public List<Long> saveSettlement() {
+  public List<StoreIdAndTotalAmountProjection> saveSettlement() {
 
-    LocalDate today = LocalDate.now();
-    LocalDate firstDayOfLastMonth = today.minusMonths(1).withDayOfMonth(1);
-    LocalDate lastDayOfLastMonth = today.withDayOfMonth(1).minusDays(1);
+    LocalDateTime today = LocalDateTime.now();
+    LocalDateTime firstDayOfLastMonth = today.minusMonths(1).withDayOfMonth(1);
+    LocalDateTime lastDayOfLastMonth = today.withDayOfMonth(1).minusDays(1);
 
     List<StoreIdAndTotalAmountProjection> totalAmountByStoreId = processingSettlementDataService.getTotalAmountByStoreId(
         firstDayOfLastMonth, lastDayOfLastMonth);
@@ -65,7 +84,7 @@ public class SettlementDataHandler {
 
     settlementJpaRepository.saveAll(
         combineAndCreateSettlements(settlementStoreInfoResponseList, totalAmountByStoreId));
-    return storeIdList;
+    return totalAmountByStoreId;
 
   }
 

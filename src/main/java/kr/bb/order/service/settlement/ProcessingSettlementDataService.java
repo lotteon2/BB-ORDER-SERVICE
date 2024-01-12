@@ -1,6 +1,7 @@
 package kr.bb.order.service.settlement;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +21,7 @@ public class ProcessingSettlementDataService {
   private final OrderPickupRepository orderPickupRepository;
   private final OrderSubscriptionRepository orderSubscriptionRepository;
 
-  public List<StoreIdAndTotalAmountProjection> getTotalAmountByStoreId(LocalDate startDate, LocalDate endDate) {
+  public List<StoreIdAndTotalAmountProjection> getTotalAmountByStoreId(LocalDateTime startDate, LocalDateTime endDate) {
     List<StoreIdAndTotalAmountProjection> deliveryAmount = orderDeliveryRepository.findAllStoreIdAndTotalAmountForDateRange(startDate,endDate);
     List<StoreIdAndTotalAmountProjection> pickupAmount = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRange(startDate,endDate);
     List<StoreIdAndTotalAmountProjection> subscriptionAmount = orderSubscriptionRepository.findAllStoreIdAndTotalAmountForDateRange(startDate,endDate);

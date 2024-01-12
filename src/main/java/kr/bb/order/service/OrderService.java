@@ -589,11 +589,9 @@ public class OrderService {
 
   // 픽업 상태 변경
   @Transactional
-  public void pickupStatusChange(LocalDate date) {
-    List<OrderPickup> pickups = orderPickupRepository.findAll();
+  public void pickupStatusChange(LocalDateTime date) {
+    List<OrderPickup> pickups = orderPickupRepository.findByOrderPickupDatetimeBetween(date.minusDays(1L), date);
     pickups.stream()
-            // 12일까지의 픽업주문 상태를 바꾸고 싶다면 13일 00시00분 이전 데이터를 확인해야 합니다
-            .filter(pickup -> pickup.getOrderPickupDatetime().isBefore(date.plusDays(1).atStartOfDay()))
             .filter(pickup -> pickup.getOrderPickupStatus().equals(OrderPickupStatus.PENDING))
             .forEach(pickup -> {
               pickup.completeOrderPickup();

@@ -1,6 +1,7 @@
 package kr.bb.order.repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.entity.pickup.OrderPickup;
@@ -21,7 +22,8 @@ public interface OrderPickupRepository extends JpaRepository<OrderPickup, String
  @Query("SELECT NEW kr.bb.order.util.StoreIdAndTotalAmountProjection(o.storeId, o.orderPickupTotalAmount) " +
        "FROM OrderPickup o " +
        "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate")
-List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRange(@Param("startDate") LocalDate startDate,
-                                                                              @Param("endDate") LocalDate endDate);
+List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRange(@Param("startDate") LocalDateTime startDate,
+                                                                              @Param("endDate") LocalDateTime endDate);
 
+    List<OrderPickup> findByOrderPickupDatetimeBetween(LocalDateTime startDateTime, LocalDateTime endDateTime);
 }
