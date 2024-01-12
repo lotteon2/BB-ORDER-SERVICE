@@ -465,29 +465,26 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   }
 
   @Test
-  @DisplayName("해당 날짜 이전의 픽업주문 상태를 모두 완료로 변경한다")
+  @DisplayName("해당 기준 24시간 이전을 픽업주문 상태를 모두 완료로 변경한다")
   void pickupStatusChange() {
     //given
-    LocalDate date = LocalDate.of(2024,1,12);
-    OrderPickup op1 = createOrderPickupWithDateTime(date.atStartOfDay().plusDays(1L));
-    OrderPickup op2 = createOrderPickupWithDateTime(date.atStartOfDay());
-    OrderPickup op3 = createOrderPickupWithDateTime(LocalDateTime.of(2024,1,12,23,59,59));
+    LocalDateTime date = LocalDateTime.of(2024,1,12,0,0,0);
+    OrderPickup op1 = createOrderPickupWithDateTime(date.minusDays(1L));
+    OrderPickup op2 = createOrderPickupWithDateTime(date);
+    OrderPickup op3 = createOrderPickupWithDateTime(date.minusDays(2L));
     orderPickupRepository.saveAll(List.of(op1,op2,op3));
     em.flush();
     em.clear();
 
     // when
     orderService.pickupStatusChange(date);
-    List<OrderPickup> result = orderPickupRepository.findAll();
-    Map<Boolean, List<OrderPickup>> collect = result.stream().collect(partitioningBy(pickup -> pickup.getOrderPickupDatetime().isBefore(date.atStartOfDay().plusDays(1))));
+    List<OrderPickup> result = orderPickupRepository.findByOrderPickupDatetimeBetween(date.minusDays(1L),date);
 
     // then
-    assertThat(collect.get(true))
+    assertThat(result)
+            .hasSize(2)
             .extracting("orderPickupStatus","orderPickupIsComplete")
             .containsExactlyInAnyOrder(tuple(OrderPickupStatus.COMPLETED,true), tuple(OrderPickupStatus.COMPLETED,true));
-    assertThat(collect.get(false))
-            .extracting("orderPickupStatus","orderPickupIsComplete")
-            .containsExactlyInAnyOrder(tuple(OrderPickupStatus.PENDING,false));
   }
 
   public OrderForDeliveryRequest createOrderForDeliveryRequest(Long sumOfActualAmount) {
