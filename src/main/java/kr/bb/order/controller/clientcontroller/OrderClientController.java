@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/client")
@@ -18,7 +19,7 @@ public class OrderClientController {
 
     @GetMapping("/change")
     public void updatePickupStatus() {
-        LocalDate now = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
         orderService.pickupStatusChange(now);
     }
 }
