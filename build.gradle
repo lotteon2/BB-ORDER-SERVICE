@@ -98,6 +98,8 @@ jacocoTestCoverageVerification {
                                     "**/*Listener.class",
                                     "**/*Publisher.class",
                                     "**/*SqsService.class",
+                                    "**/SettlementDataHandler.class",
+                                    "**/ProcessingSettlementDataService.class",
                             ])
                         })
                 )
@@ -139,6 +141,8 @@ jacocoTestReport {
                             "**/*FeignHandler.class",
                             "**/*Listener.class",
                             "**/*SqsService.class",
+                            "**/SettlementDataHandler.class",
+                            "**/ProcessingSettlementDataService.class",
                     ])
                 })
         )
