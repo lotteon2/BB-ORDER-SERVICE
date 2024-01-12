@@ -1,16 +1,6 @@
 package kr.bb.order.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
+import bloomingblooms.domain.StatusChangeDto;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import bloomingblooms.domain.notification.order.OrderType;
@@ -23,26 +13,18 @@ import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import bloomingblooms.dto.command.CartDeleteCommand;
 import bloomingblooms.response.CommonResponse;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
 import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.pickup.OrderPickup;
+import kr.bb.order.entity.pickup.OrderPickupStatus;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
 import kr.bb.order.entity.redis.SubscriptionOrderInfo;
 import kr.bb.order.entity.subscription.OrderSubscription;
 import kr.bb.order.exception.InvalidOrderAmountException;
-import kr.bb.order.feign.DeliveryServiceClient;
-import kr.bb.order.feign.FeignHandler;
-import kr.bb.order.feign.PaymentServiceClient;
-import kr.bb.order.feign.ProductServiceClient;
-import kr.bb.order.feign.StoreServiceClient;
+import kr.bb.order.feign.*;
 import kr.bb.order.infra.OrderSNSPublisher;
 import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.kafka.KafkaConsumer;
@@ -50,12 +32,7 @@ import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.kafka.OrderSubscriptionBatchDto;
 import kr.bb.order.kafka.SubscriptionDateDtoList;
 import kr.bb.order.mapper.OrderCommonMapper;
-import kr.bb.order.repository.OrderDeliveryRepository;
-import kr.bb.order.repository.OrderGroupRepository;
-import kr.bb.order.repository.OrderPickupProductRepository;
-import kr.bb.order.repository.OrderPickupRepository;
-import kr.bb.order.repository.OrderDeliveryProductRepository;
-import kr.bb.order.repository.OrderSubscriptionRepository;
+import kr.bb.order.repository.*;
 import kr.bb.order.util.OrderUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,6 +46,24 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
+
+import javax.persistence.EntityManager;
+import javax.persistence.EntityNotFoundException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import static java.util.stream.Collectors.partitioningBy;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @Testcontainers
@@ -100,6 +95,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @MockBean private OrderSQSPublisher orderSQSPublisher;
   @MockBean private FeignHandler feignHandler;
   @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
+  @MockBean private KafkaProducer<StatusChangeDto> pickupStatusUpdateKafkaProducer;
+  @Autowired private EntityManager em;
   @BeforeEach
   void setup() {
     orderService =
@@ -115,6 +112,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             pickupCreateDtoKafkaProducer,
             subscriptionCreateDtoKafkaProducer,
             subscriptionDateDtoListKafkaProducer,
+            pickupStatusUpdateKafkaProducer,
             orderUtil,
             orderProductRepository,
             orderPickupProductRepository,
@@ -123,7 +121,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             orderSubscriptionRepository,
             orderSNSPublisher,
             orderSQSPublisher,
-            feignHandler);
+            feignHandler
+            );
   }
 
   @AfterEach
@@ -465,6 +464,29 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     orderService.processSubscriptionBatch(orderSubscriptionBatchDto);
   }
 
+  @Test
+  @DisplayName("해당 기준 24시간 이전을 픽업주문 상태를 모두 완료로 변경한다")
+  void pickupStatusChange() {
+    //given
+    LocalDateTime date = LocalDateTime.of(2024,1,12,0,0,0);
+    OrderPickup op1 = createOrderPickupWithDateTime(date.minusDays(1L));
+    OrderPickup op2 = createOrderPickupWithDateTime(date);
+    OrderPickup op3 = createOrderPickupWithDateTime(date.minusDays(2L));
+    orderPickupRepository.saveAll(List.of(op1,op2,op3));
+    em.flush();
+    em.clear();
+
+    // when
+    orderService.pickupStatusChange(date);
+    List<OrderPickup> result = orderPickupRepository.findByOrderPickupDatetimeBetween(date.minusDays(1L),date);
+
+    // then
+    assertThat(result)
+            .hasSize(2)
+            .extracting("orderPickupStatus","orderPickupIsComplete")
+            .containsExactlyInAnyOrder(tuple(OrderPickupStatus.COMPLETED,true), tuple(OrderPickupStatus.COMPLETED,true));
+  }
+
   public OrderForDeliveryRequest createOrderForDeliveryRequest(Long sumOfActualAmount) {
     return OrderForDeliveryRequest.builder()
         .orderInfoByStores(createOrderInfoByStores())
@@ -681,5 +703,17 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .tid("tid고유번호")
         .orderType(OrderType.SUBSCRIBE.toString())
         .build();
+  }
+
+  private OrderPickup createOrderPickupWithDateTime(LocalDateTime orderPickupDateTime) {
+    return OrderPickup.builder()
+            .orderPickupId(UUID.randomUUID().toString())
+//            .orderPickupProduct()
+            .userId(1L)
+            .storeId(1L)
+            .orderPickupTotalAmount(1000L)
+            .orderPickupCouponAmount(10000L)
+            .orderPickupDatetime(orderPickupDateTime)
+            .build();
   }
 }

@@ -1,16 +1,11 @@
 package kr.bb.order.service;
 
+import bloomingblooms.domain.StatusChangeDto;
 import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.notification.order.OrderType;
-import bloomingblooms.domain.order.NewOrderEvent;
-import bloomingblooms.domain.order.OrderInfoByStore;
-import bloomingblooms.domain.order.OrderMethod;
-import bloomingblooms.domain.order.ProcessOrderDto;
-import bloomingblooms.domain.order.ProductCreate;
-import bloomingblooms.domain.order.ValidatePolicyDto;
-import bloomingblooms.domain.order.ValidatePriceDto;
+import bloomingblooms.domain.order.*;
 import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
@@ -20,15 +15,6 @@ import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionDateDto;
 import bloomingblooms.dto.command.CartDeleteCommand;
 import bloomingblooms.dto.command.CartDeleteDto;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
 import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
@@ -37,6 +23,7 @@ import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.entity.pickup.OrderPickup;
+import kr.bb.order.entity.pickup.OrderPickupStatus;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
 import kr.bb.order.entity.redis.SubscriptionOrderInfo;
@@ -53,12 +40,7 @@ import kr.bb.order.mapper.DeliveryAddressMapper;
 import kr.bb.order.mapper.KakaopayMapper;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.mapper.OrderProductMapper;
-import kr.bb.order.repository.OrderDeliveryProductRepository;
-import kr.bb.order.repository.OrderDeliveryRepository;
-import kr.bb.order.repository.OrderGroupRepository;
-import kr.bb.order.repository.OrderPickupProductRepository;
-import kr.bb.order.repository.OrderPickupRepository;
-import kr.bb.order.repository.OrderSubscriptionRepository;
+import kr.bb.order.repository.*;
 import kr.bb.order.util.OrderUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +48,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.persistence.EntityNotFoundException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -82,6 +74,7 @@ public class OrderService {
   private final KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
+  private final KafkaProducer<StatusChangeDto> pickupStatusUpdateKafkaProducer;
   private final OrderUtil orderUtil;
   private final OrderDeliveryProductRepository orderDeliveryProductRepository;
   private final OrderPickupProductRepository orderPickupProductRepository;
@@ -592,6 +585,23 @@ public class OrderService {
     SubscriptionDateDtoList subscriptionDateDtoList =
         SubscriptionDateDtoList.builder().subscriptionDateDtoList(subscriptionDateDtos).build();
     subscriptionDateDtoListKafkaProducer.send("subscription-date-update", subscriptionDateDtoList);
+  }
+
+  // 픽업 상태 변경
+  @Transactional
+  public void pickupStatusChange(LocalDateTime date) {
+    List<OrderPickup> pickups = orderPickupRepository.findByOrderPickupDatetimeBetween(date.minusDays(1L), date);
+    pickups.stream()
+            .filter(pickup -> pickup.getOrderPickupStatus().equals(OrderPickupStatus.PENDING))
+            .forEach(pickup -> {
+              pickup.completeOrderPickup();
+              StatusChangeDto status = StatusChangeDto.builder()
+                      .id(pickup.getOrderPickupId())
+                      .status(pickup.getOrderPickupStatus().toString())
+                      .build();
+              pickupStatusUpdateKafkaProducer.send("pickup-status-update",status);
+
+            });
   }
 
   private LocalDateTime parseDateTime(String pickupDate, String pickupTime) {
