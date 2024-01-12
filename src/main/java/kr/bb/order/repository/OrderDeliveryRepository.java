@@ -27,16 +27,21 @@ public interface OrderDeliveryRepository extends JpaRepository<OrderDelivery, St
       Long storeId, Pageable pageable, @Param("status") DeliveryStatus status);
 
   @Query(
-      value = " SELECT DATE(od.created_at) AS date, SUM(od.order_delivery_total_amount) AS totalSales "
-          + "FROM order_delivery od "
-          + "WHERE od.store_id  = :storeId AND DATE(od.created_at) BETWEEN :startDate AND :endDate "
-          + "GROUP BY DATE(od.created_at)", nativeQuery = true)
+      value =
+          " SELECT DATE(od.created_at) AS date, SUM(od.order_delivery_total_amount) AS totalSales "
+              + "FROM order_delivery od "
+              + "WHERE od.store_id  = :storeId AND DATE(od.created_at) BETWEEN :startDate AND :endDate "
+              + "GROUP BY DATE(od.created_at)", nativeQuery = true)
   List<WeeklySalesDto> findWeeklySales(Long storeId, String startDate, String endDate);
 
-  @Query("SELECT NEW kr.bb.order.util.StoreIdAndTotalAmountProjection(o.storeId, o.orderDeliveryTotalAmount) " +
-       "FROM OrderDelivery o " +
-       "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate")
-List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRange(@Param("startDate") LocalDateTime startDate,
-                                                                              @Param("endDate") LocalDateTime endDate);
+  @Query(
+      "SELECT NEW kr.bb.order.util.StoreIdAndTotalAmountProjection(o.storeId, o.orderDeliveryTotalAmount) "
+          +
+          "FROM OrderDelivery o " +
+          "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate AND NOT o.orderDeliveryStatus = :orderDeliveryStatus")
+  List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(
+      @Param("startDate") LocalDateTime startDate,
+      @Param("endDate") LocalDateTime endDate,
+      @Param("orderDeliveryStatus") DeliveryStatus deliveryStatus);
 
 }

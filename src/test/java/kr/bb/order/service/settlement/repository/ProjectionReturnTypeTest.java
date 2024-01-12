@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import javax.persistence.EntityManager;
 import kr.bb.order.entity.CardStatus;
 import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.ReviewStatus;
@@ -16,6 +17,7 @@ import kr.bb.order.entity.pickup.OrderPickupStatus;
 import kr.bb.order.repository.OrderPickupProductRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.util.StoreIdAndTotalAmountProjection;
+import org.hibernate.annotations.Entity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +51,7 @@ class ProjectionReturnTypeTest {
 
 
   @Test
-  void GetProjectionData_WhenRequestToOrderPickUpRepositorySettlemenent_GetProjectionData() {
+  void GetProjectionData_WhenRequestToOrderPickUpRepositorySettlement_GetProjectionData() {
 
     LocalDateTime startDate = LocalDateTime.of(2024, 1, 1, 0, 0);
     LocalDateTime endDate = LocalDateTime.of(2024, 1, 13, 0, 0);
@@ -57,12 +59,25 @@ class ProjectionReturnTypeTest {
     List<StoreIdAndTotalAmountProjection> result = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRange(
         startDate, endDate);
 
-
     assertNotNull(result);
-    assertEquals(result.size(), 1);
+    assertEquals(1,result.size());
     assertTrue(result.stream()
         .allMatch(projection -> projection instanceof StoreIdAndTotalAmountProjection));
 
+
+  }
+
+  @Test
+  void GetNoData_WhenRequestToOrderPickUpRepositorySettlementDateIsNotMisMatched_Get0Data() {
+
+    LocalDateTime startDate = LocalDateTime.of(2023, 12, 1, 0, 0);
+    LocalDateTime endDate = LocalDateTime.of(2023, 12, 13, 0, 0);
+
+    List<StoreIdAndTotalAmountProjection> result = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRange(
+        startDate, endDate);
+
+    assertNotNull(result);
+    assertEquals(1,result.size());
 
   }
 

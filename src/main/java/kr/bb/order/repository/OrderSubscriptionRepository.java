@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.entity.subscription.OrderSubscription;
+import kr.bb.order.entity.subscription.SubscriptionStatus;
 import kr.bb.order.util.StoreIdAndTotalAmountProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -22,9 +23,10 @@ public interface OrderSubscriptionRepository extends JpaRepository<OrderSubscrip
   @Query(
       "SELECT NEW kr.bb.order.util.StoreIdAndTotalAmountProjection(o.storeId, o.orderPickupTotalAmount) "
           +
-          "FROM OrderPickup o " +
-          "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate")
-  List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRange(
+          "FROM OrderSubscription o " +
+          "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate AND NOT o.subscriptionStatus = :subscriptionStatus" )
+  List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(
       @Param("startDate") LocalDateTime startDate,
-      @Param("endDate") LocalDateTime endDate);
+      @Param("endDate") LocalDateTime endDate,
+      @Param("subscriptionStatus")SubscriptionStatus subscriptionStatus);
 }

@@ -1,11 +1,14 @@
 package kr.bb.order.service.settlement;
 
+import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import kr.bb.order.entity.pickup.OrderPickupStatus;
+import kr.bb.order.entity.subscription.SubscriptionStatus;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderSubscriptionRepository;
@@ -22,9 +25,12 @@ public class ProcessingSettlementDataService {
   private final OrderSubscriptionRepository orderSubscriptionRepository;
 
   public List<StoreIdAndTotalAmountProjection> getTotalAmountByStoreId(LocalDateTime startDate, LocalDateTime endDate) {
-    List<StoreIdAndTotalAmountProjection> deliveryAmount = orderDeliveryRepository.findAllStoreIdAndTotalAmountForDateRange(startDate,endDate);
-    List<StoreIdAndTotalAmountProjection> pickupAmount = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRange(startDate,endDate);
-    List<StoreIdAndTotalAmountProjection> subscriptionAmount = orderSubscriptionRepository.findAllStoreIdAndTotalAmountForDateRange(startDate,endDate);
+    List<StoreIdAndTotalAmountProjection> deliveryAmount = orderDeliveryRepository.findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(startDate,endDate,
+        DeliveryStatus.CANCELED);
+    List<StoreIdAndTotalAmountProjection> pickupAmount = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(startDate,endDate,
+        OrderPickupStatus.CANCELED);
+    List<StoreIdAndTotalAmountProjection> subscriptionAmount = orderSubscriptionRepository.findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(startDate,endDate,
+        SubscriptionStatus.CANCELED);
 
     Map<Long, Long> totalAmountByStoreId = combineAndSumTotalAmount(deliveryAmount, pickupAmount,
         subscriptionAmount);
