@@ -21,9 +21,12 @@ import lombok.NoArgsConstructor;
 public class OrderSubscription extends BaseEntity {
   @Id private String orderSubscriptionId;
   @NotNull private Long userId;
-  @NotNull private String subscriptionProductId;
-  @NotNull private SubscriptionStatus subscriptionStatus;
-  @NotNull private Long deliveryId;
+  @NotNull
+  private String subscriptionProductId;
+  @NotNull
+  private SubscriptionStatus subscriptionStatus;
+  @NotNull
+  private Long deliveryId;
   @NotNull private String productName;
   @NotNull private Long productPrice;
   @NotNull private LocalDate deliveryDay;
