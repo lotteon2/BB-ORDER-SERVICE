@@ -27,7 +27,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
@@ -55,7 +54,7 @@ import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
 import kr.bb.order.repository.OrderPickupProductRepository;
 import kr.bb.order.repository.OrderPickupRepository;
-import kr.bb.order.repository.OrderProductRepository;
+import kr.bb.order.repository.OrderDeliveryProductRepository;
 import kr.bb.order.repository.OrderSubscriptionRepository;
 import kr.bb.order.util.OrderUtil;
 import org.junit.jupiter.api.AfterEach;
@@ -65,6 +64,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -91,7 +91,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private KafkaConsumer<ProcessOrderDto> kafkaConsumer;
   @MockBean private KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   @MockBean private OrderUtil orderUtil;
-  @Autowired private OrderProductRepository orderProductRepository;
+  @Autowired private OrderDeliveryProductRepository orderProductRepository;
   @Autowired private OrderPickupProductRepository orderPickupProductRepository;
   @Autowired private OrderGroupRepository orderGroupRepository;
   @Autowired private OrderPickupRepository orderPickupRepository;
@@ -99,7 +99,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @MockBean private OrderSNSPublisher orderSNSPublisher;
   @MockBean private OrderSQSPublisher orderSQSPublisher;
   @MockBean private FeignHandler feignHandler;
-
+  @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
   @BeforeEach
   void setup() {
     orderService =

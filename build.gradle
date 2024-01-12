@@ -33,7 +33,7 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'io.github.lotteon-maven:blooming-blooms-utils:202401110448'
+    implementation 'io.github.lotteon-maven:blooming-blooms-utils:202401111019'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.kafka:spring-kafka'
@@ -95,6 +95,9 @@ jacocoTestCoverageVerification {
                                     "**/*Publisher.class",
                                     "**/*Mapper.class",
                                     "**/*FeignHandler.class",
+                                    "**/*Listener.class",
+                                    "**/*Publisher.class",
+                                    "**/*SqsService.class",
                             ])
                         })
                 )
@@ -134,6 +137,8 @@ jacocoTestReport {
                             "**/*Publisher.class",
                             "**/*Mapper.class",
                             "**/*FeignHandler.class",
+                            "**/*Listener.class",
+                            "**/*SqsService.class",
                     ])
                 })
         )

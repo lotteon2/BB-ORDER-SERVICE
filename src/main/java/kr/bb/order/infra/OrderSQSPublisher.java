@@ -4,6 +4,7 @@ import bloomingblooms.domain.notification.NotificationData;
 import bloomingblooms.domain.notification.NotificationKind;
 import bloomingblooms.domain.notification.NotificationURL;
 import bloomingblooms.domain.notification.PublishNotificationInformation;
+import bloomingblooms.domain.notification.delivery.DeliveryNotification;
 import bloomingblooms.domain.order.OrderStatusNotification;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
@@ -22,6 +23,9 @@ public class OrderSQSPublisher {
   @Value("${cloud.aws.sqs.new-order-status-queue.url}")
   private String queueUrl;
 
+  @Value("${cloud.aws.sqs.delivery-status-update-notification-queue.url}")
+  private String deliveryStatusQueueUrl;
+
   public void publish(Long userId, String phoneNumber) {
     try {
       OrderStatusNotification orderStatusNotification =
@@ -37,6 +41,20 @@ public class OrderSQSPublisher {
       sqs.sendMessage(sendMessageRequest);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  public void publishDeliveryNotification(Long userId, String phoneNumber){
+    try{
+      DeliveryNotification deliveryNotification =
+              DeliveryNotification.builder().userId(userId).phoneNumber(phoneNumber).build();
+      PublishNotificationInformation publishNotificationInformation = PublishNotificationInformation.getData(NotificationURL.DELIVERY, NotificationKind.DELIVERY);
+      NotificationData<DeliveryNotification> deliveryNotificationNotificationData = NotificationData.notifyData(deliveryNotification, publishNotificationInformation);
+      SendMessageRequest sendMessageRequest =
+              new SendMessageRequest(deliveryStatusQueueUrl, objectMapper.writeValueAsString(deliveryNotificationNotificationData));
+      sqs.sendMessage(sendMessageRequest);
+    } catch (JsonProcessingException e) {
+        throw new RuntimeException(e);
     }
   }
 }

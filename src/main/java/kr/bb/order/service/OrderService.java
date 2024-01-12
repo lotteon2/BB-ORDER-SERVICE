@@ -53,11 +53,11 @@ import kr.bb.order.mapper.DeliveryAddressMapper;
 import kr.bb.order.mapper.KakaopayMapper;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.mapper.OrderProductMapper;
+import kr.bb.order.repository.OrderDeliveryProductRepository;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderGroupRepository;
 import kr.bb.order.repository.OrderPickupProductRepository;
 import kr.bb.order.repository.OrderPickupRepository;
-import kr.bb.order.repository.OrderProductRepository;
 import kr.bb.order.repository.OrderSubscriptionRepository;
 import kr.bb.order.util.OrderUtil;
 import lombok.RequiredArgsConstructor;
@@ -83,7 +83,7 @@ public class OrderService {
   private final KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   private final OrderUtil orderUtil;
-  private final OrderProductRepository orderProductRepository;
+  private final OrderDeliveryProductRepository orderDeliveryProductRepository;
   private final OrderPickupProductRepository orderPickupProductRepository;
   private final OrderGroupRepository orderGroupRepository;
   private final OrderPickupRepository orderPickupRepository;
@@ -435,7 +435,7 @@ public class OrderService {
         orderDeliveryProduct.setOrderDelivery(orderDelivery);
         orderDeliveryProducts.add(orderDeliveryProduct);
       }
-      orderProductRepository.saveAll(orderDeliveryProducts);
+      orderDeliveryProductRepository.saveAll(orderDeliveryProducts);
     }
 
     // 장바구니에서 주문이면 장바구니에서 해당 상품들 비우기 kafka 요청
@@ -552,6 +552,10 @@ public class OrderService {
       orderDelivery
           .getOrderDeliveryProducts()
           .forEach(OrderDeliveryProduct::updateReviewAndCardStatus);
+    }
+
+    if("PROCESSING".equalsIgnoreCase(String.valueOf(statusDto.getDeliveryStatus()))){
+      orderSQSPublisher.publishDeliveryNotification(orderDelivery.getOrderGroup().getUserId(), statusDto.getPhoneNumber());
     }
   }
 
