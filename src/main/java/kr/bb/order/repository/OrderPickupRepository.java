@@ -24,7 +24,7 @@ public interface OrderPickupRepository extends JpaRepository<OrderPickup, String
       "SELECT NEW kr.bb.order.util.StoreIdAndTotalAmountProjection(o.storeId, o.orderPickupTotalAmount) "
           +
           "FROM OrderPickup o " +
-          "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate AND NOT o.orderPickupStatus = :orderStatus ")
+          "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate AND NOT o.orderPickupStatus = :orderStatus")
   List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate,
