@@ -124,7 +124,8 @@ public class OrderRestController {
       @RequestParam("storeId") Long storeId) {
 
     OrderDeliveryStatus orderDeliveryStatus = parseOrderDeliveryStatus(status);
-
+    //1 . 쿠폰이 있을 때
+    //2. 쿠폰이 없을 때 => There is an error when Coupon is Null
     OrderDeliveryPageInfoForSeller orderDeliveryPageInfoForSeller =
         orderListService.getOrderDeliveryListForSeller(pageable, orderDeliveryStatus, storeId);
     return CommonResponse.success(orderDeliveryPageInfoForSeller);
