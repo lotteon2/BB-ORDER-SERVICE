@@ -1,6 +1,7 @@
 package kr.bb.order.repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.entity.subscription.OrderSubscription;
@@ -24,6 +25,6 @@ public interface OrderSubscriptionRepository extends JpaRepository<OrderSubscrip
           "FROM OrderPickup o " +
           "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate")
   List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRange(
-      @Param("startDate") LocalDate startDate,
-      @Param("endDate") LocalDate endDate);
+      @Param("startDate") LocalDateTime startDate,
+      @Param("endDate") LocalDateTime endDate);
 }

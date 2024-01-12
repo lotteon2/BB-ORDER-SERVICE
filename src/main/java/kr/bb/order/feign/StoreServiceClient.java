@@ -1,7 +1,6 @@
 package kr.bb.order.feign;
 
 import bloomingblooms.domain.order.ValidatePolicyDto;
-import bloomingblooms.domain.order.ValidatePriceDto;
 import bloomingblooms.response.CommonResponse;
 import java.util.List;
 import java.util.Map;
