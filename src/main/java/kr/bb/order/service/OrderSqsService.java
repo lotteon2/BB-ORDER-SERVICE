@@ -1,7 +1,7 @@
 package kr.bb.order.service;
 
-import bloomingblooms.domain.StatusChangeDto;
 import javax.persistence.EntityNotFoundException;
+import kr.bb.order.dto.StatusChangeDto;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.repository.OrderDeliveryProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ public class OrderSqsService {
   public void updateOrderDeliveryReview(StatusChangeDto statusChangeDto) {
     OrderDeliveryProduct orderDeliveryProduct =
         orderDeliveryProductRepository
-            .findById(Long.valueOf(statusChangeDto.getId()))
+            .findById(statusChangeDto.getId())
             .orElseThrow(EntityNotFoundException::new);
     String status = statusChangeDto.getStatus();
     orderDeliveryProduct.updateReviewStatus(status);
@@ -27,7 +27,7 @@ public class OrderSqsService {
   public void updateOrderDeliveryCard(StatusChangeDto statusChangeDto) {
     OrderDeliveryProduct orderDeliveryProduct =
         orderDeliveryProductRepository
-            .findById(Long.valueOf(statusChangeDto.getId()))
+            .findById(statusChangeDto.getId())
             .orElseThrow(EntityNotFoundException::new);
     String status = statusChangeDto.getStatus();
     orderDeliveryProduct.updateCardStatus(status);

@@ -1,10 +1,9 @@
 package kr.bb.order.infra;
 
-import bloomingblooms.domain.StatusChangeDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import kr.bb.order.dto.StatusChangeDto;
 import kr.bb.order.service.OrderSqsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.aws.messaging.listener.Acknowledgment;
@@ -27,8 +26,7 @@ public class OrderSQSListener {
   public void consumeReviewDataUpdateQueue(
       @Payload String message, @Headers Map<String, String> headers, Acknowledgment ack)
       throws JsonProcessingException {
-    String messageFromSNS = getMessageFromSNS(message);
-    StatusChangeDto statusChangeDto = objectMapper.readValue(messageFromSNS, StatusChangeDto.class);
+    StatusChangeDto statusChangeDto = objectMapper.readValue(message, StatusChangeDto.class);
 
     orderSqsService.updateOrderDeliveryReview(statusChangeDto);
     ack.acknowledge();
@@ -40,15 +38,11 @@ public class OrderSQSListener {
       deletionPolicy = SqsMessageDeletionPolicy.NEVER)
   public void consumeCardDataUpdateQueue(
       @Payload String message, @Headers Map<String, String> headers, Acknowledgment ack)
-          throws JsonProcessingException {
-      String messageFromSNS = getMessageFromSNS(message);
-      StatusChangeDto statusChangeDto  = objectMapper.readValue(messageFromSNS, StatusChangeDto.class);
+      throws JsonProcessingException {
+    StatusChangeDto statusChangeDto = objectMapper.readValue(message, StatusChangeDto.class);
 
-      orderSqsService.updateOrderDeliveryCard(statusChangeDto);
+    orderSqsService.updateOrderDeliveryCard(statusChangeDto);
+    ack.acknowledge();
   }
 
-  private String getMessageFromSNS(String message) throws JsonProcessingException {
-    JsonNode jsonNode = objectMapper.readTree(message);
-    return jsonNode.get("Message").asText();
-  }
 }

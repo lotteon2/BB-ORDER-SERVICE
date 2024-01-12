@@ -31,4 +31,5 @@ public interface OrderPickupRepository extends JpaRepository<OrderPickup, String
       @Param("orderStatus") OrderPickupStatus orderStatus
   );
 
+    List<OrderPickup> findByOrderPickupDatetimeBetween(LocalDateTime startDateTime, LocalDateTime endDateTime);
 }

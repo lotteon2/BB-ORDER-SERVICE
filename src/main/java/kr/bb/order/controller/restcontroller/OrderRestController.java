@@ -15,6 +15,7 @@ import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
+import kr.bb.order.service.OrderCancelService;
 import kr.bb.order.service.OrderDetailsService;
 import kr.bb.order.service.OrderListService;
 import kr.bb.order.service.OrderService;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,6 +38,7 @@ public class OrderRestController {
   private final OrderService orderService;
   private final OrderListService orderListService;
   private final OrderDetailsService orderDetailsService;
+  private final OrderCancelService orderCancelService;
 
   @Value("${host.front-url}")
   private String FRONTEND_URL;
@@ -147,6 +150,12 @@ public class OrderRestController {
   @GetMapping("/store/{storeId}/weekly/sales")
   public CommonResponse<WeeklySalesInfoDto> getWeeklySalesInfo(@PathVariable Long storeId) {
     return CommonResponse.success(orderDetailsService.getWeeklySalesInfo(storeId));
+  }
+
+  @DeleteMapping("/delivery/{orderDeliveryId}")
+  public CommonResponse<Void> cancelOrderDelivery(@PathVariable String orderDeliveryId){
+    orderCancelService.cancelOrderDelivery(orderDeliveryId);
+    return CommonResponse.success(null);
   }
 
   public DeliveryStatus parseOrderDeliveryStatus(String status) {
