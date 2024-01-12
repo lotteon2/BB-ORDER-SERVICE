@@ -28,7 +28,7 @@ public class OrderSQSPublisher {
   @Value("${cloud.aws.sqs.delivery-status-update-notification-queue.url}")
   private String deliveryStatusQueueUrl;
 
-  @Value("${settlement-notification-queue.url}")
+  @Value("${cloud.aws.sqs.settlement-notification-queue.url}")
   private String settlementQueueUrl;
 
   public void publish(Long userId, String phoneNumber) {
