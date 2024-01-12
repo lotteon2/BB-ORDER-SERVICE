@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface OrderProductRepository extends JpaRepository<OrderDeliveryProduct, Long> {
+public interface OrderDeliveryProductRepository extends JpaRepository<OrderDeliveryProduct, Long> {
   @Query("select odp.productId from OrderDeliveryProduct odp where odp.orderDelivery.orderDeliveryId IN :orderIds")
   List<String> findProductIdsByOrderIds(@Param("orderIds") List<String> orderIds);
 

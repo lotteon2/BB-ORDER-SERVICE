@@ -58,4 +58,12 @@ public class OrderDeliveryProduct extends BaseEntity {
     }
     this.reviewStatus = ReviewStatus.ABLE;
   }
+
+  public void updateReviewStatus(String status){
+    this.reviewStatus = ReviewStatus.valueOf(status);
+  }
+
+  public void updateCardStatus(String status){
+    this.cardStatus = CardStatus.valueOf(status);
+  }
 }
