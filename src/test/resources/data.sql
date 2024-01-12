@@ -20,7 +20,7 @@ VALUES ('가게주문id', '그룹주문id', 1, 1, 39800, 0, 'PENDING', DATEADD('
 INSERT INTO order_delivery_product (order_product_id, product_id, order_product_price,
                                     order_product_quantity, review_status, card_status,
                                     order_delivery_id, created_at, updated_at)
-VALUES (1, '꽃id-1', 39800, 1, 'DISABLED', 'ABLE', '가게주문id', DATEADD('DAY', -4, NOW()),
+VALUES (1, '꽃id-1', 39800, 1, 'ABLE', 'ABLE', '가게주문id', DATEADD('DAY', -4, NOW()),
         DATEADD('DAY', -4, NOW())),
        (2, '꽃id-2', 7500, 1, 'DONE', 'DISABLED', '가게주문id', DATEADD('DAY', -4, NOW()),
         DATEADD('DAY', -4, NOW())),
