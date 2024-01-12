@@ -52,10 +52,16 @@ cloud:
       SECRET_ACCESS_KEY: "test"
     sns:
       new-order-event:
-        arn:
+        arn: ""
     sqs:
       new-order-status-queue:
         url:
+      delivery-status-update-notification-queue:
+        url:
+      delivery-review-status-queue:
+        name:
+      card-is-register-for-order-history-queue:
+        name:
 
 logging:
   level:

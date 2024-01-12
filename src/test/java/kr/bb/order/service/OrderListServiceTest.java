@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,22 +38,23 @@ public class OrderListServiceTest {
   @MockBean private PaymentServiceClient paymentServiceClient;
   @MockBean private ProductServiceClient productServiceClient;
   @MockBean private DeliveryServiceClient deliveryServiceClient;
+  @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
 
   @Test
   @DisplayName("주문 목록 조회 - 회원")
   public void userCanReadHisOrderDeliveryList() {
     Long userId = 1L;
-    List<String> orderGroupIds = List.of("그룹주문id","그룹주문id2","그룹주문id3","그룹주문id4");
+    List<String> orderGroupIds = List.of("그룹주문id", "그룹주문id2", "그룹주문id3", "그룹주문id4");
 
     Pageable pageable = PageRequest.of(0, 5);
 
     List<ProductInformation> productInformations = createProductInfoList();
     when(productServiceClient.getProductInfo(any()))
-            .thenReturn(CommonResponse.success(productInformations));
+        .thenReturn(CommonResponse.success(productInformations));
 
     List<PaymentInfoDto> paymentInfoDtos = createPaymentInfoList(orderGroupIds);
     when(paymentServiceClient.getPaymentInfo(any()))
-            .thenReturn(CommonResponse.success(paymentInfoDtos));
+        .thenReturn(CommonResponse.success(paymentInfoDtos));
 
     OrderDeliveryPageInfoDto orderDeliveryPageInfoDto =
         orderListService.getUserOrderDeliveryList(userId, pageable, DeliveryStatus.PENDING);
@@ -63,29 +65,29 @@ public class OrderListServiceTest {
 
   @Test
   @DisplayName("주문 목록 조회 - 가게")
-  public void sellerCanReadHisOrderDeliveryList(){
+  public void sellerCanReadHisOrderDeliveryList() {
     Pageable pageable = PageRequest.of(0, 5);
     DeliveryStatus status = DeliveryStatus.PENDING;
     Long storeId = 1L;
-    List<String> groupIds = List.of("그룹주문id","그룹주문id2","그룹주문id3","그룹주문id4");
+    List<String> groupIds = List.of("그룹주문id", "그룹주문id2", "그룹주문id3", "그룹주문id4");
 
     List<ProductInformation> productInformations = createProductInfoList();
     when(productServiceClient.getProductInfo(any()))
-            .thenReturn(CommonResponse.success(productInformations));
+        .thenReturn(CommonResponse.success(productInformations));
 
     List<PaymentInfoDto> paymentInfoDtos = createPaymentInfoList(groupIds);
     when(paymentServiceClient.getPaymentInfo(any()))
-            .thenReturn(CommonResponse.success(paymentInfoDtos));
+        .thenReturn(CommonResponse.success(paymentInfoDtos));
 
     Map<Long, DeliveryInfoDto> deliveryInfoMap = createDeliveryInfoMap();
-    when(deliveryServiceClient.getDeliveryInfo(
-            any())).thenReturn(CommonResponse.success((deliveryInfoMap)));
+    when(deliveryServiceClient.getDeliveryInfo(any()))
+        .thenReturn(CommonResponse.success((deliveryInfoMap)));
 
-    OrderDeliveryPageInfoForSeller infoForSeller = orderListService.getOrderDeliveryListForSeller(pageable, status, storeId);
+    OrderDeliveryPageInfoForSeller infoForSeller =
+        orderListService.getOrderDeliveryListForSeller(pageable, status, storeId);
 
     assertThat(infoForSeller.getOrders().size()).isEqualTo(4);
   }
-
 
   List<OrderDelivery> createOrderDelivery() {
     List<OrderDelivery> orderDeliveryList = new ArrayList<>();
@@ -112,29 +114,29 @@ public class OrderListServiceTest {
             .productThumbnail("썸네일url-1")
             .build());
     productInformations.add(
-            ProductInformation.builder()
-                    .productId("꽃id-2")
-                    .productName("꽃이름-2")
-                    .productThumbnail("썸네일url-2")
-                    .build());
+        ProductInformation.builder()
+            .productId("꽃id-2")
+            .productName("꽃이름-2")
+            .productThumbnail("썸네일url-2")
+            .build());
     productInformations.add(
-            ProductInformation.builder()
-                    .productId("꽃id-3")
-                    .productName("꽃이름-3")
-                    .productThumbnail("썸네일url-3")
-                    .build());
+        ProductInformation.builder()
+            .productId("꽃id-3")
+            .productName("꽃이름-3")
+            .productThumbnail("썸네일url-3")
+            .build());
     return productInformations;
   }
 
   List<PaymentInfoDto> createPaymentInfoList(List<String> orderGroupIds) {
     List<PaymentInfoDto> paymentInfoDtos = new ArrayList<>();
-    for(String orderGroupId: orderGroupIds){
+    for (String orderGroupId : orderGroupIds) {
       paymentInfoDtos.add(
-              PaymentInfoDto.builder()
-                      .orderGroupId(orderGroupId)
-                      .paymentActualAmount(39800L)
-                      .createdAt(LocalDateTime.now())
-                      .build());
+          PaymentInfoDto.builder()
+              .orderGroupId(orderGroupId)
+              .paymentActualAmount(39800L)
+              .createdAt(LocalDateTime.now())
+              .build());
     }
 
     return paymentInfoDtos;
@@ -156,9 +158,10 @@ public class OrderListServiceTest {
     }
   }
 
-  Map<Long, DeliveryInfoDto> createDeliveryInfoMap(){
+  Map<Long, DeliveryInfoDto> createDeliveryInfoMap() {
     Map<Long, DeliveryInfoDto> map = new HashMap<>();
-    DeliveryInfoDto deliveryInfoDto = DeliveryInfoDto.builder()
+    DeliveryInfoDto deliveryInfoDto =
+        DeliveryInfoDto.builder()
             .zipcode("우편번호")
             .roadName("도로명주소")
             .addressDetail("상세주소")
