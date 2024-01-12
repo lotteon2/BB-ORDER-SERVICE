@@ -2,6 +2,7 @@ package kr.bb.order.repository;
 
 import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
@@ -35,7 +36,7 @@ public interface OrderDeliveryRepository extends JpaRepository<OrderDelivery, St
   @Query("SELECT NEW kr.bb.order.util.StoreIdAndTotalAmountProjection(o.storeId, o.orderDeliveryTotalAmount) " +
        "FROM OrderDelivery o " +
        "WHERE o.createdAt >= :startDate AND o.createdAt < :endDate")
-List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRange(@Param("startDate") LocalDate startDate,
-                                                                              @Param("endDate") LocalDate endDate);
+List<StoreIdAndTotalAmountProjection> findAllStoreIdAndTotalAmountForDateRange(@Param("startDate") LocalDateTime startDate,
+                                                                              @Param("endDate") LocalDateTime endDate);
 
 }
