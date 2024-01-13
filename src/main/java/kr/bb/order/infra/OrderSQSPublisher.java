@@ -5,6 +5,7 @@ import bloomingblooms.domain.notification.NotificationKind;
 import bloomingblooms.domain.notification.NotificationURL;
 import bloomingblooms.domain.notification.PublishNotificationInformation;
 import bloomingblooms.domain.notification.delivery.DeliveryNotification;
+import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import bloomingblooms.domain.notification.order.OrderCancelNotification;
 import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.OrderStatusNotification;
@@ -62,7 +63,8 @@ public class OrderSQSPublisher {
   public void publishDeliveryNotification(Long userId, String phoneNumber) {
     try {
       DeliveryNotification deliveryNotification =
-          DeliveryNotification.builder().userId(userId).phoneNumber(phoneNumber).build();
+          DeliveryNotification.builder().userId(userId).phoneNumber(phoneNumber).deliveryStatus(
+                  DeliveryStatus.PROCESSING).build();
 
       PublishNotificationInformation publishNotificationInformation =
           PublishNotificationInformation.getData(
