@@ -287,7 +287,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         OrderCommonMapper.toProcessOrderDto(orderGroupId, OrderType.DELIVERY.toString(), orderInfo);
     doNothing().when(feignHandler).createDeliveryAddress(any());
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
 
     // when
     kafkaConsumer.processOrder(processOrderDto);
@@ -341,7 +341,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     doNothing().when(feignHandler).createDeliveryAddress(any());
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
 
     // when
     kafkaConsumer.processOrder(
@@ -376,7 +376,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     doNothing().when(feignHandler).createDeliveryAddress(any());
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
   }
 
   @Test
@@ -394,7 +394,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     // when
     doNothing().when(feignHandler).createDeliveryAddress(any());
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
 
     kafkaConsumer.processOrder(
         OrderCommonMapper.toDtoForOrderSubscription(orderSubscriptionId, subscriptionOrderInfo));
@@ -456,7 +456,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     doNothing().when(feignHandler).processSubscription(orderSubscriptionBatchDto);
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
     doNothing()
         .when(subscriptionDateDtoListKafkaProducer)
         .send(eq("subscription-date-update"), any());

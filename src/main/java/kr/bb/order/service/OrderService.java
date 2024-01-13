@@ -336,7 +336,7 @@ public class OrderService {
       orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
-      orderSQSPublisher.publish(orderInfo.getUserId(), orderInfo.getOrdererPhoneNumber());
+      orderSQSPublisher.publishOrderSuccess(orderInfo.getUserId(), orderInfo.getOrdererPhoneNumber());
 
     } else if (orderType.equals(OrderType.PICKUP.toString())) {
       PickupOrderInfo pickupOrderInfo =
@@ -351,7 +351,7 @@ public class OrderService {
       orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
-      orderSQSPublisher.publish(
+      orderSQSPublisher.publishOrderSuccess(
           pickupOrderInfo.getUserId(), pickupOrderInfo.getOrdererPhoneNumber());
     } else {
       SubscriptionOrderInfo subscriptionOrderInfo =
@@ -382,7 +382,7 @@ public class OrderService {
       orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
-      orderSQSPublisher.publish(
+      orderSQSPublisher.publishOrderSuccess(
           subscriptionOrderInfo.getUserId(), subscriptionOrderInfo.getOrdererPhoneNumber());
     }
   }
@@ -568,7 +568,7 @@ public class OrderService {
       orderSNSPublisher.newOrderEventPublish(newOrderEvent);
 
       // SQS로 고객에게 신규 주문 알리기
-      orderSQSPublisher.publish(orderSubscription.getUserId(), orderSubscription.getPhoneNumber());
+      orderSQSPublisher.publishOrderSuccess(orderSubscription.getUserId(), orderSubscription.getPhoneNumber());
     }
 
     // 정기구독 배송일/결제일 업데이트

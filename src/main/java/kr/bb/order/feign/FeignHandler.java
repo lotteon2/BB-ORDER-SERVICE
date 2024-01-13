@@ -22,6 +22,7 @@ public class FeignHandler {
   private final StoreServiceClient storeServiceClient;
   private final DeliveryServiceClient deliveryServiceClient;
   private final PaymentServiceClient paymentServiceClient;
+  private final UserServiceClient userServiceClient;
 
   /*
    FEIGN 통신
@@ -76,16 +77,25 @@ public class FeignHandler {
   }
 
   public void processSubscription(OrderSubscriptionBatchDto orderSubscriptionBatchDto) {
-    CommonResponse<Void> paymentCommonResponse = paymentServiceClient.subscription(orderSubscriptionBatchDto);
-    if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
+    CommonResponse<Void> paymentCommonResponse =
+        paymentServiceClient.subscription(orderSubscriptionBatchDto);
+    if (paymentCommonResponse.getResult() == CommonResponse.Result.FAIL) {
       throw new RuntimeException(paymentCommonResponse.getMessage());
     }
   }
 
-  public void cancel(KakaopayCancelRequestDto requestDto){
+  public void cancel(KakaopayCancelRequestDto requestDto) {
     CommonResponse<Void> paymentCommonResponse = paymentServiceClient.cancel(requestDto);
-    if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
+    if (paymentCommonResponse.getResult() == CommonResponse.Result.FAIL) {
       throw new RuntimeException(paymentCommonResponse.getMessage());
     }
+  }
+
+  public String getUserPhoneNumber(Long userId) {
+    CommonResponse<String> userCommonResponse = userServiceClient.getPhoneNumber(userId);
+    if (userCommonResponse.getResult() == CommonResponse.Result.FAIL) {
+      throw new RuntimeException(userCommonResponse.getMessage());
+    }
+    return userCommonResponse.getData();
   }
 }

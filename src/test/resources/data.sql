@@ -34,4 +34,7 @@ VALUES (1, '꽃id-1', 39800, 1, 'ABLE', 'ABLE', '가게주문id', DATEADD('DAY',
 INSERT INTO order_subscription (order_subscription_id,created_at, is_deleted, updated_at, delivery_day, delivery_id, payment_date, phone_number, product_name, product_price, store_id, subscription_product_id, user_id,subscription_status)
 VALUES
     ('주문_구독_id_1', DATEADD('DAY', -4, NOW()), 0, DATEADD('DAY', -4, NOW()), DATEADD('DAY', 1, NOW()), 1, DATEADD('DAY', 30, NOW()), '010-1234-5678', '상품 1', 10000, 1, 'A123', 1,'COMPLETED'),
-    ('주문_구독_id_2', DATEADD('DAY', -3, NOW()), 0, DATEADD('DAY', -3, NOW()), DATEADD('DAY', 0, NOW()), 2, DATEADD('DAY', 30, NOW()), '010-2345-6789', '상품 2', 20000, 2, 'B456', 2,'COMPLETED')
+    ('주문_구독_id_2', DATEADD('DAY', -3, NOW()), 0, DATEADD('DAY', -3, NOW()), DATEADD('DAY', 0, NOW()), 2, DATEADD('DAY', 30, NOW()), '010-2345-6789', '상품 2', 20000, 2, 'B456', 2,'COMPLETED');
+
+INSERT INTO `order_pickup` VALUES ('orderPickupId','2024-01-11 12:12:37.149944', 0,'2024-01-11 12:12:37.149944',0,'2024-02-05 12:30:00.000000',0,'PENDING',10000,1,1);
+INSERT INTO `order_pickup_product` VALUES (1,'2024-01-11 12:12:36.756020',0,'2024-01-11 12:12:36.756020','ABLE',10000,1,'6595382c42639273c7ed3e96','DISABLED','orderPickupId');

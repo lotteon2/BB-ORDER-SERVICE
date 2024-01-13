@@ -1,7 +1,7 @@
 package kr.bb.order.service;
 
 import javax.persistence.EntityNotFoundException;
-import kr.bb.order.dto.StatusChangeDto;
+import kr.bb.order.dto.ProductStatusChangeDto;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.repository.OrderDeliveryProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +14,7 @@ public class OrderSqsService {
   private final OrderDeliveryProductRepository orderDeliveryProductRepository;
 
   @Transactional
-  public void updateOrderDeliveryReview(StatusChangeDto statusChangeDto) {
+  public void updateOrderDeliveryReview(ProductStatusChangeDto statusChangeDto) {
     OrderDeliveryProduct orderDeliveryProduct =
         orderDeliveryProductRepository
             .findById(statusChangeDto.getId())
@@ -24,7 +24,7 @@ public class OrderSqsService {
   }
 
   @Transactional
-  public void updateOrderDeliveryCard(StatusChangeDto statusChangeDto) {
+  public void updateOrderDeliveryCard(ProductStatusChangeDto statusChangeDto) {
     OrderDeliveryProduct orderDeliveryProduct =
         orderDeliveryProductRepository
             .findById(statusChangeDto.getId())
