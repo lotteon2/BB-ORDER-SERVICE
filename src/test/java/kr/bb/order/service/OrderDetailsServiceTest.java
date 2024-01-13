@@ -171,7 +171,7 @@ public class OrderDetailsServiceTest {
   // 리뷰,카드 상태 변경 테스트
   @Test
   void updateReviewAndCardStatus() {
-    ProductStatusChangeDto statusChangeDto = ProductStatusChangeDto.builder().id(1L).status("DISABLED").build();
+    ProductStatusChangeDto statusChangeDto = ProductStatusChangeDto.builder().id(1L).status("").build();
 
     orderSqsService.updateOrderDeliveryReview(statusChangeDto);
     orderSqsService.updateOrderDeliveryCard(statusChangeDto);
@@ -180,7 +180,7 @@ public class OrderDetailsServiceTest {
             statusChangeDto.getId()).orElseThrow(
             EntityExistsException::new);
 
-    assertThat(orderDeliveryProduct.getCardStatus().toString()).isEqualTo("DISABLED");
-    assertThat(orderDeliveryProduct.getReviewStatus().toString()).isEqualTo("DISABLED");
+    assertThat(orderDeliveryProduct.getCardStatus().toString()).isEqualTo("DONE");
+    assertThat(orderDeliveryProduct.getReviewStatus().toString()).isEqualTo("DONE");
   }
 }
