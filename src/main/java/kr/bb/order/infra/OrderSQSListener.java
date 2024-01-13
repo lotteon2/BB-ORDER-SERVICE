@@ -3,7 +3,7 @@ package kr.bb.order.infra;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
-import kr.bb.order.dto.StatusChangeDto;
+import kr.bb.order.dto.ProductStatusChangeDto;
 import kr.bb.order.service.OrderSqsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.aws.messaging.listener.Acknowledgment;
@@ -26,7 +26,7 @@ public class OrderSQSListener {
   public void consumeReviewDataUpdateQueue(
       @Payload String message, @Headers Map<String, String> headers, Acknowledgment ack)
       throws JsonProcessingException {
-    StatusChangeDto statusChangeDto = objectMapper.readValue(message, StatusChangeDto.class);
+    ProductStatusChangeDto statusChangeDto = objectMapper.readValue(message, ProductStatusChangeDto.class);
 
     orderSqsService.updateOrderDeliveryReview(statusChangeDto);
     ack.acknowledge();
@@ -39,7 +39,7 @@ public class OrderSQSListener {
   public void consumeCardDataUpdateQueue(
       @Payload String message, @Headers Map<String, String> headers, Acknowledgment ack)
       throws JsonProcessingException {
-    StatusChangeDto statusChangeDto = objectMapper.readValue(message, StatusChangeDto.class);
+    ProductStatusChangeDto statusChangeDto = objectMapper.readValue(message, ProductStatusChangeDto.class);
 
     orderSqsService.updateOrderDeliveryCard(statusChangeDto);
     ack.acknowledge();

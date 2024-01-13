@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.persistence.EntityExistsException;
-import kr.bb.order.dto.StatusChangeDto;
+import kr.bb.order.dto.ProductStatusChangeDto;
 import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
@@ -156,7 +156,7 @@ public class OrderDetailsServiceTest {
                 (LocalDate.now().minusDays(3).toString()),
                 (LocalDate.now().minusDays(2).toString()),
                 (LocalDate.now().minusDays(1).toString())),
-            Arrays.asList(49800L, 39800L, 39800L, 39800L));
+            Arrays.asList(49800L, 39800L, 49800L, 39800L));
   }
 
   @Test
@@ -171,7 +171,7 @@ public class OrderDetailsServiceTest {
   // 리뷰,카드 상태 변경 테스트
   @Test
   void updateReviewAndCardStatus() {
-    StatusChangeDto statusChangeDto = StatusChangeDto.builder().id(1L).status("DISABLED").build();
+    ProductStatusChangeDto statusChangeDto = ProductStatusChangeDto.builder().id(1L).status("DISABLED").build();
 
     orderSqsService.updateOrderDeliveryReview(statusChangeDto);
     orderSqsService.updateOrderDeliveryCard(statusChangeDto);

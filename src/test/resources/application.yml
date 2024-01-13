@@ -66,6 +66,8 @@ cloud:
         name:
       settlement-trigger-queue:
         name:
+      order-cancel-notification-queue:
+        url:
 
 
 logging:
@@ -82,3 +84,4 @@ endpoint:
   delivery-service: localhost:8300
   payment-service: localhost:8100
   store-service: localhost:8700
+  user-service: localhost:8600

@@ -158,6 +158,12 @@ public class OrderRestController {
     return CommonResponse.success(null);
   }
 
+  @DeleteMapping("/pickup/{orderPickupId}")
+  public CommonResponse<Void> cancelOrderPickup(@PathVariable String orderPickupId){
+    orderCancelService.cancelOrderPickup(orderPickupId);
+    return CommonResponse.success(null);
+  }
+
   public DeliveryStatus parseOrderDeliveryStatus(String status) {
     try {
       return DeliveryStatus.valueOf(status);

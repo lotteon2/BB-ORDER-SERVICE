@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class KakaopayCancelRequestDto {
-    private String orderGroupId;
+    private String orderId;
     private Long cancelAmount;
 }
