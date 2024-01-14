@@ -14,12 +14,15 @@ import kr.bb.order.dto.feign.KakaopayCancelRequestDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.pickup.OrderPickupStatus;
+import kr.bb.order.entity.subscription.OrderSubscription;
+import kr.bb.order.entity.subscription.SubscriptionStatus;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.FeignHandler;
 import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderPickupRepository;
+import kr.bb.order.repository.OrderSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderCancelService {
   private final OrderDeliveryRepository orderDeliveryRepository;
   private final OrderPickupRepository orderPickupRepository;
+  private final OrderSubscriptionRepository orderSubscriptionRepository;
   private final DeliveryServiceClient deliveryServiceClient;
   private final FeignHandler feignHandler;
   private final KafkaProducer<ProcessOrderDto> kafkaProducer;
@@ -133,10 +137,62 @@ public class OrderCancelService {
     kafkaProducer.send("order-create-rollback", processOrderDto);
 
     // Order-Query로 픽업주문 데이터 update
-    StatusChangeDto statusChangeDto = StatusChangeDto.builder().id(orderPickupId).status(OrderPickupStatus.CANCELED.toString()).build();
+    StatusChangeDto statusChangeDto =
+        StatusChangeDto.builder()
+            .id(orderPickupId)
+            .status(OrderPickupStatus.CANCELED.toString())
+            .build();
     kafkaProducerForOrderQuery.send("pickup-status-update", statusChangeDto);
 
     // 주문 취소 알림 발송
     orderSQSPublisher.publishOrderCancel(orderPickup.getStoreId(), OrderType.PICKUP);
+  }
+
+  @Transactional
+  public void cancelOrderSubscription(String orderSubscriptionId) {
+    OrderSubscription orderSubscription =
+        orderSubscriptionRepository
+            .findById(orderSubscriptionId)
+            .orElseThrow(EntityNotFoundException::new);
+
+    // delivery-service로 배송비 조회
+    List<Long> deliveryIds = List.of(orderSubscription.getDeliveryId());
+    Map<Long, DeliveryInfoDto> deliveryInfoDtoMap =
+        deliveryServiceClient.getDeliveryInfo(deliveryIds).getData();
+    Long key = orderSubscription.getDeliveryId();
+
+    Long paymentAmount =
+        orderSubscription.getProductPrice() + deliveryInfoDtoMap.get(key).getDeliveryCost();
+
+    KakaopayCancelRequestDto requestDto =
+        KakaopayCancelRequestDto.builder()
+            .orderId(orderSubscriptionId)
+            .cancelAmount(paymentAmount)
+            .build();
+
+    feignHandler.cancelSubscription(requestDto);
+
+    // 구독주문 상태를 취소로 변경
+    orderSubscription.updateStatus(SubscriptionStatus.CANCELED);
+
+    // Rollback 요청
+    Map<String, Long> products = new HashMap<>();
+    products.put(orderSubscription.getSubscriptionProductId(), 1L);
+
+    ProcessOrderDto processOrderDto =
+        ProcessOrderDto.builder()
+            .orderId(orderSubscriptionId)
+            .orderType(OrderType.SUBSCRIBE.toString())
+            .orderMethod("")
+            .couponIds(Collections.emptyList())
+            .products(products)
+            .userId(orderSubscription.getUserId())
+            .phoneNumber(orderSubscription.getPhoneNumber())
+            .build();
+
+    kafkaProducer.send("order-create-rollback", processOrderDto);
+
+    // 주문 취소 알림
+    orderSQSPublisher.publishOrderCancel(orderSubscription.getStoreId(), OrderType.SUBSCRIBE);
   }
 }

@@ -38,4 +38,8 @@ public class OrderSubscription extends BaseEntity {
   @NotNull private String phoneNumber;
   @NotNull private LocalDateTime paymentDate;
   private LocalDateTime endDate;
+
+  public void updateStatus(SubscriptionStatus status) {
+    this.subscriptionStatus = status;
+  }
 }
