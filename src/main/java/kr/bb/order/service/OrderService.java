@@ -520,7 +520,7 @@ public class OrderService {
             .deliveryDay(LocalDate.now().plusDays(3))
             .storeId(subscriptionOrderInfo.getStoreId())
             .phoneNumber(subscriptionOrderInfo.getOrdererPhoneNumber())
-            .paymentDate(LocalDateTime.now())
+            .paymentDate(LocalDateTime.now().plusDays(30))
             .build();
 
     orderSubscriptionRepository.save(orderSubscription);
