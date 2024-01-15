@@ -52,6 +52,9 @@ public class OrderPickup extends BaseEntity {
     @Column(name="order_pickup_datetime", nullable = false)
     private LocalDateTime orderPickupDatetime;
 
+    @Column(name="order_pickup_phone_number", nullable = false)
+    private String orderPickupPhoneNumber;
+
     public void setOrderPickupProduct(OrderPickupProduct orderPickupProduct){
         this.orderPickupProduct = orderPickupProduct;
     }

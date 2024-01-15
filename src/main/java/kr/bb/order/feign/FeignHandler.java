@@ -92,14 +92,6 @@ public class FeignHandler {
     }
   }
 
-  public String getUserPhoneNumber(Long userId) {
-    CommonResponse<String> userCommonResponse = userServiceClient.getPhoneNumber(userId);
-    if (userCommonResponse.getResult() == CommonResponse.Result.FAIL) {
-      throw new RuntimeException(userCommonResponse.getMessage());
-    }
-    return userCommonResponse.getData();
-  }
-
   public void cancelSubscription(KakaopayCancelRequestDto requestDto){
     CommonResponse<Void> paymentCommonResponse = paymentServiceClient.cancelSubscription(requestDto);
     if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
