@@ -1,6 +1,8 @@
 package kr.bb.order.service;
 
 import bloomingblooms.domain.StatusChangeDto;
+import bloomingblooms.domain.batch.SubscriptionBatchDto;
+import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import bloomingblooms.domain.notification.order.OrderType;
@@ -449,19 +451,23 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Test
   @DisplayName("배치를 통해 매달 정기결제 진행")
   void processBatchSubscription() {
-    OrderSubscriptionBatchDto orderSubscriptionBatchDto =
-        OrderSubscriptionBatchDto.builder()
-            .orderSubscriptionIds(List.of("주문_구독_id_1", "주문_구독_id_2"))
+    SubscriptionBatchDto subscriptionBatchDto = SubscriptionBatchDto.builder()
+            .orderSubscriptionId("orderSubscriptionId_1")
+            .userId(1L)
+            .build();
+    SubscriptionBatchDtoList subscriptionBatchDtoList =
+            SubscriptionBatchDtoList.builder()
+            .subscriptionBatchDtoList(List.of(subscriptionBatchDto))
             .build();
 
-    doNothing().when(feignHandler).processSubscription(orderSubscriptionBatchDto);
+    doNothing().when(feignHandler).processSubscription(subscriptionBatchDtoList);
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
     doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
     doNothing()
         .when(subscriptionDateDtoListKafkaProducer)
         .send(eq("subscription-date-update"), any());
 
-    orderService.processSubscriptionBatch(orderSubscriptionBatchDto);
+    orderService.processSubscriptionBatch(subscriptionBatchDtoList);
   }
 
   @Test

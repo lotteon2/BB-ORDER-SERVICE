@@ -1,5 +1,6 @@
 package kr.bb.order.kafka;
 
+import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import kr.bb.order.service.OrderService;
@@ -36,7 +37,7 @@ public class KafkaConsumer<T> {
   }
 
   @KafkaListener(topics = "subscription-batch", groupId ="order")
-  public void processSubscriptionBatch(OrderSubscriptionBatchDto orderSubscriptionBatchDto){
-    orderService.processSubscriptionBatch(orderSubscriptionBatchDto);
+  public void processSubscriptionBatch(SubscriptionBatchDtoList orderSubscriptionBatchDtoList){
+    orderService.processSubscriptionBatch(orderSubscriptionBatchDtoList);
   }
 }

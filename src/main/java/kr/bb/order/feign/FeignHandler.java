@@ -1,5 +1,6 @@
 package kr.bb.order.feign;
 
+import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.order.ValidatePolicyDto;
@@ -76,9 +77,9 @@ public class FeignHandler {
     return paymentCommonResponse.getData();
   }
 
-  public void processSubscription(OrderSubscriptionBatchDto orderSubscriptionBatchDto) {
+  public void processSubscription(SubscriptionBatchDtoList subscriptionBatchDtoList) {
     CommonResponse<Void> paymentCommonResponse =
-        paymentServiceClient.subscription(orderSubscriptionBatchDto);
+        paymentServiceClient.subscription(subscriptionBatchDtoList);
     if (paymentCommonResponse.getResult() == CommonResponse.Result.FAIL) {
       throw new RuntimeException(paymentCommonResponse.getMessage());
     }
@@ -97,5 +98,12 @@ public class FeignHandler {
       throw new RuntimeException(userCommonResponse.getMessage());
     }
     return userCommonResponse.getData();
+  }
+
+  public void cancelSubscription(KakaopayCancelRequestDto requestDto){
+    CommonResponse<Void> paymentCommonResponse = paymentServiceClient.cancelSubscription(requestDto);
+    if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
+      throw new RuntimeException(paymentCommonResponse.getMessage());
+    }
   }
 }

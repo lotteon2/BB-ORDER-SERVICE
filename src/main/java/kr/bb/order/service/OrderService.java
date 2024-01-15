@@ -1,6 +1,8 @@
 package kr.bb.order.service;
 
 import bloomingblooms.domain.StatusChangeDto;
+import bloomingblooms.domain.batch.SubscriptionBatchDto;
+import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
@@ -520,7 +522,7 @@ public class OrderService {
             .deliveryDay(LocalDate.now().plusDays(3))
             .storeId(subscriptionOrderInfo.getStoreId())
             .phoneNumber(subscriptionOrderInfo.getOrdererPhoneNumber())
-            .paymentDate(LocalDateTime.now())
+            .paymentDate(LocalDateTime.now().plusDays(30))
             .build();
 
     orderSubscriptionRepository.save(orderSubscription);
@@ -553,13 +555,15 @@ public class OrderService {
   }
 
   @Transactional
-  public void processSubscriptionBatch(OrderSubscriptionBatchDto orderSubscriptionBatchDto) {
+  public void processSubscriptionBatch(SubscriptionBatchDtoList subscriptionBatchDtoList ) {
     // payment-service로 결제 요청
-    feignHandler.processSubscription(orderSubscriptionBatchDto);
+    feignHandler.processSubscription(subscriptionBatchDtoList);
 
     List<OrderSubscription> orderSubscriptionList =
         orderSubscriptionRepository.findAllById(
-            orderSubscriptionBatchDto.getOrderSubscriptionIds());
+                subscriptionBatchDtoList.getSubscriptionBatchDtoList().stream().map(
+                        SubscriptionBatchDto::getOrderSubscriptionId).collect(
+                        Collectors.toList()));
 
     for (OrderSubscription orderSubscription : orderSubscriptionList) {
       // SNS로 신규 주문 발생 이벤트 보내기

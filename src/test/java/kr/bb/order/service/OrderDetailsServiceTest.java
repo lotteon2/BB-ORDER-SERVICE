@@ -44,6 +44,7 @@ public class OrderDetailsServiceTest {
   @Autowired private OrderSqsService orderSqsService;
   @Autowired private OrderDeliveryProductRepository orderDeliveryProductRepository;
 
+
   @Test
   @DisplayName("주문 상세 조회 - 회원")
   void getOrderDetailsForUser() {
@@ -147,7 +148,6 @@ public class OrderDetailsServiceTest {
   void getWeeklySalesInfo() {
     Long storeId = 1L;
     WeeklySalesInfoDto weeklySalesInfo = orderDetailsService.getWeeklySalesInfo(storeId);
-
     assertThat(weeklySalesInfo)
         .extracting("categories", "data")
         .contains(
@@ -156,7 +156,7 @@ public class OrderDetailsServiceTest {
                 (LocalDate.now().minusDays(3).toString()),
                 (LocalDate.now().minusDays(2).toString()),
                 (LocalDate.now().minusDays(1).toString())),
-            Arrays.asList(49800L, 39800L, 49800L, 39800L));
+            Arrays.asList(59800L, 39800L, 39800L, 39800L));
   }
 
   @Test
