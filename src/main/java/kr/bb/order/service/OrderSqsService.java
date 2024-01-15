@@ -1,10 +1,10 @@
 package kr.bb.order.service;
 
+import bloomingblooms.domain.card.CardStatus;
+import bloomingblooms.domain.review.ReviewStatus;
 import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.ProductStatusChangeDto;
-import kr.bb.order.entity.CardStatus;
 import kr.bb.order.entity.OrderDeliveryProduct;
-import kr.bb.order.entity.ReviewStatus;
 import kr.bb.order.repository.OrderDeliveryProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

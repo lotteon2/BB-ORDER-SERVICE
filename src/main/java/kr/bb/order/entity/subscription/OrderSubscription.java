@@ -1,5 +1,6 @@
 package kr.bb.order.entity.subscription;
 
+import bloomingblooms.domain.review.ReviewStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import javax.persistence.Entity;
@@ -38,8 +39,13 @@ public class OrderSubscription extends BaseEntity {
   @NotNull private String phoneNumber;
   @NotNull private LocalDateTime paymentDate;
   private LocalDateTime endDate;
+  @NotNull private ReviewStatus reviewStatus;
 
   public void updateStatus(SubscriptionStatus status) {
     this.subscriptionStatus = status;
+  }
+
+  public void updateReviewStatus(){
+    this.reviewStatus = ReviewStatus.ABLE;
   }
 }

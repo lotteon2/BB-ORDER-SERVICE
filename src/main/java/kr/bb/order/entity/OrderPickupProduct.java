@@ -1,5 +1,7 @@
 package kr.bb.order.entity;
 
+import bloomingblooms.domain.card.CardStatus;
+import bloomingblooms.domain.review.ReviewStatus;
 import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -14,6 +16,7 @@ import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import kr.bb.order.entity.common.BaseEntity;
 import kr.bb.order.entity.pickup.OrderPickup;
+import kr.bb.order.entity.pickup.OrderPickupStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -52,5 +55,18 @@ public class OrderPickupProduct extends BaseEntity {
   public void setOrderPickup(OrderPickup orderPickup) {
     this.orderPickup = orderPickup;
     orderPickup.setOrderPickupProduct(this);
+  }
+
+  public void updateCardAndReviewStatus(OrderPickupStatus orderPickupStatus ){
+    if(orderPickupStatus.equals(OrderPickupStatus.CANCELED)){
+      this.reviewIsWritten = ReviewStatus.DISABLED;
+      this.cardIsWritten = CardStatus.DISABLED;
+    }
+    else{
+      this.reviewIsWritten = ReviewStatus.ABLE;
+      if(!this.cardIsWritten.equals(CardStatus.DONE)){
+        this.cardIsWritten = CardStatus.DISABLED;
+      }
+    }
   }
 }

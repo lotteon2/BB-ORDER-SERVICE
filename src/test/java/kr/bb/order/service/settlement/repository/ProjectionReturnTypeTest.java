@@ -4,25 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import javax.persistence.EntityManager;
-import kr.bb.order.entity.CardStatus;
-import kr.bb.order.entity.OrderPickupProduct;
-import kr.bb.order.entity.ReviewStatus;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.pickup.OrderPickupStatus;
-import kr.bb.order.repository.OrderPickupProductRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.util.StoreIdAndTotalAmountProjection;
-import org.hibernate.annotations.Entity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
 class ProjectionReturnTypeTest {
