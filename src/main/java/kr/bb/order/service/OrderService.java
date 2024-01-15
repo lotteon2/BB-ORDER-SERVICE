@@ -1,6 +1,8 @@
 package kr.bb.order.service;
 
-import bloomingblooms.domain.StatusChangeDto;
+import static bloomingblooms.domain.notification.delivery.DeliveryStatus.COMPLETED;
+import static bloomingblooms.domain.notification.delivery.DeliveryStatus.PROCESSING;
+
 import bloomingblooms.domain.batch.SubscriptionBatchDto;
 import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
@@ -13,6 +15,7 @@ import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.product.IsProductPriceValid;
+import bloomingblooms.domain.review.ReviewStatus;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionDateDto;
 import bloomingblooms.dto.command.CartDeleteCommand;
@@ -74,7 +77,8 @@ public class OrderService {
   private final KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   private final KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
-  private final KafkaProducer<StatusChangeDto> pickupStatusUpdateKafkaProducer;
+  private final KafkaProducer<PickupStatusChangeDto> pickupStatusUpdateKafkaProducer;
+  private final KafkaProducer<SubscriptionStatusChangeDto> subscriptionStatusChangeDtoKafkaProducer;
   private final OrderUtil orderUtil;
   private final OrderDeliveryProductRepository orderDeliveryProductRepository;
   private final OrderPickupProductRepository orderPickupProductRepository;
@@ -524,8 +528,6 @@ public class OrderService {
             .paymentDate(LocalDateTime.now().plusDays(30))
             .build();
 
-    log.warn("가격 {}", orderSubscription.getProductPrice()+subscriptionOrderInfo.getDeliveryCost());
-
     orderSubscriptionRepository.save(orderSubscription);
 
     // order-query 서비스로 구독 주문 Kafka send
@@ -539,20 +541,42 @@ public class OrderService {
 
   @Transactional
   public void updateStatus(UpdateOrderStatusDto statusDto) {
-    OrderDelivery orderDelivery =
-        orderDeliveryRepository
-            .findById(statusDto.getOrderDeliveryId())
-            .orElseThrow(EntityNotFoundException::new);
-    orderDelivery.updateStatus(statusDto.getDeliveryStatus());
-    if ("COMPLETED".equalsIgnoreCase(String.valueOf(statusDto.getDeliveryStatus()))) {
-      orderDelivery
-          .getOrderDeliveryProducts()
-          .forEach(OrderDeliveryProduct::updateReviewAndCardStatus);
+    // 배송 주문인 경우
+    if(statusDto.getOrderType().equals(OrderType.DELIVERY)){
+      OrderDelivery orderDelivery =
+              orderDeliveryRepository
+                      .findById(statusDto.getOrderId())
+                      .orElseThrow(EntityNotFoundException::new);
+      orderDelivery.updateStatus(statusDto.getDeliveryStatus());
+
+      // 배송상태가 완료가 된 경우
+      if (COMPLETED.equals(statusDto.getDeliveryStatus())) {
+        orderDelivery
+                .getOrderDeliveryProducts()
+                .forEach(OrderDeliveryProduct::updateReviewAndCardStatus);
+      }
+
+      // 배송상태가 배송중인 경우 
+      if(PROCESSING.equals(statusDto.getDeliveryStatus())){
+        orderSQSPublisher.publishDeliveryNotification(orderDelivery.getOrderGroup().getUserId(), statusDto.getPhoneNumber());
+      }
+    }
+    // 구독 주문인 경우
+    else{
+      OrderSubscription orderSubscription = orderSubscriptionRepository.findById(statusDto.getOrderId()).orElseThrow(EntityNotFoundException::new);
+      // 배송상태가 완료가 된 경우
+      if ("COMPLETED".equalsIgnoreCase(String.valueOf(statusDto.getDeliveryStatus()))) {
+        orderSubscription.updateReviewStatus();
+      }
+      SubscriptionStatusChangeDto statusChangeDto = SubscriptionStatusChangeDto.builder()
+              .orderId(orderSubscription.getOrderSubscriptionId())
+              .subscriptionStatus(orderSubscription.getSubscriptionStatus().toString())
+              .reviewStatus(ReviewStatus.ABLE)
+              .build();
+      subscriptionStatusChangeDtoKafkaProducer.send("subscription-status-update", statusChangeDto);
     }
 
-    if("PROCESSING".equalsIgnoreCase(String.valueOf(statusDto.getDeliveryStatus()))){
-      orderSQSPublisher.publishDeliveryNotification(orderDelivery.getOrderGroup().getUserId(), statusDto.getPhoneNumber());
-    }
+
   }
 
   @Transactional
@@ -594,18 +618,19 @@ public class OrderService {
 
   // 픽업 상태 변경
   @Transactional
-  public void pickupStatusChange(LocalDateTime date) {
+  public void pickupStatusChange(LocalDateTime date, OrderPickupStatus orderPickupStatus ) {
     List<OrderPickup> pickups = orderPickupRepository.findByOrderPickupDatetimeBetween(date.minusDays(1L), date);
     pickups.stream()
             .filter(pickup -> pickup.getOrderPickupStatus().equals(OrderPickupStatus.PENDING))
             .forEach(pickup -> {
-              pickup.completeOrderPickup();
-              StatusChangeDto status = StatusChangeDto.builder()
-                      .id(pickup.getOrderPickupId())
-                      .status(pickup.getOrderPickupStatus().toString())
+              pickup.completeOrderPickup(orderPickupStatus);  // 리뷰, 카드 상태 변경
+              PickupStatusChangeDto status = PickupStatusChangeDto.builder()
+                      .orderId(pickup.getOrderPickupId())
+                      .pickupStatus(pickup.getOrderPickupStatus().toString())
+                      .cardStatus(pickup.getOrderPickupProduct().getCardIsWritten())
+                      .reviewStatus(pickup.getOrderPickupProduct().getReviewIsWritten())
                       .build();
-              pickupStatusUpdateKafkaProducer.send("pickup-status-update",status);
-
+              pickupStatusUpdateKafkaProducer.send("pickup-status-update", status);
             });
   }
 
