@@ -44,6 +44,7 @@ public class OrderDetailsServiceTest {
   @Autowired private OrderSqsService orderSqsService;
   @Autowired private OrderDeliveryProductRepository orderDeliveryProductRepository;
 
+
   @Test
   @DisplayName("주문 상세 조회 - 회원")
   void getOrderDetailsForUser() {
@@ -147,7 +148,7 @@ public class OrderDetailsServiceTest {
   void getWeeklySalesInfo() {
     Long storeId = 1L;
     WeeklySalesInfoDto weeklySalesInfo = orderDetailsService.getWeeklySalesInfo(storeId);
-
+    System.out.println("size:{}='''''''''''''''''''" +weeklySalesInfo.getData().size());
     assertThat(weeklySalesInfo)
         .extracting("categories", "data")
         .contains(
