@@ -43,6 +43,7 @@ class ProjectionReturnTypeTest {
         .orderPickupIsComplete(false)
         .orderPickupDatetime(LocalDateTime.now())
         .orderPickupProduct(null)
+        .orderPickupPhoneNumber("01022222222")
         .build();
 
     orderPickupRepository.save(orderPickup);

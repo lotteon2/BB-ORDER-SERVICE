@@ -17,6 +17,15 @@ import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionDateDto;
 import bloomingblooms.dto.command.CartDeleteCommand;
 import bloomingblooms.dto.command.CartDeleteDto;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
 import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
@@ -36,7 +45,6 @@ import kr.bb.order.feign.FeignHandler;
 import kr.bb.order.infra.OrderSNSPublisher;
 import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.kafka.KafkaProducer;
-import kr.bb.order.kafka.OrderSubscriptionBatchDto;
 import kr.bb.order.kafka.SubscriptionDateDtoList;
 import kr.bb.order.mapper.DeliveryAddressMapper;
 import kr.bb.order.mapper.KakaopayMapper;
@@ -50,16 +58,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.persistence.EntityNotFoundException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -475,6 +473,7 @@ public class OrderService {
             .orderPickupTotalAmount(pickupOrderInfo.getTotalAmount())
             .orderPickupCouponAmount(pickupOrderInfo.getCouponAmount())
             .orderPickupDatetime(pickupDateTime)
+            .orderPickupPhoneNumber(pickupOrderInfo.getOrdererPhoneNumber())
             .build();
 
     OrderPickupProduct orderPickupProduct =
@@ -524,6 +523,8 @@ public class OrderService {
             .phoneNumber(subscriptionOrderInfo.getOrdererPhoneNumber())
             .paymentDate(LocalDateTime.now().plusDays(30))
             .build();
+
+    log.warn("가격 {}", orderSubscription.getProductPrice()+subscriptionOrderInfo.getDeliveryCost());
 
     orderSubscriptionRepository.save(orderSubscription);
 

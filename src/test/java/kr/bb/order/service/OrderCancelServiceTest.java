@@ -71,7 +71,6 @@ public class OrderCancelServiceTest {
     String orderPickupId = "orderPickupId";
 
     doNothing().when(feignHandler).cancel(any());
-    when(feignHandler.getUserPhoneNumber(any())).thenReturn("01011112222");
     doNothing().when(kafkaProducer).send(eq("order-create-rollback"), any(ProcessOrderDto.class));
     doNothing().when(kafkaProducerForOrderQuery).send(eq("pickup-status-update"), any(StatusChangeDto.class));
     doNothing().when(orderSQSPublisher).publishOrderCancel(any(), any());

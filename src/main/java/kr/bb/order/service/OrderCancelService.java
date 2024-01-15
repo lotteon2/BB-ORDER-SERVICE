@@ -24,9 +24,11 @@ import kr.bb.order.repository.OrderDeliveryRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.repository.OrderSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderCancelService {
@@ -103,6 +105,8 @@ public class OrderCancelService {
     Long paymentAmount =
         orderPickup.getOrderPickupTotalAmount() - orderPickup.getOrderPickupCouponAmount();
 
+    log.warn("취소 희망 금액: {}", paymentAmount);
+
     KakaopayCancelRequestDto requestDto =
         KakaopayCancelRequestDto.builder()
             .orderId(orderPickupId)
@@ -110,9 +114,6 @@ public class OrderCancelService {
             .build();
 
     feignHandler.cancel(requestDto);
-
-    // 고객 전화번호 요청 feign
-    String userPhoneNumber = feignHandler.getUserPhoneNumber(orderPickup.getUserId());
 
     // 픽업주문 상태를 취소로 변경
     orderPickup.updateStatus(OrderPickupStatus.CANCELED);
@@ -131,7 +132,7 @@ public class OrderCancelService {
             .couponIds(Collections.emptyList())
             .products(products)
             .userId(orderPickup.getUserId())
-            .phoneNumber(userPhoneNumber)
+            .phoneNumber(orderPickup.getOrderPickupPhoneNumber())
             .build();
 
     kafkaProducer.send("order-create-rollback", processOrderDto);
@@ -156,6 +157,7 @@ public class OrderCancelService {
             .orElseThrow(EntityNotFoundException::new);
 
     // delivery-service로 배송비 조회
+
     List<Long> deliveryIds = List.of(orderSubscription.getDeliveryId());
     Map<Long, DeliveryInfoDto> deliveryInfoDtoMap =
         deliveryServiceClient.getDeliveryInfo(deliveryIds).getData();
@@ -163,6 +165,8 @@ public class OrderCancelService {
 
     Long paymentAmount =
         orderSubscription.getProductPrice() + deliveryInfoDtoMap.get(key).getDeliveryCost();
+
+    log.warn("취소 주문 금액: {}", paymentAmount);
 
     KakaopayCancelRequestDto requestDto =
         KakaopayCancelRequestDto.builder()

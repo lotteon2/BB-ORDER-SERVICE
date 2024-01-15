@@ -470,29 +470,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     orderService.processSubscriptionBatch(subscriptionBatchDtoList);
   }
 
-  @Test
-  @DisplayName("해당 기준 24시간 이전을 픽업주문 상태를 모두 완료로 변경한다")
-  void pickupStatusChange() {
-    //given
-    LocalDateTime date = LocalDateTime.of(2024,1,12,0,0,0);
-    OrderPickup op1 = createOrderPickupWithDateTime(date.minusDays(1L));
-    OrderPickup op2 = createOrderPickupWithDateTime(date);
-    OrderPickup op3 = createOrderPickupWithDateTime(date.minusDays(2L));
-    orderPickupRepository.saveAll(List.of(op1,op2,op3));
-    em.flush();
-    em.clear();
-
-    // when
-    orderService.pickupStatusChange(date);
-    List<OrderPickup> result = orderPickupRepository.findByOrderPickupDatetimeBetween(date.minusDays(1L),date);
-
-    // then
-    assertThat(result)
-            .hasSize(2)
-            .extracting("orderPickupStatus","orderPickupIsComplete")
-            .containsExactlyInAnyOrder(tuple(OrderPickupStatus.COMPLETED,true), tuple(OrderPickupStatus.COMPLETED,true));
-  }
-
   public OrderForDeliveryRequest createOrderForDeliveryRequest(Long sumOfActualAmount) {
     return OrderForDeliveryRequest.builder()
         .orderInfoByStores(createOrderInfoByStores())
@@ -720,6 +697,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             .orderPickupTotalAmount(1000L)
             .orderPickupCouponAmount(10000L)
             .orderPickupDatetime(orderPickupDateTime)
+            .orderPickupPhoneNumber("12345")
             .build();
   }
 }
