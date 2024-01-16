@@ -60,13 +60,8 @@ public class OrderPickup extends BaseEntity {
     }
 
     public void completeOrderPickup(OrderPickupStatus orderPickupStatus ) {
-        if(orderPickupStatus.equals(OrderPickupStatus.COMPLETED)){
-            this.orderPickupIsComplete = true;
-            this.orderPickupStatus = OrderPickupStatus.COMPLETED;
-        }
-        else{
-            this.orderPickupStatus = OrderPickupStatus.CANCELED;
-        }
+        this.orderPickupIsComplete = true;
+        this.orderPickupStatus = OrderPickupStatus.COMPLETED;
         this.orderPickupProduct.updateCardAndReviewStatus(orderPickupStatus);
     }
 

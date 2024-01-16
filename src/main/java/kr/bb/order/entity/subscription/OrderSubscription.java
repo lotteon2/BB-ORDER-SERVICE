@@ -39,13 +39,17 @@ public class OrderSubscription extends BaseEntity {
   @NotNull private String phoneNumber;
   @NotNull private LocalDateTime paymentDate;
   private LocalDateTime endDate;
-  @NotNull private ReviewStatus reviewStatus;
+
+  @NotNull
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  private ReviewStatus reviewStatus = ReviewStatus.DISABLED;
 
   public void updateStatus(SubscriptionStatus status) {
     this.subscriptionStatus = status;
   }
 
-  public void updateReviewStatus(){
-    this.reviewStatus = ReviewStatus.ABLE;
+  public void updateReviewStatus(ReviewStatus reviewStatus) {
+    this.reviewStatus = reviewStatus;
   }
 }

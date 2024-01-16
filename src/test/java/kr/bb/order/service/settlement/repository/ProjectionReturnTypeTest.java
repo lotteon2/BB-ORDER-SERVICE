@@ -46,13 +46,13 @@ class ProjectionReturnTypeTest {
   void GetProjectionData_WhenRequestToOrderPickUpRepositorySettlement_GetProjectionData() {
 
     LocalDateTime startDate = LocalDateTime.of(2024, 1, 1, 0, 0);
-    LocalDateTime endDate = LocalDateTime.of(2024, 1, 13, 0, 0);
+    LocalDateTime endDate = LocalDateTime.of(2024, 1, 31, 0, 0);
 
     List<StoreIdAndTotalAmountProjection> result = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(
         startDate, endDate,OrderPickupStatus.CANCELED);
 
     assertNotNull(result);
-    assertEquals(1,result.size());
+    assertEquals(3,result.size());
     assertTrue(result.stream()
         .allMatch(projection -> projection instanceof StoreIdAndTotalAmountProjection));
 

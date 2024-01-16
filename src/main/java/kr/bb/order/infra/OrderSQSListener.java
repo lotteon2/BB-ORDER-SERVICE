@@ -19,7 +19,7 @@ public class OrderSQSListener {
   private final ObjectMapper objectMapper;
   private final OrderSqsService orderSqsService;
 
-  // 리뷰 상태 변경
+  // (배송주문) 리뷰 상태 변경
   @SqsListener(
       value = "${cloud.aws.sqs.delivery-review-status-queue.name}",
       deletionPolicy = SqsMessageDeletionPolicy.NEVER)
@@ -32,7 +32,7 @@ public class OrderSQSListener {
     ack.acknowledge();
   }
 
-  // 카드 상태 변경
+  // (배송주문) 카드 상태 변경
   @SqsListener(
       value = "${cloud.aws.sqs.card-is-register-for-order-history-queue.name}",
       deletionPolicy = SqsMessageDeletionPolicy.NEVER)

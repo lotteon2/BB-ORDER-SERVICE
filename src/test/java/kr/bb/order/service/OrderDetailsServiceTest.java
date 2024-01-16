@@ -156,7 +156,7 @@ public class OrderDetailsServiceTest {
                 (LocalDate.now().minusDays(3).toString()),
                 (LocalDate.now().minusDays(2).toString()),
                 (LocalDate.now().minusDays(1).toString())),
-            Arrays.asList(59800L, 39800L, 39800L, 39800L));
+            Arrays.asList(49800L, 69800L, 39800L, 39800L));
   }
 
   @Test

@@ -174,6 +174,7 @@ public class OrderCommonMapper {
         .productThumbnail(pickupOrderInfo.getProduct().getProductThumbnailImage())
         .productName(pickupOrderInfo.getProduct().getProductName())
         .unitPrice(orderPickupProduct.getOrderProductPrice())
+        .orderProductId(orderPickupProduct.getOrderPickupProductId())
         .build();
   }
 

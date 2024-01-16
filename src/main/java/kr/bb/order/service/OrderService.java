@@ -8,6 +8,7 @@ import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
+import bloomingblooms.domain.delivery.UpdateOrderSubscriptionStatusDto;
 import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.*;
 import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
@@ -42,6 +43,7 @@ import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
 import kr.bb.order.entity.redis.SubscriptionOrderInfo;
 import kr.bb.order.entity.subscription.OrderSubscription;
+import kr.bb.order.entity.subscription.SubscriptionStatus;
 import kr.bb.order.exception.PaymentExpiredException;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.FeignHandler;
@@ -540,43 +542,46 @@ public class OrderService {
   }
 
   @Transactional
-  public void updateStatus(UpdateOrderStatusDto statusDto) {
+  public void updateOrderDeliveryStatus(UpdateOrderStatusDto statusDto) {
     // 배송 주문인 경우
-    if(statusDto.getOrderType().equals(OrderType.DELIVERY)){
-      OrderDelivery orderDelivery =
-              orderDeliveryRepository
-                      .findById(statusDto.getOrderId())
-                      .orElseThrow(EntityNotFoundException::new);
-      orderDelivery.updateStatus(statusDto.getDeliveryStatus());
+    OrderDelivery orderDelivery =
+            orderDeliveryRepository
+                    .findById(statusDto.getOrderDeliveryId())
+                    .orElseThrow(EntityNotFoundException::new);
+    orderDelivery.updateStatus(statusDto.getDeliveryStatus());
 
-      // 배송상태가 완료가 된 경우
-      if (COMPLETED.equals(statusDto.getDeliveryStatus())) {
-        orderDelivery
-                .getOrderDeliveryProducts()
-                .forEach(OrderDeliveryProduct::updateReviewAndCardStatus);
-      }
-
-      // 배송상태가 배송중인 경우 
-      if(PROCESSING.equals(statusDto.getDeliveryStatus())){
-        orderSQSPublisher.publishDeliveryNotification(orderDelivery.getOrderGroup().getUserId(), statusDto.getPhoneNumber());
-      }
+    // 배송상태가 완료가 된 경우
+    if (COMPLETED.equals(statusDto.getDeliveryStatus())) {
+      orderDelivery
+              .getOrderDeliveryProducts()
+              .forEach(OrderDeliveryProduct::updateReviewAndCardStatus);
     }
-    // 구독 주문인 경우
-    else{
-      OrderSubscription orderSubscription = orderSubscriptionRepository.findById(statusDto.getOrderId()).orElseThrow(EntityNotFoundException::new);
-      // 배송상태가 완료가 된 경우
-      if ("COMPLETED".equalsIgnoreCase(String.valueOf(statusDto.getDeliveryStatus()))) {
-        orderSubscription.updateReviewStatus();
-      }
+
+    // 배송상태가 배송중인 경우
+    if(PROCESSING.equals(statusDto.getDeliveryStatus())){
+      orderSQSPublisher.publishDeliveryNotification(orderDelivery.getOrderGroup().getUserId(), statusDto.getPhoneNumber());
+    }
+
+  }
+
+  @Transactional
+  public void updateOrderSubscriptionStatus(UpdateOrderSubscriptionStatusDto statusDto ){
+    List<OrderSubscription> orderSubscriptions = orderSubscriptionRepository.findAllByDeliveryIds(statusDto.getDeliveryIds());
+
+    // 배송상태를 완료로 변경
+    for (OrderSubscription orderSubscription : orderSubscriptions) {
+      orderSubscription.updateReviewStatus(ReviewStatus.ABLE);
+      orderSubscription.updateStatus(SubscriptionStatus.COMPLETED);
+
       SubscriptionStatusChangeDto statusChangeDto = SubscriptionStatusChangeDto.builder()
               .orderId(orderSubscription.getOrderSubscriptionId())
               .subscriptionStatus(orderSubscription.getSubscriptionStatus().toString())
               .reviewStatus(ReviewStatus.ABLE)
               .build();
+
+      // order-query로 구독주문 상태 kafka send
       subscriptionStatusChangeDtoKafkaProducer.send("subscription-status-update", statusChangeDto);
     }
-
-
   }
 
   @Transactional
