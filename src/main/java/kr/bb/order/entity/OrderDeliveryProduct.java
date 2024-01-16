@@ -1,5 +1,7 @@
 package kr.bb.order.entity;
 
+import bloomingblooms.domain.card.CardStatus;
+import bloomingblooms.domain.review.ReviewStatus;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -59,11 +61,11 @@ public class OrderDeliveryProduct extends BaseEntity {
     this.reviewStatus = ReviewStatus.ABLE;
   }
 
-  public void updateReviewStatus(String status){
-    this.reviewStatus = ReviewStatus.valueOf(status);
+  public void updateReviewStatus(ReviewStatus status){
+    this.reviewStatus = status;
   }
 
-  public void updateCardStatus(String status){
-    this.cardStatus = CardStatus.valueOf(status);
+  public void updateCardStatus(CardStatus status){
+    this.cardStatus = status;
   }
 }

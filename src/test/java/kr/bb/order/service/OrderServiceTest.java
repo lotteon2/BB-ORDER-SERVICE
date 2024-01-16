@@ -1,18 +1,36 @@
 package kr.bb.order.service;
 
-import bloomingblooms.domain.StatusChangeDto;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+import bloomingblooms.domain.batch.SubscriptionBatchDto;
+import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
+import bloomingblooms.domain.delivery.UpdateOrderSubscriptionStatusDto;
 import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.OrderInfoByStore;
 import bloomingblooms.domain.order.OrderMethod;
+import bloomingblooms.domain.order.PickupStatusChangeDto;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.domain.order.ProductCreate;
+import bloomingblooms.domain.order.SubscriptionStatusChangeDto;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import bloomingblooms.dto.command.CartDeleteCommand;
 import bloomingblooms.response.CommonResponse;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
 import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
 import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
@@ -29,7 +47,6 @@ import kr.bb.order.infra.OrderSNSPublisher;
 import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.kafka.KafkaConsumer;
 import kr.bb.order.kafka.KafkaProducer;
-import kr.bb.order.kafka.OrderSubscriptionBatchDto;
 import kr.bb.order.kafka.SubscriptionDateDtoList;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.repository.*;
@@ -46,24 +63,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
-
-import javax.persistence.EntityManager;
-import javax.persistence.EntityNotFoundException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static java.util.stream.Collectors.partitioningBy;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.groups.Tuple.tuple;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @Testcontainers
@@ -85,6 +84,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @MockBean private KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   @Autowired private KafkaConsumer<ProcessOrderDto> kafkaConsumer;
   @MockBean private KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
+  @MockBean private KafkaProducer<SubscriptionStatusChangeDto> subscriptionStatusChangeDtoKafkaProducer;
   @MockBean private OrderUtil orderUtil;
   @Autowired private OrderDeliveryProductRepository orderProductRepository;
   @Autowired private OrderPickupProductRepository orderPickupProductRepository;
@@ -95,7 +95,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @MockBean private OrderSQSPublisher orderSQSPublisher;
   @MockBean private FeignHandler feignHandler;
   @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
-  @MockBean private KafkaProducer<StatusChangeDto> pickupStatusUpdateKafkaProducer;
+  @MockBean private KafkaProducer<PickupStatusChangeDto> pickupStatusUpdateKafkaProducer;
   @Autowired private EntityManager em;
   @BeforeEach
   void setup() {
@@ -113,6 +113,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             subscriptionCreateDtoKafkaProducer,
             subscriptionDateDtoListKafkaProducer,
             pickupStatusUpdateKafkaProducer,
+            subscriptionStatusChangeDtoKafkaProducer,
             orderUtil,
             orderProductRepository,
             orderPickupProductRepository,
@@ -287,7 +288,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         OrderCommonMapper.toProcessOrderDto(orderGroupId, OrderType.DELIVERY.toString(), orderInfo);
     doNothing().when(feignHandler).createDeliveryAddress(any());
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
 
     // when
     kafkaConsumer.processOrder(processOrderDto);
@@ -341,7 +342,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     doNothing().when(feignHandler).createDeliveryAddress(any());
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
 
     // when
     kafkaConsumer.processOrder(
@@ -376,7 +377,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     doNothing().when(feignHandler).createDeliveryAddress(any());
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
   }
 
   @Test
@@ -394,7 +395,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     // when
     doNothing().when(feignHandler).createDeliveryAddress(any());
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
 
     kafkaConsumer.processOrder(
         OrderCommonMapper.toDtoForOrderSubscription(orderSubscriptionId, subscriptionOrderInfo));
@@ -432,14 +433,16 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
   @Test
   @DisplayName("배송 상태를 kafka를 통해 넘겨받는다")
-  void updateOrderStatus() throws JsonProcessingException {
+  void updateOrderStatus() {
     UpdateOrderStatusDto updateOrderStatusDto =
         UpdateOrderStatusDto.builder()
             .orderDeliveryId("가게주문id")
+            .phoneNumber("01011112222")
             .deliveryStatus(DeliveryStatus.COMPLETED)
             .build();
 
     kafkaConsumer.updateOrderDeliveryStatus(updateOrderStatusDto);
+    doNothing().when(orderSQSPublisher).publishDeliveryNotification(any(),any());
     OrderDelivery orderDelivery =
         orderDeliveryRepository.findById("가게주문id").orElseThrow(EntityNotFoundException::new);
 
@@ -449,42 +452,44 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Test
   @DisplayName("배치를 통해 매달 정기결제 진행")
   void processBatchSubscription() {
-    OrderSubscriptionBatchDto orderSubscriptionBatchDto =
-        OrderSubscriptionBatchDto.builder()
-            .orderSubscriptionIds(List.of("주문_구독_id_1", "주문_구독_id_2"))
+    SubscriptionBatchDto subscriptionBatchDto = SubscriptionBatchDto.builder()
+            .orderSubscriptionId("orderSubscriptionId_1")
+            .userId(1L)
+            .build();
+    SubscriptionBatchDtoList subscriptionBatchDtoList =
+            SubscriptionBatchDtoList.builder()
+            .subscriptionBatchDtoList(List.of(subscriptionBatchDto))
             .build();
 
-    doNothing().when(feignHandler).processSubscription(orderSubscriptionBatchDto);
+    doNothing().when(feignHandler).processSubscription(subscriptionBatchDtoList);
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
-    doNothing().when(orderSQSPublisher).publish(any(), any());
+    doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
     doNothing()
         .when(subscriptionDateDtoListKafkaProducer)
         .send(eq("subscription-date-update"), any());
 
-    orderService.processSubscriptionBatch(orderSubscriptionBatchDto);
+    orderService.processSubscriptionBatch(subscriptionBatchDtoList);
   }
 
   @Test
-  @DisplayName("해당 기준 24시간 이전을 픽업주문 상태를 모두 완료로 변경한다")
-  void pickupStatusChange() {
-    //given
-    LocalDateTime date = LocalDateTime.of(2024,1,12,0,0,0);
-    OrderPickup op1 = createOrderPickupWithDateTime(date.minusDays(1L));
-    OrderPickup op2 = createOrderPickupWithDateTime(date);
-    OrderPickup op3 = createOrderPickupWithDateTime(date.minusDays(2L));
-    orderPickupRepository.saveAll(List.of(op1,op2,op3));
-    em.flush();
-    em.clear();
+  @DisplayName("픽업상태 변경")
+  void changePickupStatus() {
+    LocalDateTime now = LocalDateTime.now();
 
-    // when
-    orderService.pickupStatusChange(date);
-    List<OrderPickup> result = orderPickupRepository.findByOrderPickupDatetimeBetween(date.minusDays(1L),date);
+    OrderPickupStatus orderPickupStatus = OrderPickupStatus.COMPLETED;
+    orderService.pickupStatusChange(now, orderPickupStatus);
+    doNothing().when(pickupStatusUpdateKafkaProducer).send(eq("pickup-status-update"), any());
+  }
 
-    // then
-    assertThat(result)
-            .hasSize(2)
-            .extracting("orderPickupStatus","orderPickupIsComplete")
-            .containsExactlyInAnyOrder(tuple(OrderPickupStatus.COMPLETED,true), tuple(OrderPickupStatus.COMPLETED,true));
+  @Test
+  @DisplayName("구독상태 변경")
+  void changeSubscriptionStatus(){
+    UpdateOrderSubscriptionStatusDto updateOrderSubscriptionStatusDto = UpdateOrderSubscriptionStatusDto.builder()
+            .deliveryIds(List.of(1L,2L))
+            .build();
+
+    doNothing().when(subscriptionStatusChangeDtoKafkaProducer).send(eq("subscription-status-update"), any());
+    orderService.updateOrderSubscriptionStatus(updateOrderSubscriptionStatusDto);
   }
 
   public OrderForDeliveryRequest createOrderForDeliveryRequest(Long sumOfActualAmount) {
@@ -714,6 +719,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             .orderPickupTotalAmount(1000L)
             .orderPickupCouponAmount(10000L)
             .orderPickupDatetime(orderPickupDateTime)
+            .orderPickupPhoneNumber("12345")
             .build();
   }
 }

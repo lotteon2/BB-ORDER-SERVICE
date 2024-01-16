@@ -1,7 +1,6 @@
 package kr.bb.order.entity.pickup;
 
 import java.time.LocalDateTime;
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -53,12 +52,20 @@ public class OrderPickup extends BaseEntity {
     @Column(name="order_pickup_datetime", nullable = false)
     private LocalDateTime orderPickupDatetime;
 
+    @Column(name="order_pickup_phone_number", nullable = false)
+    private String orderPickupPhoneNumber;
+
     public void setOrderPickupProduct(OrderPickupProduct orderPickupProduct){
         this.orderPickupProduct = orderPickupProduct;
     }
 
-    public void completeOrderPickup() {
+    public void completeOrderPickup(OrderPickupStatus orderPickupStatus ) {
         this.orderPickupIsComplete = true;
         this.orderPickupStatus = OrderPickupStatus.COMPLETED;
+        this.orderPickupProduct.updateCardAndReviewStatus(orderPickupStatus);
+    }
+
+    public void updateStatus(OrderPickupStatus orderPickupStatus ){
+        this.orderPickupStatus = orderPickupStatus;
     }
 }

@@ -4,25 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import javax.persistence.EntityManager;
-import kr.bb.order.entity.CardStatus;
-import kr.bb.order.entity.OrderPickupProduct;
-import kr.bb.order.entity.ReviewStatus;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.pickup.OrderPickupStatus;
-import kr.bb.order.repository.OrderPickupProductRepository;
 import kr.bb.order.repository.OrderPickupRepository;
 import kr.bb.order.util.StoreIdAndTotalAmountProjection;
-import org.hibernate.annotations.Entity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
 class ProjectionReturnTypeTest {
@@ -43,6 +34,7 @@ class ProjectionReturnTypeTest {
         .orderPickupIsComplete(false)
         .orderPickupDatetime(LocalDateTime.now())
         .orderPickupProduct(null)
+        .orderPickupPhoneNumber("01022222222")
         .build();
 
     orderPickupRepository.save(orderPickup);
@@ -54,13 +46,13 @@ class ProjectionReturnTypeTest {
   void GetProjectionData_WhenRequestToOrderPickUpRepositorySettlement_GetProjectionData() {
 
     LocalDateTime startDate = LocalDateTime.of(2024, 1, 1, 0, 0);
-    LocalDateTime endDate = LocalDateTime.of(2024, 1, 13, 0, 0);
+    LocalDateTime endDate = LocalDateTime.of(2024, 1, 31, 0, 0);
 
     List<StoreIdAndTotalAmountProjection> result = orderPickupRepository.findAllStoreIdAndTotalAmountForDateRangeAndNotOrderPickupStatus(
         startDate, endDate,OrderPickupStatus.CANCELED);
 
     assertNotNull(result);
-    assertEquals(1,result.size());
+    assertEquals(3,result.size());
     assertTrue(result.stream()
         .allMatch(projection -> projection instanceof StoreIdAndTotalAmountProjection));
 

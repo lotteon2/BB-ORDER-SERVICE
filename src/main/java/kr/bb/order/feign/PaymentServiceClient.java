@@ -1,5 +1,6 @@
 package kr.bb.order.feign;
 
+import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
 import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
@@ -30,8 +31,11 @@ public interface PaymentServiceClient {
   CommonResponse<String> getPaymentDate(@RequestParam String orderGroupId);
 
   @PostMapping(value = "/client/subscription")
-  CommonResponse<Void> subscription(@RequestBody OrderSubscriptionBatchDto orderSubscriptionBatchDto);
+  CommonResponse<Void> subscription(@RequestBody SubscriptionBatchDtoList subscriptionBatchDtoList);
 
   @PostMapping(value = "/client/cancel")
   CommonResponse<Void> cancel(@RequestBody KakaopayCancelRequestDto cancelRequestDto);
+
+  @PostMapping(value = "/client/subscription/cancel")
+  CommonResponse<Void> cancelSubscription(@RequestBody KakaopayCancelRequestDto cancelRequestDto);
 }

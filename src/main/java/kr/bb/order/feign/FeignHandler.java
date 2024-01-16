@@ -1,5 +1,6 @@
 package kr.bb.order.feign;
 
+import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.DeliveryAddressInsertDto;
 import bloomingblooms.domain.delivery.DeliveryInsertDto;
 import bloomingblooms.domain.order.ValidatePolicyDto;
@@ -22,6 +23,7 @@ public class FeignHandler {
   private final StoreServiceClient storeServiceClient;
   private final DeliveryServiceClient deliveryServiceClient;
   private final PaymentServiceClient paymentServiceClient;
+  private final UserServiceClient userServiceClient;
 
   /*
    FEIGN 통신
@@ -75,15 +77,23 @@ public class FeignHandler {
     return paymentCommonResponse.getData();
   }
 
-  public void processSubscription(OrderSubscriptionBatchDto orderSubscriptionBatchDto) {
-    CommonResponse<Void> paymentCommonResponse = paymentServiceClient.subscription(orderSubscriptionBatchDto);
-    if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
+  public void processSubscription(SubscriptionBatchDtoList subscriptionBatchDtoList) {
+    CommonResponse<Void> paymentCommonResponse =
+        paymentServiceClient.subscription(subscriptionBatchDtoList);
+    if (paymentCommonResponse.getResult() == CommonResponse.Result.FAIL) {
       throw new RuntimeException(paymentCommonResponse.getMessage());
     }
   }
 
-  public void cancel(KakaopayCancelRequestDto requestDto){
+  public void cancel(KakaopayCancelRequestDto requestDto) {
     CommonResponse<Void> paymentCommonResponse = paymentServiceClient.cancel(requestDto);
+    if (paymentCommonResponse.getResult() == CommonResponse.Result.FAIL) {
+      throw new RuntimeException(paymentCommonResponse.getMessage());
+    }
+  }
+
+  public void cancelSubscription(KakaopayCancelRequestDto requestDto){
+    CommonResponse<Void> paymentCommonResponse = paymentServiceClient.cancelSubscription(requestDto);
     if(paymentCommonResponse.getResult() == CommonResponse.Result.FAIL){
       throw new RuntimeException(paymentCommonResponse.getMessage());
     }
