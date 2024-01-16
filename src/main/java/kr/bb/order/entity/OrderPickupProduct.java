@@ -69,4 +69,12 @@ public class OrderPickupProduct extends BaseEntity {
       }
     }
   }
+
+  public void updateCardStatus(CardStatus cardStatus) {
+    this.cardIsWritten = cardStatus;
+  }
+
+  public void updateReviewStatus(ReviewStatus reviewStatus) {
+    this.reviewIsWritten = reviewStatus;
+  }
 }

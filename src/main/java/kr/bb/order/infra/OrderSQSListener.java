@@ -1,8 +1,10 @@
 package kr.bb.order.infra;
 
+import bloomingblooms.domain.StatusChangeDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import javax.annotation.security.PermitAll;
 import kr.bb.order.dto.ProductStatusChangeDto;
 import kr.bb.order.service.OrderSqsService;
 import lombok.RequiredArgsConstructor;
@@ -45,4 +47,25 @@ public class OrderSQSListener {
     ack.acknowledge();
   }
 
+  // (픽업주문) 카드 상태 변경
+  @SqsListener(
+          value="${cloud.aws.sqs.pickup-card-status-order-queue.name}",
+          deletionPolicy = SqsMessageDeletionPolicy.NEVER)
+  public void consumeCardDataUpdateForPickupQueue(
+          @Payload String message, Acknowledgment ack) throws JsonProcessingException {
+    StatusChangeDto statusChangeDto = objectMapper.readValue(message, StatusChangeDto.class);
+    orderSqsService.updateOrderPickupCard(statusChangeDto);
+    ack.acknowledge();
+  }
+
+  // (픽업주문) 리뷰 상태 변경
+  @SqsListener(
+          value="${cloud.aws.sqs.pickup-review-status-order-queue.name}"
+          , deletionPolicy = SqsMessageDeletionPolicy.NEVER)
+  public void consumeReviewDataUpdateForPickupQueue(
+          @Payload String message, Acknowledgment ack) throws JsonProcessingException{
+    StatusChangeDto statusChangeDto = objectMapper.readValue(message, StatusChangeDto.class);
+    orderSqsService.updateOrderPickupReview(statusChangeDto);
+    ack.acknowledge();
+  }
 }
