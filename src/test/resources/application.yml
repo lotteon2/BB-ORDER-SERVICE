@@ -68,6 +68,10 @@ cloud:
         name:
       order-cancel-notification-queue:
         url:
+      pickup-card-status-order-queue:
+        name:
+      pickup-review-status-order-queue:
+        name:
 
 
 logging:

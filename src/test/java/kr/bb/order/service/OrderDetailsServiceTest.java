@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import bloomingblooms.domain.StatusChangeDto;
 import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import bloomingblooms.domain.product.ProductInformation;
 import bloomingblooms.response.CommonResponse;
@@ -14,16 +15,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.persistence.EntityExistsException;
+import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.ProductStatusChangeDto;
 import kr.bb.order.dto.response.order.WeeklySalesInfoDto;
 import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.entity.OrderDeliveryProduct;
+import kr.bb.order.entity.OrderPickupProduct;
+import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.PaymentServiceClient;
 import kr.bb.order.feign.ProductServiceClient;
 import kr.bb.order.feign.StoreServiceClient;
 import kr.bb.order.repository.OrderDeliveryProductRepository;
+import kr.bb.order.repository.OrderPickupProductRepository;
+import kr.bb.order.repository.OrderPickupRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +49,7 @@ public class OrderDetailsServiceTest {
   @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
   @Autowired private OrderSqsService orderSqsService;
   @Autowired private OrderDeliveryProductRepository orderDeliveryProductRepository;
-
+  @Autowired private OrderPickupProductRepository orderPickupProductRepository;
 
   @Test
   @DisplayName("주문 상세 조회 - 회원")
@@ -182,5 +188,32 @@ public class OrderDetailsServiceTest {
 
     assertThat(orderDeliveryProduct.getCardStatus().toString()).isEqualTo("DONE");
     assertThat(orderDeliveryProduct.getReviewStatus().toString()).isEqualTo("DONE");
+  }
+
+  // 픽업 카드작성 완료 테스트
+  @Test
+  void updatePickupCardStatus(){
+    StatusChangeDto statusChangeDto = StatusChangeDto.builder()
+            .id(String.valueOf(1L))
+            .status("")
+            .build();
+    orderSqsService.updateOrderPickupCard(statusChangeDto);
+
+    OrderPickupProduct orderPickupProduct = orderPickupProductRepository.findById(Long.valueOf(statusChangeDto.getId()))
+            .orElseThrow(EntityNotFoundException::new);
+
+    assertThat(orderPickupProduct.getCardIsWritten().toString()).isEqualTo("DONE");
+  }
+
+  // 픽업 리뷰작성 완료 테스트
+  @Test
+  void updatePickupReviewStatus(){
+    StatusChangeDto statusChangeDto = StatusChangeDto.builder().id(String.valueOf(1L)).status("").build();
+    orderSqsService.updateOrderPickupReview(statusChangeDto);
+
+    OrderPickupProduct orderPickupProduct = orderPickupProductRepository.findById(Long.valueOf(statusChangeDto.getId()))
+            .orElseThrow(EntityNotFoundException::new);
+
+    assertThat(orderPickupProduct.getReviewIsWritten().toString()).isEqualTo("DONE");
   }
 }
