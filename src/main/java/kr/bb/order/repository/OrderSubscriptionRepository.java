@@ -1,6 +1,5 @@
 package kr.bb.order.repository;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import kr.bb.order.dto.WeeklySalesDto;
