@@ -2,6 +2,7 @@ package kr.bb.order.kafka;
 
 import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
+import bloomingblooms.domain.delivery.UpdateOrderSubscriptionStatusDto;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import kr.bb.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,13 @@ public class KafkaConsumer<T> {
 
   @KafkaListener(topics = "order-delivery-status", groupId = "order")
   public void updateOrderDeliveryStatus(UpdateOrderStatusDto updateOrderStatusDto) {
-      orderService.updateStatus(updateOrderStatusDto);
+      orderService.updateOrderDeliveryStatus(updateOrderStatusDto);
+  }
+
+  @KafkaListener(topics = "order-subscription-status", groupId = "order")
+  public void updateOrderSubscriptionStatus(
+          UpdateOrderSubscriptionStatusDto updateOrderSubscriptionStatusDto ){
+    orderService.updateOrderSubscriptionStatus(updateOrderSubscriptionStatusDto);
   }
 
   @KafkaListener(topics = "subscription-batch", groupId ="order")

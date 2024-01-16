@@ -1,5 +1,7 @@
 package kr.bb.order.entity;
 
+import bloomingblooms.domain.card.CardStatus;
+import bloomingblooms.domain.review.ReviewStatus;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;

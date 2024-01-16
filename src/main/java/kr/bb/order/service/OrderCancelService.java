@@ -1,10 +1,12 @@
 package kr.bb.order.service;
 
-import bloomingblooms.domain.StatusChangeDto;
 import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import bloomingblooms.domain.notification.delivery.DeliveryStatus;
 import bloomingblooms.domain.notification.order.OrderType;
+import bloomingblooms.domain.order.PickupStatusChangeDto;
 import bloomingblooms.domain.order.ProcessOrderDto;
+import bloomingblooms.domain.order.SubscriptionStatusChangeDto;
+import bloomingblooms.domain.review.ReviewStatus;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -38,7 +40,8 @@ public class OrderCancelService {
   private final DeliveryServiceClient deliveryServiceClient;
   private final FeignHandler feignHandler;
   private final KafkaProducer<ProcessOrderDto> kafkaProducer;
-  private final KafkaProducer<StatusChangeDto> kafkaProducerForOrderQuery;
+  private final KafkaProducer<PickupStatusChangeDto> kafkaProducerForOrderPickup;
+  private final KafkaProducer<SubscriptionStatusChangeDto> kakfaProducerForOrderSubscription;
   private final OrderSQSPublisher orderSQSPublisher;
 
   @Transactional
@@ -105,8 +108,6 @@ public class OrderCancelService {
     Long paymentAmount =
         orderPickup.getOrderPickupTotalAmount() - orderPickup.getOrderPickupCouponAmount();
 
-    log.warn("취소 희망 금액: {}", paymentAmount);
-
     KakaopayCancelRequestDto requestDto =
         KakaopayCancelRequestDto.builder()
             .orderId(orderPickupId)
@@ -117,6 +118,7 @@ public class OrderCancelService {
 
     // 픽업주문 상태를 취소로 변경
     orderPickup.updateStatus(OrderPickupStatus.CANCELED);
+    orderPickup.getOrderPickupProduct().updateCardAndReviewStatus(OrderPickupStatus.CANCELED);
 
     // Rollback 요청
     Map<String, Long> products = new HashMap<>();
@@ -138,12 +140,14 @@ public class OrderCancelService {
     kafkaProducer.send("order-create-rollback", processOrderDto);
 
     // Order-Query로 픽업주문 데이터 update
-    StatusChangeDto statusChangeDto =
-        StatusChangeDto.builder()
-            .id(orderPickupId)
-            .status(OrderPickupStatus.CANCELED.toString())
+    PickupStatusChangeDto pickupStatusChangeDto =
+        PickupStatusChangeDto.builder()
+            .orderId(orderPickupId)
+            .pickupStatus(OrderPickupStatus.CANCELED.toString())
+            .cardStatus(orderPickup.getOrderPickupProduct().getCardIsWritten())
+            .reviewStatus(orderPickup.getOrderPickupProduct().getReviewIsWritten())
             .build();
-    kafkaProducerForOrderQuery.send("pickup-status-update", statusChangeDto);
+    kafkaProducerForOrderPickup.send("pickup-status-update", pickupStatusChangeDto);
 
     // 주문 취소 알림 발송
     orderSQSPublisher.publishOrderCancel(orderPickup.getStoreId(), OrderType.PICKUP);
@@ -178,6 +182,15 @@ public class OrderCancelService {
 
     // 구독주문 상태를 취소로 변경
     orderSubscription.updateStatus(SubscriptionStatus.CANCELED);
+    orderSubscription.updateReviewStatus(ReviewStatus.DISABLED);
+
+    // order-query로 kafka send
+    SubscriptionStatusChangeDto subscriptionStatusChangeDto = SubscriptionStatusChangeDto.builder()
+            .orderId(orderSubscriptionId)
+            .subscriptionStatus(SubscriptionStatus.CANCELED.toString())
+            .reviewStatus(ReviewStatus.DISABLED)
+            .build();
+    kakfaProducerForOrderSubscription.send("subscription-status-update", subscriptionStatusChangeDto);
 
     // Rollback 요청
     Map<String, Long> products = new HashMap<>();

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import bloomingblooms.domain.StatusChangeDto;
 import bloomingblooms.domain.delivery.DeliveryInfoDto;
 import bloomingblooms.domain.notification.delivery.DeliveryStatus;
+import bloomingblooms.domain.order.PickupStatusChangeDto;
 import bloomingblooms.domain.order.ProcessOrderDto;
 import bloomingblooms.response.CommonResponse;
 import java.util.HashMap;
@@ -41,7 +42,7 @@ public class OrderCancelServiceTest {
   @MockBean private DeliveryServiceClient deliveryServiceClient;
   @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
   @MockBean private KafkaProducer<ProcessOrderDto> kafkaProducer;
-  @MockBean private KafkaProducer<StatusChangeDto> kafkaProducerForOrderQuery;
+  @MockBean private KafkaProducer<PickupStatusChangeDto> kafkaProducerForOrderQuery;
   @MockBean private OrderSQSPublisher orderSQSPublisher;
 
   @Test
@@ -72,7 +73,7 @@ public class OrderCancelServiceTest {
 
     doNothing().when(feignHandler).cancel(any());
     doNothing().when(kafkaProducer).send(eq("order-create-rollback"), any(ProcessOrderDto.class));
-    doNothing().when(kafkaProducerForOrderQuery).send(eq("pickup-status-update"), any(StatusChangeDto.class));
+    doNothing().when(kafkaProducerForOrderQuery).send(eq("pickup-status-update"), any(PickupStatusChangeDto.class));
     doNothing().when(orderSQSPublisher).publishOrderCancel(any(), any());
 
     orderCancelService.cancelOrderPickup(orderPickupId);

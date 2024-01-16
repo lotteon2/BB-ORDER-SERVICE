@@ -28,4 +28,7 @@ public interface OrderSubscriptionRepository extends JpaRepository<OrderSubscrip
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate,
       @Param("subscriptionStatus") SubscriptionStatus subscriptionStatus);
+
+  @Query("SELECT os from OrderSubscription os WHERE os.deliveryId IN :deliveryIds")
+  List<OrderSubscription> findAllByDeliveryIds(List<Long> deliveryIds);
 }

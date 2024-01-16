@@ -1,13 +1,13 @@
 package kr.bb.order.dto.response.order;
 
+import bloomingblooms.domain.card.CardStatus;
+import bloomingblooms.domain.review.ReviewStatus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import bloomingblooms.domain.product.ProductInformation;
-import kr.bb.order.entity.CardStatus;
 import kr.bb.order.entity.OrderDeliveryProduct;
-import kr.bb.order.entity.ReviewStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
