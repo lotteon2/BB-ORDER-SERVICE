@@ -110,12 +110,10 @@ public class OrderRestController {
   public CommonResponse<OrderDeliveryPageInfoDto> getOrderDeliveryListForUser(
       @RequestHeader Long userId,
       @PageableDefault(page = 0, size = 5) Pageable pageable,
-      @RequestParam("status") String status) {
-
-    DeliveryStatus orderDeliveryStatus = parseOrderDeliveryStatus(status);
+      @RequestParam(value = "status", required = false) DeliveryStatus status) {
 
     OrderDeliveryPageInfoDto orderDeliveryPageInfoDto =
-        orderListService.getUserOrderDeliveryList(userId, pageable, orderDeliveryStatus);
+        orderListService.getUserOrderDeliveryList(userId, pageable, status);
     return CommonResponse.success(orderDeliveryPageInfoDto);
   }
 
@@ -123,13 +121,11 @@ public class OrderRestController {
   @GetMapping("/store/delivery")
   public CommonResponse<OrderDeliveryPageInfoForSeller> getOrderDeliveryListForSeller(
       @PageableDefault(page = 0, size = 5) Pageable pageable,
-      @RequestParam("status") String status,
+      @RequestParam(value = "status",required = false) DeliveryStatus status,
       @RequestParam("storeId") Long storeId) {
 
-    DeliveryStatus deliveryStatus = parseOrderDeliveryStatus(status);
-
     OrderDeliveryPageInfoForSeller orderDeliveryPageInfoForSeller =
-        orderListService.getOrderDeliveryListForSeller(pageable, deliveryStatus, storeId);
+        orderListService.getOrderDeliveryListForSeller(pageable, status, storeId);
     return CommonResponse.success(orderDeliveryPageInfoForSeller);
   }
 
@@ -170,11 +166,4 @@ public class OrderRestController {
     return CommonResponse.success(null);
   }
 
-  public DeliveryStatus parseOrderDeliveryStatus(String status) {
-    try {
-      return DeliveryStatus.valueOf(status);
-    } catch (IllegalArgumentException e) {
-      throw new RuntimeException("올바르지 않은 정렬값 입니다: " + status);
-    }
-  }
 }
