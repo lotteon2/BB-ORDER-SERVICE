@@ -71,12 +71,11 @@ public class SettlementDataHandler {
 
   public List<StoreIdAndTotalAmountProjection> saveSettlement() {
 
-    LocalDateTime today = LocalDateTime.now();
-    LocalDateTime firstDayOfLastMonth = today.minusMonths(1).withDayOfMonth(1);
-    LocalDateTime lastDayOfLastMonth = today.withDayOfMonth(1).minusDays(1);
+    LocalDateTime endDate = LocalDateTime.now().minusDays(1);
+    LocalDateTime startDate = endDate.minusDays(30);
 
     List<StoreIdAndTotalAmountProjection> totalAmountByStoreId = processingSettlementDataService.getTotalAmountByStoreId(
-        firstDayOfLastMonth, lastDayOfLastMonth);
+        startDate, endDate);
 
     List<Long> storeIdList = getStoreIdFromProjection(totalAmountByStoreId);
     List<SettlementStoreInfoResponse> settlementStoreInfoResponseList = storeServiceClient.getStoreInfoByStoreId(
