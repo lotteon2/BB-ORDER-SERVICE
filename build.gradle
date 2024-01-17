@@ -144,6 +144,7 @@ jacocoTestCoverageVerification {
                                     "**/*SqsService.class",
                                     "**/SettlementDataHandler.class",
                                     "**/ProcessingSettlementDataService.class",
+                                    "**/*CustomImpl.class",
                             ]+Qdomains)
                         })
                 )
@@ -187,6 +188,7 @@ jacocoTestReport {
                             "**/*SqsService.class",
                             "**/SettlementDataHandler.class",
                             "**/ProcessingSettlementDataService.class",
+                            "**/*CustomImpl.class",
                     ]+Qdomains)
                 })
         )
