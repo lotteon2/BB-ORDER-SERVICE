@@ -67,14 +67,6 @@ public class OrderListService {
     return OrderDeliveryPageInfoDto.toDto(totalCnt, orderDeliveryGroupDtos);
   }
 
-//private Map<OrderGroup, String> getOrderGroupToProductIdMap(List<OrderGroup> orderGroupsList) {
-//    orderGroupsList.stream()
-//            .flatMap(orderGroup -> orderGroup.getOrderDeliveryList().stream()
-//                    .flatMap(orderDelivery -> orderDelivery.getOrderDeliveryProducts().stream()
-//                            .map(orderProduct -> orderProduct.getOrderProductId())
-//
-//}
-
   public OrderDeliveryPageInfoForSeller getOrderDeliveryListForSeller(
           Pageable pageable, DeliveryStatus status, Long storeId) {
     Page<OrderDelivery> orderDeliveriesPerPage =
