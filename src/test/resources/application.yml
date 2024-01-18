@@ -1,0 +1,91 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+  # h2 settings
+  h2:
+    console:
+      enabled: true
+      settings:
+        web-allow-others: true
+      path: /h2-console
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:order-service;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false;MODE=MySQL
+  jpa:
+    hibernate:
+      ddl-auto: create
+    generate-ddl: true
+    # Bean이 생성되기 전에 ddl 실행
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        format_sql: true
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    password: 123456
+  kafka:
+    producer:
+      bootstrap-servers: localhost:9092
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      bootstrap-servers: localhost:9092
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      group-id: order-service
+  sql:
+    init:
+      encoding: utf-8
+  main:
+    allow-circular-references: true
+
+cloud:
+  aws:
+    stack:
+      auto: false
+    region:
+      static: ap-northeast-1
+    credentials:
+      ACCESS_KEY_ID: "test"
+      SECRET_ACCESS_KEY: "test"
+    sns:
+      new-order-event:
+        arn: ""
+    sqs:
+      new-order-status-queue:
+        url:
+      delivery-status-update-notification-queue:
+        url:
+      settlement-notification-queue:
+        url:
+      delivery-review-status-queue:
+        name:
+      card-is-register-for-order-history-queue:
+        name:
+      settlement-trigger-queue:
+        name:
+      order-cancel-notification-queue:
+        url:
+      pickup-card-status-order-queue:
+        name:
+      pickup-review-status-order-queue:
+        name:
+
+
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: DEBUG
+
+host:
+  front-url: http://localhost:3000
+
+endpoint:
+  product-service: localhost:8800
+  delivery-service: localhost:8300
+  payment-service: localhost:8100
+  store-service: localhost:8700
+  user-service: localhost:8600
