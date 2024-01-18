@@ -12,7 +12,6 @@ import bloomingblooms.response.CommonResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 import kr.bb.order.dto.feign.KakaopayCancelRequestDto;
-import kr.bb.order.kafka.OrderSubscriptionBatchDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
