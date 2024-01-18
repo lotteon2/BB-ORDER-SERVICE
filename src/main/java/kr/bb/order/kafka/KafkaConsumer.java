@@ -4,6 +4,7 @@ import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.delivery.UpdateOrderSubscriptionStatusDto;
 import bloomingblooms.domain.order.ProcessOrderDto;
+import kr.bb.order.infra.OrderSQSPublisher;
 import kr.bb.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,16 +17,17 @@ import org.springframework.stereotype.Service;
 public class KafkaConsumer<T> {
   private final OrderService orderService;
   private final KafkaProducer<ProcessOrderDto> kafkaProducer;
+  private final OrderSQSPublisher orderSQSPublisher;
 
   @KafkaListener(topics = "order-create", groupId = "order")
   public void processOrder(ProcessOrderDto processOrderDto ) {
     try {
       orderService.processOrder(processOrderDto);
     } catch (Exception e) {
-      // TODO : SQS & 문자로 주문 실패 알려주기 (주문&결제 실패시)
       log.error("proccess order failed rollback will begin. Error is : {}",e.toString());
-      e.printStackTrace();
-      log.error(String.valueOf(e.getCause()));
+
+      // SQS로 고객에게 주문 실패 알림 (주문&결제 실패시)
+      orderSQSPublisher.publishOrderFail(processOrderDto.getUserId(), processOrderDto.getPhoneNumber());
 
       // Kafka로 롤백 보상 패턴 실행
       kafkaProducer.send("order-create-rollback", processOrderDto);

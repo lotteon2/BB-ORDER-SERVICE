@@ -26,7 +26,7 @@ public class OrderSQSPublisher {
   private final ObjectMapper objectMapper;
 
   @Value("${cloud.aws.sqs.new-order-status-queue.url}")
-  private String orderSuccessQueueUrl;
+  private String orderStatusQueueUrl;
 
   @Value("${cloud.aws.sqs.delivery-status-update-notification-queue.url}")
   private String deliveryStatusQueueUrl;
@@ -51,7 +51,7 @@ public class OrderSQSPublisher {
 
       SendMessageRequest sendMessageRequest =
           new SendMessageRequest(
-              orderSuccessQueueUrl, objectMapper.writeValueAsString(orderStatusNotificationData));
+                  orderStatusQueueUrl, objectMapper.writeValueAsString(orderStatusNotificationData));
 
       sqs.sendMessage(sendMessageRequest);
 
@@ -136,6 +136,26 @@ public class OrderSQSPublisher {
 
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  public void publishOrderFail(Long userId, String phoneNumber) {
+    try{
+      OrderStatusNotification orderStatusNotification =
+              OrderStatusNotification.builder().userId(userId).phoneNumber(phoneNumber).build();
+
+      PublishNotificationInformation publishNotificationInformation =
+              PublishNotificationInformation.getData(NotificationURL.ORDER_FAIL, NotificationKind.ORDER_FAIL);
+
+      NotificationData<OrderStatusNotification> orderStatusNotificationData =
+              NotificationData.notifyData(orderStatusNotification, publishNotificationInformation);
+
+      SendMessageRequest sendMessageRequest =
+              new SendMessageRequest(orderStatusQueueUrl, objectMapper.writeValueAsString(orderStatusNotificationData));
+
+      sqs.sendMessage(sendMessageRequest);
+    } catch (JsonProcessingException e) {
+        throw new RuntimeException(e);
     }
   }
 }
