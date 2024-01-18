@@ -29,4 +29,4 @@ jobs:
         
       - name: Make CURL POST request
         run: |
-          curl -X POST http://34.64.218.90:8080/job/order/build --user {{ secrets.JENKINS_TOKEN }} -v
+          curl -X POST http://34.64.218.90:8080/job/order/build --user ${{ secrets.JENKINS_TOKEN }} -v
