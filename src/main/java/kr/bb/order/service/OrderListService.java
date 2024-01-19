@@ -59,7 +59,7 @@ public class OrderListService {
             ProductInformation::getProductId, productInfoDto -> productInfoDto));
 
     List<String> orderGroupIds = getOrderGroupIds(orderGroupsList);
-    List<PaymentInfoDto> paymentInfo = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
+    Map<String, PaymentInfoDto> paymentInfo = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
 
     List<OrderDeliveryGroupDto> orderDeliveryGroupDtos =
         OrderDeliveryGroupDto.toDto(orderGroupsList, storeCounts, productIds, productInfoDtoMap, paymentInfo);
@@ -86,8 +86,7 @@ public class OrderListService {
     Map<String, ProductInformation> productIdMap = productInformation.stream()
             .collect(Collectors.toMap(ProductInformation::getProductId, dto -> dto));
 
-    List<PaymentInfoDto> paymentInfo = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
-    Map<String, PaymentInfoDto> paymentInfoMap = paymentInfo.stream().collect(Collectors.toMap(PaymentInfoDto::getOrderGroupId, dto->dto));
+    Map<String, PaymentInfoDto> paymentInfoMap = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
 
     List<Long> deliveryIds = orderDeliveriesPerPage.stream().map(OrderDelivery::getDeliveryId).collect(
             Collectors.toList());
