@@ -29,7 +29,8 @@ public class OrderGroupRepositoryCustomImpl implements OrderGroupRepositoryCusto
 
         List<OrderGroup> content = queryFactory
                 .selectFrom(orderGroup)
-                .leftJoin(orderGroup.orderDeliveryList, orderDelivery)
+                .distinct()
+                .join(orderGroup.orderDeliveryList, orderDelivery)
                 .where(orderGroup.userId.eq(userId))
                 .where(statusCondition)
                 .orderBy(orderGroup.createdAt.desc())
@@ -39,7 +40,8 @@ public class OrderGroupRepositoryCustomImpl implements OrderGroupRepositoryCusto
 
         long total = queryFactory
                 .selectFrom(orderGroup)
-                .leftJoin(orderGroup.orderDeliveryList, orderDelivery)
+                .distinct()
+                .join(orderGroup.orderDeliveryList, orderDelivery)
                 .where(orderGroup.userId.eq(userId))
                 .where(statusCondition)
                 .fetchCount();
