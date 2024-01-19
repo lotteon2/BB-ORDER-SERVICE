@@ -71,7 +71,7 @@ public class SettlementDataHandler {
 
   public List<StoreIdAndTotalAmountProjection> saveSettlement() {
 
-    LocalDateTime endDate = LocalDateTime.now().minusDays(1);
+    LocalDateTime endDate = LocalDateTime.now();
     LocalDateTime startDate = endDate.minusDays(30);
 
     List<StoreIdAndTotalAmountProjection> totalAmountByStoreId = processingSettlementDataService.getTotalAmountByStoreId(
