@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import kr.bb.order.dto.request.PaymentInfoMapDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
 import kr.bb.order.entity.OrderDeliveryProduct;
@@ -52,7 +53,7 @@ public class OrderListServiceTest {
     when(productServiceClient.getProductInfo(any()))
         .thenReturn(CommonResponse.success(productInformations));
 
-    Map<String, PaymentInfoDto> paymentInfoMap = createPaymentInfoList(orderGroupIds);
+    PaymentInfoMapDto paymentInfoMap = createPaymentInfoList(orderGroupIds);
     when(paymentServiceClient.getPaymentInfo(any()))
         .thenReturn(CommonResponse.success(paymentInfoMap));
 
@@ -75,9 +76,9 @@ public class OrderListServiceTest {
     when(productServiceClient.getProductInfo(any()))
         .thenReturn(CommonResponse.success(productInformations));
 
-    Map<String, PaymentInfoDto> paymentInfoMap = createPaymentInfoList(groupIds);
+    PaymentInfoMapDto paymentInfoMapDto = createPaymentInfoList(groupIds);
     when(paymentServiceClient.getPaymentInfo(any()))
-        .thenReturn(CommonResponse.success(paymentInfoMap));
+        .thenReturn(CommonResponse.success(paymentInfoMapDto));
 
     Map<Long, DeliveryInfoDto> deliveryInfoMap = createDeliveryInfoMap();
     when(deliveryServiceClient.getDeliveryInfo(any()))
@@ -127,8 +128,8 @@ public class OrderListServiceTest {
             .build());
     return productInformations;
   }
-//
-  Map<String, PaymentInfoDto> createPaymentInfoList(List<String> orderGroupIds) {
+
+  PaymentInfoMapDto createPaymentInfoList(List<String> orderGroupIds) {
     Map<String, PaymentInfoDto> paymentInfoMap = new HashMap<>();
     for(String orderGroupId : orderGroupIds){
       paymentInfoMap.put(
@@ -139,7 +140,7 @@ public class OrderListServiceTest {
                       .createdAt(LocalDateTime.now())
                       .build());
     }
-    return paymentInfoMap;
+    return PaymentInfoMapDto.builder().paymentInfoDtoMap(paymentInfoMap).build();
   }
 
   void createOrderDeliveryProduct(List<OrderDelivery> orderDeliveryList) {
