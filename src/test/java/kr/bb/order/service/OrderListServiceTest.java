@@ -52,9 +52,9 @@ public class OrderListServiceTest {
     when(productServiceClient.getProductInfo(any()))
         .thenReturn(CommonResponse.success(productInformations));
 
-    List<PaymentInfoDto> paymentInfoDtos = createPaymentInfoList(orderGroupIds);
+    Map<String, PaymentInfoDto> paymentInfoMap = createPaymentInfoList(orderGroupIds);
     when(paymentServiceClient.getPaymentInfo(any()))
-        .thenReturn(CommonResponse.success(paymentInfoDtos));
+        .thenReturn(CommonResponse.success(paymentInfoMap));
 
     OrderDeliveryPageInfoDto orderDeliveryPageInfoDto =
         orderListService.getUserOrderDeliveryList(userId, pageable, DeliveryStatus.PENDING);
@@ -75,9 +75,9 @@ public class OrderListServiceTest {
     when(productServiceClient.getProductInfo(any()))
         .thenReturn(CommonResponse.success(productInformations));
 
-    List<PaymentInfoDto> paymentInfoDtos = createPaymentInfoList(groupIds);
+    Map<String, PaymentInfoDto> paymentInfoMap = createPaymentInfoList(groupIds);
     when(paymentServiceClient.getPaymentInfo(any()))
-        .thenReturn(CommonResponse.success(paymentInfoDtos));
+        .thenReturn(CommonResponse.success(paymentInfoMap));
 
     Map<Long, DeliveryInfoDto> deliveryInfoMap = createDeliveryInfoMap();
     when(deliveryServiceClient.getDeliveryInfo(any()))
@@ -127,19 +127,19 @@ public class OrderListServiceTest {
             .build());
     return productInformations;
   }
-
-  List<PaymentInfoDto> createPaymentInfoList(List<String> orderGroupIds) {
-    List<PaymentInfoDto> paymentInfoDtos = new ArrayList<>();
-    for (String orderGroupId : orderGroupIds) {
-      paymentInfoDtos.add(
-          PaymentInfoDto.builder()
-              .orderGroupId(orderGroupId)
-              .paymentActualAmount(39800L)
-              .createdAt(LocalDateTime.now())
-              .build());
+//
+  Map<String, PaymentInfoDto> createPaymentInfoList(List<String> orderGroupIds) {
+    Map<String, PaymentInfoDto> paymentInfoMap = new HashMap<>();
+    for(String orderGroupId : orderGroupIds){
+      paymentInfoMap.put(
+              orderGroupId,
+              PaymentInfoDto.builder()
+                      .orderGroupId(orderGroupId)
+                      .paymentActualAmount(39800L)
+                      .createdAt(LocalDateTime.now())
+                      .build());
     }
-
-    return paymentInfoDtos;
+    return paymentInfoMap;
   }
 
   void createOrderDeliveryProduct(List<OrderDelivery> orderDeliveryList) {
