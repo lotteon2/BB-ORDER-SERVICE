@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import kr.bb.order.dto.request.PaymentInfoMapDto;
+import kr.bb.order.dto.request.PaymentInfoRequestDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryDetailsForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryGroupDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryInfoForSeller;
@@ -60,7 +61,10 @@ public class OrderListService {
             ProductInformation::getProductId, productInfoDto -> productInfoDto));
 
     List<String> orderGroupIds = getOrderGroupIds(orderGroupsList);
-    PaymentInfoMapDto paymentInfoMapDto = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
+    PaymentInfoRequestDto paymentInfoRequestDto = PaymentInfoRequestDto.builder()
+            .orderGroupIds(orderGroupIds)
+            .build();
+    PaymentInfoMapDto paymentInfoMapDto = paymentServiceClient.getPaymentInfo(paymentInfoRequestDto).getData();
     Map<String, PaymentInfoDto> paymentInfoDtoMap = paymentInfoMapDto.getPaymentInfoDtoMap();
 
     List<OrderDeliveryGroupDto> orderDeliveryGroupDtos =
@@ -88,7 +92,10 @@ public class OrderListService {
     Map<String, ProductInformation> productIdMap = productInformation.stream()
             .collect(Collectors.toMap(ProductInformation::getProductId, dto -> dto));
 
-    PaymentInfoMapDto paymentInfoMapDto = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
+    PaymentInfoRequestDto paymentInfoRequestDto = PaymentInfoRequestDto.builder()
+            .orderGroupIds(orderGroupIds)
+            .build();
+    PaymentInfoMapDto paymentInfoMapDto = paymentServiceClient.getPaymentInfo(paymentInfoRequestDto).getData();
     Map<String, PaymentInfoDto> paymentInfoDtoMap = paymentInfoMapDto.getPaymentInfoDtoMap();
 
     List<Long> deliveryIds = orderDeliveriesPerPage.stream().map(OrderDelivery::getDeliveryId).collect(
