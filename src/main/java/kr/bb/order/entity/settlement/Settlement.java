@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 public class Settlement extends BaseEntity {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.AUTO)
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long settlementId;
   private String storeName;
   private LocalDateTime settlementDate;
