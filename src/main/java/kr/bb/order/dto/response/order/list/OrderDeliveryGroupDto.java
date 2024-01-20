@@ -5,6 +5,7 @@ import bloomingblooms.domain.product.ProductInformation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import kr.bb.order.entity.delivery.OrderGroup;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,7 +34,11 @@ public class OrderDeliveryGroupDto {
       List<PaymentInfoDto> paymentInfo) {
     List<OrderDeliveryGroupDto> orderDeliveryGroupDtos = new ArrayList<>();
 
+    Map<String, PaymentInfoDto> paymentInfoDtoMap =
+        paymentInfo.stream().collect(Collectors.toMap(PaymentInfoDto::getOrderGroupId, dto -> dto));
+
     for (int i = 0; i < orderGroupsList.size(); i++) {
+      String key = orderGroupsList.get(i).getOrderGroupId();
       OrderDeliveryGroupDto orderDeliveryGroupDto =
           OrderDeliveryGroupDto.builder()
               .key(orderGroupsList.get(i).getOrderGroupId())
@@ -51,8 +56,8 @@ public class OrderDeliveryGroupDto {
                   orderGroupsList.get(i).getOrderDeliveryList().stream()
                       .mapToLong(orderDelivery -> orderDelivery.getOrderDeliveryProducts().size())
                       .sum())
-              .paymentAmount(paymentInfo.get(i).getPaymentActualAmount())
-              .paymentDate(paymentInfo.get(i).getCreatedAt().toLocalDate().toString())
+              .paymentAmount(paymentInfoDtoMap.get(key).getPaymentActualAmount())
+              .paymentDate(paymentInfoDtoMap.get(key).getCreatedAt().toLocalDate().toString())
               .storeCount(storeCounts.get(i))
               .build();
 
