@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import kr.bb.order.dto.request.PaymentInfoMapDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryDetailsForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryGroupDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryInfoForSeller;
@@ -59,10 +60,11 @@ public class OrderListService {
             ProductInformation::getProductId, productInfoDto -> productInfoDto));
 
     List<String> orderGroupIds = getOrderGroupIds(orderGroupsList);
-    Map<String, PaymentInfoDto> paymentInfo = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
+    PaymentInfoMapDto paymentInfoMapDto = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
+    Map<String, PaymentInfoDto> paymentInfoDtoMap = paymentInfoMapDto.getPaymentInfoDtoMap();
 
     List<OrderDeliveryGroupDto> orderDeliveryGroupDtos =
-        OrderDeliveryGroupDto.toDto(orderGroupsList, storeCounts, productIds, productInfoDtoMap, paymentInfo);
+        OrderDeliveryGroupDto.toDto(orderGroupsList, storeCounts, productIds, productInfoDtoMap, paymentInfoDtoMap);
 
     return OrderDeliveryPageInfoDto.toDto(totalCnt, orderDeliveryGroupDtos);
   }
@@ -86,7 +88,8 @@ public class OrderListService {
     Map<String, ProductInformation> productIdMap = productInformation.stream()
             .collect(Collectors.toMap(ProductInformation::getProductId, dto -> dto));
 
-    Map<String, PaymentInfoDto> paymentInfoMap = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
+    PaymentInfoMapDto paymentInfoMapDto = paymentServiceClient.getPaymentInfo(orderGroupIds).getData();
+    Map<String, PaymentInfoDto> paymentInfoDtoMap = paymentInfoMapDto.getPaymentInfoDtoMap();
 
     List<Long> deliveryIds = orderDeliveriesPerPage.stream().map(OrderDelivery::getDeliveryId).collect(
             Collectors.toList());
@@ -102,7 +105,7 @@ public class OrderListService {
         detailsDtoList.add(details);
       }
       OrderDeliveryInfoForSeller infoDto = OrderDeliveryInfoForSeller.toDto(orderDelivery, detailsDtoList,
-              paymentInfoMap, deliveryInfoMap);
+              paymentInfoDtoMap, deliveryInfoMap);
       infoDtoList.add(infoDto);
     }
     return OrderDeliveryPageInfoForSeller.toDto(totalCnt, infoDtoList);

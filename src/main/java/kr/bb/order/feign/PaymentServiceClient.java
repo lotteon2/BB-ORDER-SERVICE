@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import kr.bb.order.dto.feign.KakaopayCancelRequestDto;
+import kr.bb.order.dto.request.PaymentInfoMapDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,7 +26,7 @@ public interface PaymentServiceClient {
   CommonResponse<LocalDateTime> approve(@RequestBody KakaopayApproveRequestDto approveRequestDto);
 
   @PostMapping(value = "/client/paymentInfo")
-  CommonResponse<Map<String, PaymentInfoDto>> getPaymentInfo(@RequestBody List<String> orderGroupIds);
+  CommonResponse<PaymentInfoMapDto> getPaymentInfo(@RequestBody List<String> orderGroupIds);
 
   @GetMapping(value = "/client/paymentDate")
   CommonResponse<String> getPaymentDate(@RequestParam String orderGroupId);
