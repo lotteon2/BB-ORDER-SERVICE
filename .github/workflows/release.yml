@@ -61,7 +61,3 @@ jobs:
           tags: nowgnas/bb-order:${{ steps.tag_version.outputs.new_tag }}, nowgnas/bb-order:latest
       - name: jenkins cicd 
         uses: actions/checkout@v2
-        
-      - name: Make CURL POST request
-        run: |
-          curl -X POST http://34.64.218.90:8080/job/order/build --user {{ secrets.JENKINS_TOKEN }} -v
