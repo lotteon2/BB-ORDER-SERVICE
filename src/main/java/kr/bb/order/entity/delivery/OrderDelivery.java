@@ -59,11 +59,9 @@ public class OrderDelivery extends BaseEntity {
   public static OrderDelivery toEntity(
       String orderDeliveryId,
       Long deliveryId,
-      OrderGroup orderGroup,
       OrderInfoByStore orderInfoByStore) {
     return OrderDelivery.builder()
         .orderDeliveryId(orderDeliveryId)
-        .orderGroup(orderGroup)
         .storeId(orderInfoByStore.getStoreId())
         .deliveryId(deliveryId)
         .orderDeliveryTotalAmount(orderInfoByStore.getTotalAmount())

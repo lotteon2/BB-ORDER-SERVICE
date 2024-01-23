@@ -420,7 +420,6 @@ public class OrderService {
           OrderDelivery.toEntity(
               orderDeliveryId,
               deliveryIds.get(i),
-              orderGroup,
               orderInfo.getOrderInfoByStores().get(i));
       // 연관관계 매핑 : 편의 메서드 적용
       orderDelivery.setOrderGroup(orderGroup);
