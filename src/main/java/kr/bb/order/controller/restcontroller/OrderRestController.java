@@ -15,6 +15,7 @@ import kr.bb.order.dto.response.order.details.OrderDeliveryGroup;
 import kr.bb.order.dto.response.order.details.OrderInfoForStoreForSeller;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoDto;
 import kr.bb.order.dto.response.order.list.OrderDeliveryPageInfoForSeller;
+import kr.bb.order.facade.OrderFacade;
 import kr.bb.order.service.OrderCancelService;
 import kr.bb.order.service.OrderDetailsService;
 import kr.bb.order.service.OrderListService;
@@ -36,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class OrderRestController {
   private final OrderService orderService;
+  private final OrderFacade orderFacade;
   private final OrderListService orderListService;
   private final OrderDetailsService orderDetailsService;
   private final OrderCancelService orderCancelService;
@@ -48,7 +50,7 @@ public class OrderRestController {
   public CommonResponse<KakaopayReadyResponseDto> readyForDirectOrder(
       @RequestHeader Long userId, @RequestBody OrderForDeliveryRequest requestDto) {
     KakaopayReadyResponseDto responseDto =
-        orderService.readyForOrder(userId, requestDto, OrderType.DELIVERY, OrderMethod.DIRECT);
+        orderFacade.readyForOrder(userId, requestDto, OrderType.DELIVERY, OrderMethod.DIRECT);
     return CommonResponse.success(responseDto);
   }
 
@@ -82,7 +84,7 @@ public class OrderRestController {
       @RequestHeader Long userId, @RequestBody OrderForDeliveryRequest requestDto) {
 
     KakaopayReadyResponseDto kakaopayReadyResponseDto =
-        orderService.readyForOrder(userId, requestDto, OrderType.DELIVERY, OrderMethod.CART);
+        orderFacade.readyForOrder(userId, requestDto, OrderType.DELIVERY, OrderMethod.CART);
     return CommonResponse.success(kakaopayReadyResponseDto);
   }
 
@@ -92,7 +94,7 @@ public class OrderRestController {
       @RequestHeader Long userId, @RequestBody OrderForPickupDto requestDto) {
 
     KakaopayReadyResponseDto kakaopayReadyResponseDto =
-        orderService.readyForPickupOrder(userId, requestDto, OrderType.PICKUP);
+        orderFacade.readyForPickupOrder(userId, requestDto, OrderType.PICKUP);
     return CommonResponse.success(kakaopayReadyResponseDto);
   }
 
@@ -101,7 +103,7 @@ public class OrderRestController {
   public CommonResponse<KakaopayReadyResponseDto> readyForSubscriptionOrder(
       @RequestHeader Long userId, @RequestBody OrderForSubscriptionDto requestDto) {
     KakaopayReadyResponseDto kakaopayReadyResponseDto =
-        orderService.readyForSubscriptionOrder(userId, requestDto, OrderType.SUBSCRIBE);
+        orderFacade.readyForSubscriptionOrder(userId, requestDto, OrderType.SUBSCRIBE);
     return CommonResponse.success(kakaopayReadyResponseDto);
   }
 

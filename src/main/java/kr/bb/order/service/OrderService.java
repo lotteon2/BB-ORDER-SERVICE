@@ -12,10 +12,7 @@ import bloomingblooms.domain.delivery.UpdateOrderSubscriptionStatusDto;
 import bloomingblooms.domain.notification.order.OrderType;
 import bloomingblooms.domain.order.*;
 import bloomingblooms.domain.payment.KakaopayApproveRequestDto;
-import bloomingblooms.domain.payment.KakaopayReadyRequestDto;
-import bloomingblooms.domain.payment.KakaopayReadyResponseDto;
 import bloomingblooms.domain.pickup.PickupCreateDto;
-import bloomingblooms.domain.product.IsProductPriceValid;
 import bloomingblooms.domain.review.ReviewStatus;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionDateDto;
@@ -30,9 +27,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.persistence.EntityNotFoundException;
-import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
-import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
-import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
 import kr.bb.order.entity.OrderDeliveryProduct;
 import kr.bb.order.entity.OrderPickupProduct;
 import kr.bb.order.entity.delivery.OrderDelivery;
@@ -45,7 +39,6 @@ import kr.bb.order.entity.redis.SubscriptionOrderInfo;
 import kr.bb.order.entity.subscription.OrderSubscription;
 import kr.bb.order.entity.subscription.SubscriptionStatus;
 import kr.bb.order.exception.PaymentExpiredException;
-import kr.bb.order.feign.DeliveryServiceClient;
 import kr.bb.order.feign.FeignHandler;
 import kr.bb.order.infra.OrderSNSPublisher;
 import kr.bb.order.infra.OrderSQSPublisher;
@@ -71,9 +64,7 @@ public class OrderService {
   private final RedisTemplate<String, OrderInfo> redisTemplate;
   private final RedisTemplate<String, PickupOrderInfo> redisTemplateForPickup;
   private final RedisTemplate<String, SubscriptionOrderInfo> redisTemplateForSubscription;
-  private final OrderManager orderManager;
   private final OrderDeliveryRepository orderDeliveryRepository;
-  private final DeliveryServiceClient deliveryServiceClient;
   private final KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
   private final KafkaProducer<CartDeleteCommand> cartItemDeleteKafkaProducer;
   private final KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
@@ -81,7 +72,6 @@ public class OrderService {
   private final KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   private final KafkaProducer<PickupStatusChangeDto> pickupStatusUpdateKafkaProducer;
   private final KafkaProducer<SubscriptionStatusChangeDto> subscriptionStatusChangeDtoKafkaProducer;
-  private final OrderUtil orderUtil;
   private final OrderDeliveryProductRepository orderDeliveryProductRepository;
   private final OrderPickupProductRepository orderPickupProductRepository;
   private final OrderGroupRepository orderGroupRepository;
@@ -97,176 +87,6 @@ public class OrderService {
     this.orderService = orderService;
   }
 
-  // 바로 주문 / 장바구니 주문 준비 단계
-  @Transactional
-  public KakaopayReadyResponseDto readyForOrder(
-      Long userId,
-      OrderForDeliveryRequest requestDto,
-      OrderType orderType,
-      OrderMethod orderMethod) {
-    // 결제금액, 재고유무, 쿠폰유효유무 feign을 통해 확인하기
-
-    // product-service로 가격 유효성 확인하기
-    List<IsProductPriceValid> priceCheckDtos =
-        createPriceCheckDto(requestDto.getOrderInfoByStores());
-    feignHandler.validatePrice(priceCheckDtos);
-
-    // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
-    List<ValidatePriceDto> validatePriceDtos =
-        createCouponAndDeliveryCheckDto(requestDto.getOrderInfoByStores());
-    ValidatePolicyDto validatePolicyDto =
-        ValidatePolicyDto.builder()
-            .validatePriceDtos(validatePriceDtos)
-            .orderType(OrderType.DELIVERY)
-            .build();
-    feignHandler.validatePurchaseDetails(validatePolicyDto);
-
-    // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
-    orderManager.checkActualAmountIsValid(
-        requestDto.getOrderInfoByStores(), requestDto.getSumOfActualAmount());
-
-    // 임시 주문id 및 결제준비용 dto 생성
-    String tempOrderId = orderUtil.generateUUID();
-    boolean isSubscriptionPay = false;
-
-    KakaopayReadyRequestDto readyRequestDto =
-        KakaopayReadyRequestDto.toDto(
-            userId,
-            tempOrderId,
-            orderType.toString(),
-            requestDto.getOrderInfoByStores(),
-            requestDto.getSumOfActualAmount(),
-            isSubscriptionPay);
-
-    // payment-service로 결제 준비 요청
-    KakaopayReadyResponseDto responseDto = feignHandler.ready(readyRequestDto);
-
-    // 주문정보와 tid를 redis에 저장
-    String itemName = readyRequestDto.getItemName();
-    int quantity = readyRequestDto.getQuantity();
-    OrderInfo orderInfo =
-        OrderInfo.convertToRedisDto(
-            tempOrderId,
-            userId,
-            itemName,
-            quantity,
-            isSubscriptionPay,
-            responseDto.getTid(),
-            requestDto,
-            orderType,
-            orderMethod);
-
-    redisTemplate.opsForValue().set(tempOrderId, orderInfo);
-
-    return responseDto;
-  }
-
-  // 픽업 주문 준비 단계
-  @Transactional
-  public KakaopayReadyResponseDto readyForPickupOrder(
-      Long userId, OrderForPickupDto requestDto, OrderType orderType) {
-
-    List<OrderInfoByStore> orderInfoByStores = new ArrayList<>();
-    OrderInfoByStore orderInfoByStore = createOrderInfoByStore(requestDto);
-    orderInfoByStores.add(orderInfoByStore);
-
-    // product-service로 가격 유효성 확인하기
-    List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
-    feignHandler.validatePrice(priceCheckDtos);
-
-    // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
-    List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    ValidatePolicyDto validatePolicyDto =
-        ValidatePolicyDto.builder()
-            .validatePriceDtos(validatePriceDtos)
-            .orderType(OrderType.PICKUP)
-            .build();
-
-    feignHandler.validatePurchaseDetails(validatePolicyDto);
-
-    // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
-    orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
-
-    // 임시 주문id 및 결제준비용 dto 생성
-    String tempOrderId = orderUtil.generateUUID();
-    boolean isSubscriptionPay = false;
-
-    KakaopayReadyRequestDto readyRequestDto =
-        KakaopayReadyRequestDto.toDto(
-            userId,
-            tempOrderId,
-            orderType.toString(),
-            orderInfoByStores,
-            requestDto.getActualAmount(),
-            isSubscriptionPay);
-
-    // payment-service로 결제 준비 요청
-    KakaopayReadyResponseDto responseDto = feignHandler.ready(readyRequestDto);
-
-    // 주문정보와 tid를 redis에 저장
-    String itemName = readyRequestDto.getItemName();
-    long quantity = readyRequestDto.getQuantity();
-    String tid = responseDto.getTid();
-    PickupOrderInfo pickupOrderInfo =
-        PickupOrderInfo.convertToRedisDto(
-            tempOrderId, userId, itemName, quantity, isSubscriptionPay, tid, requestDto, orderType);
-
-    redisTemplateForPickup.opsForValue().set(tempOrderId, pickupOrderInfo);
-
-    return responseDto;
-  }
-
-  // 구독 주문 준비 단계
-  @Transactional
-  public KakaopayReadyResponseDto readyForSubscriptionOrder(
-      Long userId, OrderForSubscriptionDto requestDto, OrderType orderType) {
-    OrderInfoByStore orderInfoByStore = createOrderInfoByStoreForSubscription(requestDto);
-    List<OrderInfoByStore> orderInfoByStores = List.of(orderInfoByStore);
-
-    // product-service로 가격 유효성 확인하기
-    List<IsProductPriceValid> priceCheckDtos = createPriceCheckDto(orderInfoByStores);
-    feignHandler.validatePrice(priceCheckDtos);
-
-    // store-service로 쿠폰(가격, 상태), 배송비 정책 확인하기
-    List<ValidatePriceDto> validatePriceDtos = createCouponAndDeliveryCheckDto(orderInfoByStores);
-    ValidatePolicyDto validatePolicyDto =
-        ValidatePolicyDto.builder()
-            .validatePriceDtos(validatePriceDtos)
-            .orderType(OrderType.SUBSCRIBE)
-            .build();
-    feignHandler.validatePurchaseDetails(validatePolicyDto);
-
-    // 유효성 검사를 다 통과했다면 이젠 OrderManager를 통해 총 결제 금액이 맞는지 확인하기
-    orderManager.checkActualAmountIsValid(orderInfoByStores, requestDto.getActualAmount());
-
-    // 임시 주문id 및 결제준비용 dto 생성
-    String tempOrderId = orderUtil.generateUUID();
-    Boolean isSubscriptionPay = true;
-
-    KakaopayReadyRequestDto readyRequestDto =
-        KakaopayReadyRequestDto.toDto(
-            userId,
-            tempOrderId,
-            orderType.toString(),
-            orderInfoByStores,
-            requestDto.getActualAmount(),
-            isSubscriptionPay);
-
-    // payment-service로 결제 준비 요청
-    KakaopayReadyResponseDto responseDto = feignHandler.ready(readyRequestDto);
-
-    // 주문정보와 tid를 redis에 저장
-    String itemName = readyRequestDto.getItemName();
-    long quantity = readyRequestDto.getQuantity();
-    String tid = responseDto.getTid();
-    SubscriptionOrderInfo subscriptionOrderInfo =
-        SubscriptionOrderInfo.convertToRedisDto(
-            tempOrderId, userId, itemName, quantity, isSubscriptionPay, tid, requestDto, orderType);
-
-    redisTemplateForSubscription.opsForValue().set(tempOrderId, subscriptionOrderInfo);
-
-    return responseDto;
-  }
 
   // (바로주문, 장바구니 / 픽업주문 / 구독주문) 타 서비스로 kafka 주문 요청 처리 [쿠폰사용, 재고차감]
   @Transactional
@@ -415,7 +235,7 @@ public class OrderService {
     // 주문 정보 저장
     for (int i = 0; i < orderInfo.getOrderInfoByStores().size(); i++) {
       // 1. 주문_배송 entity
-      String orderDeliveryId = orderUtil.generateUUID();
+      String orderDeliveryId = OrderUtil.generateUUID();
       OrderDelivery orderDelivery =
           OrderDelivery.toEntity(
               orderDeliveryId,
@@ -648,74 +468,4 @@ public class OrderService {
     return LocalDateTime.of(date, time);
   }
 
-  public List<IsProductPriceValid> createPriceCheckDto(List<OrderInfoByStore> orderInfoByStores) {
-    List<IsProductPriceValid> list = new ArrayList<>();
-    for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
-      for (ProductCreate productCreate : orderInfoByStore.getProducts()) {
-        String productId = productCreate.getProductId();
-        Long price = productCreate.getPrice();
-        IsProductPriceValid dto = IsProductPriceValid.toDto(productId, price);
-        list.add(dto);
-      }
-    }
-    return list;
-  }
-
-  public List<ValidatePriceDto> createCouponAndDeliveryCheckDto(
-      List<OrderInfoByStore> orderInfoByStores) {
-    List<ValidatePriceDto> list = new ArrayList<>();
-    for (OrderInfoByStore orderInfoByStore : orderInfoByStores) {
-      ValidatePriceDto dto = ValidatePriceDto.toDto(orderInfoByStore);
-      list.add(dto);
-    }
-    return list;
-  }
-
-  public OrderInfoByStore createOrderInfoByStore(OrderForPickupDto requestDto) {
-    List<ProductCreate> products = new ArrayList<>();
-    ProductCreate productCreate =
-        ProductCreate.builder()
-            .productId(requestDto.getProduct().getProductId())
-            .productName(requestDto.getProduct().getProductName())
-            .quantity(requestDto.getProduct().getQuantity())
-            .price((requestDto.getProduct().getPrice()))
-            .productThumbnailImage(requestDto.getProduct().getProductThumbnailImage())
-            .build();
-    products.add(productCreate);
-
-    return OrderInfoByStore.builder()
-        .storeId(requestDto.getStoreId())
-        .storeName(requestDto.getStoreName())
-        .products(products)
-        .totalAmount(requestDto.getTotalAmount())
-        .deliveryCost(requestDto.getDeliveryCost())
-        .couponId(requestDto.getCouponId())
-        .couponAmount(requestDto.getCouponAmount())
-        .actualAmount(requestDto.getActualAmount())
-        .build();
-  }
-
-  public OrderInfoByStore createOrderInfoByStoreForSubscription(
-      OrderForSubscriptionDto requestDto) {
-    ProductCreate productCreate =
-        ProductCreate.builder()
-            .productId(requestDto.getProducts().getProductId())
-            .productName(requestDto.getProducts().getProductName())
-            .quantity(requestDto.getProducts().getQuantity())
-            .price((requestDto.getProducts().getPrice()))
-            .productThumbnailImage(requestDto.getProducts().getProductThumbnailImage())
-            .build();
-    List<ProductCreate> products = List.of(productCreate);
-
-    return OrderInfoByStore.builder()
-        .storeId(requestDto.getStoreId())
-        .storeName(requestDto.getStoreName())
-        .products(products)
-        .totalAmount(requestDto.getTotalAmount())
-        .deliveryCost(requestDto.getDeliveryCost())
-        .couponId(requestDto.getCouponId())
-        .couponAmount(requestDto.getCouponAmount())
-        .actualAmount(requestDto.getActualAmount())
-        .build();
-  }
 }
