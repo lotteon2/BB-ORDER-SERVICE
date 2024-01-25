@@ -77,8 +77,9 @@ cloud:
 logging:
   level:
     org:
-      hibernate:
-        SQL: DEBUG
+      springframework:
+        transaction:
+          interceptor: TRACE
 
 host:
   front-url: http://localhost:3000

@@ -4,8 +4,8 @@ import bloomingblooms.domain.batch.SubscriptionBatchDtoList;
 import bloomingblooms.domain.delivery.UpdateOrderStatusDto;
 import bloomingblooms.domain.delivery.UpdateOrderSubscriptionStatusDto;
 import bloomingblooms.domain.order.ProcessOrderDto;
+import kr.bb.order.facade.OrderFacade;
 import kr.bb.order.infra.OrderSQSPublisher;
-import kr.bb.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -15,14 +15,14 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class KafkaConsumer<T> {
-  private final OrderService orderService;
+  private final OrderFacade orderFacade;
   private final KafkaProducer<ProcessOrderDto> kafkaProducer;
   private final OrderSQSPublisher orderSQSPublisher;
 
   @KafkaListener(topics = "order-create", groupId = "order")
   public void processOrder(ProcessOrderDto processOrderDto ) {
     try {
-      orderService.processOrder(processOrderDto);
+      orderFacade.processOrder(processOrderDto);
     } catch (Exception e) {
       log.error("proccess order failed rollback will begin. Error is : {}",e.toString());
 
@@ -36,17 +36,17 @@ public class KafkaConsumer<T> {
 
   @KafkaListener(topics = "order-delivery-status", groupId = "order")
   public void updateOrderDeliveryStatus(UpdateOrderStatusDto updateOrderStatusDto) {
-      orderService.updateOrderDeliveryStatus(updateOrderStatusDto);
+    orderFacade.updateOrderDeliveryStatus(updateOrderStatusDto);
   }
 
   @KafkaListener(topics = "order-subscription-status", groupId = "order")
   public void updateOrderSubscriptionStatus(
           UpdateOrderSubscriptionStatusDto updateOrderSubscriptionStatusDto ){
-    orderService.updateOrderSubscriptionStatus(updateOrderSubscriptionStatusDto);
+    orderFacade.updateOrderSubscriptionStatus(updateOrderSubscriptionStatusDto);
   }
 
   @KafkaListener(topics = "subscription-batch", groupId ="order")
   public void processSubscriptionBatch(SubscriptionBatchDtoList orderSubscriptionBatchDtoList){
-    orderService.processSubscriptionBatch(orderSubscriptionBatchDtoList);
+    orderFacade.processSubscriptionBatch(orderSubscriptionBatchDtoList);
   }
 }

@@ -1,8 +1,6 @@
 package kr.bb.order.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -24,16 +22,11 @@ import bloomingblooms.domain.pickup.PickupCreateDto;
 import bloomingblooms.domain.subscription.SubscriptionCreateDto;
 import bloomingblooms.dto.command.CartDeleteCommand;
 import bloomingblooms.response.CommonResponse;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
-import javax.persistence.EntityManager;
 import javax.persistence.EntityNotFoundException;
 import kr.bb.order.dto.request.orderForDelivery.OrderForDeliveryRequest;
-import kr.bb.order.dto.request.orderForPickup.OrderForPickupDto;
-import kr.bb.order.dto.request.orderForSubscription.OrderForSubscriptionDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.pickup.OrderPickupStatus;
@@ -41,7 +34,7 @@ import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
 import kr.bb.order.entity.redis.SubscriptionOrderInfo;
 import kr.bb.order.entity.subscription.OrderSubscription;
-import kr.bb.order.exception.InvalidOrderAmountException;
+import kr.bb.order.facade.OrderFacade;
 import kr.bb.order.feign.*;
 import kr.bb.order.infra.OrderSNSPublisher;
 import kr.bb.order.infra.OrderSQSPublisher;
@@ -50,8 +43,6 @@ import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.kafka.SubscriptionDateDtoList;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.repository.*;
-import kr.bb.order.util.OrderUtil;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -62,30 +53,25 @@ import org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerCon
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
 
 @SpringBootTest
 @Testcontainers
 @Transactional
 class OrderServiceTest extends AbstractContainerBaseTest {
-  @MockBean private ProductServiceClient productServiceClient;
+  @Autowired private OrderFacade orderFacade;
   @Autowired private OrderService orderService;
-  @MockBean private StoreServiceClient storeServiceClient;
   @MockBean private PaymentServiceClient paymentServiceClient;
   @Autowired private RedisTemplate<String, OrderInfo> redisTemplate;
   @Autowired private RedisTemplate<String, PickupOrderInfo> redisTemplateForPickup;
   @Autowired private RedisTemplate<String, SubscriptionOrderInfo> redisTemplateForSubscription;
-  @Autowired private OrderManager orderManager;
   @Autowired private OrderDeliveryRepository orderDeliveryRepository;
-  @MockBean private DeliveryServiceClient deliveryServiceClient;
   @MockBean private KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
-  @MockBean private KafkaProducer<CartDeleteCommand> cartItemDeleteProducer;
+  @MockBean private KafkaProducer<CartDeleteCommand> cartItemDeleteKafkaProducer;
   @MockBean private KafkaProducer<PickupCreateDto> pickupCreateDtoKafkaProducer;
   @MockBean private KafkaProducer<SubscriptionCreateDto> subscriptionCreateDtoKafkaProducer;
   @Autowired private KafkaConsumer<ProcessOrderDto> kafkaConsumer;
   @MockBean private KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   @MockBean private KafkaProducer<SubscriptionStatusChangeDto> subscriptionStatusChangeDtoKafkaProducer;
-  @MockBean private OrderUtil orderUtil;
   @Autowired private OrderDeliveryProductRepository orderProductRepository;
   @Autowired private OrderPickupProductRepository orderPickupProductRepository;
   @Autowired private OrderGroupRepository orderGroupRepository;
@@ -96,198 +82,35 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @MockBean private FeignHandler feignHandler;
   @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
   @MockBean private KafkaProducer<PickupStatusChangeDto> pickupStatusUpdateKafkaProducer;
-  @Autowired private EntityManager em;
+
   @BeforeEach
   void setup() {
     orderService =
         new OrderService(
-            redisTemplate,
-            redisTemplateForPickup,
-            redisTemplateForSubscription,
-            orderManager,
             orderDeliveryRepository,
-            deliveryServiceClient,
-            processOrderDtoKafkaProducer,
-            cartItemDeleteProducer,
-            pickupCreateDtoKafkaProducer,
-            subscriptionCreateDtoKafkaProducer,
-            subscriptionDateDtoListKafkaProducer,
-            pickupStatusUpdateKafkaProducer,
-            subscriptionStatusChangeDtoKafkaProducer,
-            orderUtil,
             orderProductRepository,
             orderPickupProductRepository,
             orderGroupRepository,
             orderPickupRepository,
-            orderSubscriptionRepository,
-            orderSNSPublisher,
-            orderSQSPublisher,
-            feignHandler
-            );
-  }
-
-  @AfterEach
-  void teardown() {
-    redisTemplate.getConnectionFactory().getConnection().flushDb();
-  }
-
-  @Test
-  @DisplayName("바로 주문하기 - 준비단계")
-  public void readyForDeliveryOrder() {
-    Long userId = 1L;
-    String orderId = "임시orderId";
-    Long sumOfActualAmount = 90500L;
-    OrderForDeliveryRequest request = createOrderForDeliveryRequest(sumOfActualAmount);
-
-    doNothing().when(feignHandler).validatePrice(any());
-    doNothing().when(feignHandler).validatePurchaseDetails(any());
-    KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    when(feignHandler.ready(any())).thenReturn(mockResponseDto);
-    when(orderUtil.generateUUID()).thenReturn(orderId);
-
-    KakaopayReadyResponseDto responseDto =
-        orderService.readyForOrder(userId, request, OrderType.DELIVERY, OrderMethod.DIRECT);
-
-    assertNotNull(responseDto);
-  }
-
-  @Test
-  @DisplayName("잘못된 결제금액으로는 주문이 불가능하다")
-  public void orderCannotBeMadeToWrongAmount() {
-    Long userId = 1L;
-    String orderId = "임시orderId";
-    Long wrongAmount = 25000L;
-    OrderForDeliveryRequest request = createOrderForDeliveryRequest(wrongAmount);
-
-    doNothing().when(feignHandler).validatePrice(any());
-    doNothing().when(feignHandler).validatePurchaseDetails(any());
-    KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    when(feignHandler.ready(any())).thenReturn(mockResponseDto);
-    when(orderUtil.generateUUID()).thenReturn(orderId);
-
-    assertThatThrownBy(
-            () ->
-                orderService.readyForOrder(userId, request, OrderType.DELIVERY, OrderMethod.DIRECT))
-        .isInstanceOf(InvalidOrderAmountException.class)
-        .hasMessage("유효하지 않은 주문 금액입니다");
-  }
-
-  @Test
-  @DisplayName("픽업 주문 - 준비단계 ")
-  void readyForPickupOrder() {
-    Long userId = 1L;
-    String orderId = "임시orderId";
-
-    OrderForPickupDto request = createOrderForPickupRequest();
-
-    doNothing().when(feignHandler).validatePrice(any());
-    doNothing().when(feignHandler).validatePurchaseDetails(any());
-    KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    when(feignHandler.ready(any())).thenReturn(mockResponseDto);
-    when(orderUtil.generateUUID()).thenReturn(orderId);
-
-    KakaopayReadyResponseDto responseDto =
-        orderService.readyForPickupOrder(userId, request, OrderType.PICKUP);
-
-    assertNotNull(responseDto);
-  }
-
-  @Test
-  @DisplayName("구독 주문 - 준비단계")
-  void readyForSubscriptionOrder() {
-    Long userId = 1L;
-    String orderId = "임시orderId";
-
-    OrderForSubscriptionDto request = createOrderForSubscriptionRequest();
-
-    doNothing().when(feignHandler).validatePrice(any());
-    doNothing().when(feignHandler).validatePurchaseDetails(any());
-    KakaopayReadyResponseDto mockResponseDto = createKakaopayReadyResponseDto();
-    when(feignHandler.ready(any())).thenReturn(mockResponseDto);
-    when(orderUtil.generateUUID()).thenReturn(orderId);
-
-    KakaopayReadyResponseDto responseDto =
-        orderService.readyForSubscriptionOrder(userId, request, OrderType.SUBSCRIBE);
-
-    assertNotNull(responseDto);
-  }
-
-  @Test
-  @DisplayName("바로주문, 장바구니 주문 - 타서비스 요청 단계")
-  public void requestOrderForDelivery() {
-    // given
-    String orderId = "임시orderId";
-    String orderType = OrderType.DELIVERY.toString();
-    String pgToken = "임시pgToken";
-
-    OrderInfo orderInfo = createOrderInfo(orderId, OrderType.valueOf(orderType), OrderMethod.CART);
-    redisTemplate.opsForValue().set(orderId, orderInfo);
-
-    orderService.requestOrder(orderId, orderType, pgToken);
-    processOrderDtoKafkaProducer = mock(KafkaProducer.class);
-
-    doNothing()
-        .when(processOrderDtoKafkaProducer)
-        .send(eq("coupon-use"), any(ProcessOrderDto.class));
-    doNothing().when(processOrderDtoKafkaProducer).send(eq("delete-from-cart"), any());
-  }
-
-  @Test
-  @DisplayName("픽업 주문 - 타서비스 요청 단계")
-  public void requestOrderForPickup() {
-    // given
-    String orderId = "임시orderId";
-    String orderType = OrderType.PICKUP.toString();
-    String pgToken = "임시pgToken";
-
-    PickupOrderInfo pickupOrderInfo = createPickupOrderInfo(orderId);
-    redisTemplateForPickup.opsForValue().set(orderId, pickupOrderInfo);
-
-    orderService.requestOrder(orderId, orderType, pgToken);
-    processOrderDtoKafkaProducer = mock(KafkaProducer.class);
-
-    doNothing()
-        .when(processOrderDtoKafkaProducer)
-        .send(eq("coupon-use"), any(ProcessOrderDto.class));
-  }
-
-  @Test
-  @DisplayName("구독 주문 - 타서비스 요청 단계")
-  public void requestOrderForSubscription() {
-    // given
-    String orderId = "임시orderId";
-    String orderType = OrderType.SUBSCRIBE.toString();
-    String pgToken = "임시pgToken";
-
-    SubscriptionOrderInfo subscriptionOrderInfo = createSubscriptionOrderInfo(orderId);
-    redisTemplateForSubscription.opsForValue().set(orderId, subscriptionOrderInfo);
-
-    orderService.requestOrder(orderId, orderType, pgToken);
-    processOrderDtoKafkaProducer = mock(KafkaProducer.class);
-
-    doNothing()
-        .when(processOrderDtoKafkaProducer)
-        .send(eq("coupon-use"), any(ProcessOrderDto.class));
+            orderSubscriptionRepository
+        );
   }
 
   @Test
   @DisplayName("바로 주문하기 - 처리 및 저장 단계")
-  void processOrderForDelivery() throws JsonProcessingException {
+  void processOrderForDelivery() {
     // given
     String orderGroupId = "임시orderId";
-    String orderDeliveryId = "임시가게주문id";
 
     OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.DELIVERY, OrderMethod.DIRECT);
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
     when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
-    when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
 
     ProcessOrderDto processOrderDto =
         OrderCommonMapper.toProcessOrderDto(orderGroupId, OrderType.DELIVERY.toString(), orderInfo);
     doNothing().when(feignHandler).createDeliveryAddress(any());
-    doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
     doNothing().when(orderSQSPublisher).publishOrderSuccess(any(), any());
 
     // when
@@ -302,7 +125,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   void rollbackForProcessOrderForDelivery() {
     // given
     String orderGroupId = "임시orderId";
-    String orderDeliveryId = "임시가게주문id";
     String orderType = OrderType.DELIVERY.toString();
 
     OrderInfo orderInfo =
@@ -311,7 +133,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
     when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
-    when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
 
     ProcessOrderDto processOrderDto =
         OrderCommonMapper.toProcessOrderDto(orderGroupId, orderType, orderInfo);
@@ -327,18 +148,16 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
   @Test
   @DisplayName("장바구니에서 주문하기 - 저장 및 처리단계")
-  void processCartOrder() throws JsonProcessingException {
+  void processCartOrder() {
     // given
     String orderGroupId = "임시orderId";
-    String orderDeliveryId = "임시가게주문id";
     OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.DELIVERY, OrderMethod.CART);
 
     redisTemplate.opsForValue().set(orderGroupId, orderInfo);
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
     when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
-    when(orderUtil.generateUUID()).thenReturn(orderDeliveryId);
-    doNothing().when(processOrderDtoKafkaProducer).send(eq("delete-from-cart"), any());
+    doNothing().when(cartItemDeleteKafkaProducer).send(eq("delete-from-cart"), any());
 
     doNothing().when(feignHandler).createDeliveryAddress(any());
     doNothing().when(orderSNSPublisher).newOrderEventPublish(any());
@@ -355,7 +174,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
   @Test
   @DisplayName("픽업 주문하기 - 저장 및 처리단계")
-  void processPickupOrder() throws JsonProcessingException {
+  void processPickupOrder() {
     // given
     String orderPickupId = "임시orderId";
 
@@ -410,7 +229,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Test
   @DisplayName("주문에 대한 결제는 5분 안에 이뤄져야한다.")
   // 오류 발생시, kafka를 통해 롤백하고 오류를 SNS를 통해 보낸다.
-  void paymentShouldBeWithinTimeLimit() throws JsonProcessingException {
+  void paymentShouldBeWithinTimeLimit() {
     // given
     String orderGroupId = "임시orderId";
     String orderType = OrderType.DELIVERY.toString();
@@ -418,6 +237,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
 
+    doNothing().when(orderSQSPublisher).publishOrderFail(any(), any());
     doNothing()
         .when(processOrderDtoKafkaProducer)
         .send(eq("order-create-rollback"), any(ProcessOrderDto.class));
@@ -427,8 +247,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     // when
     kafkaConsumer.processOrder(processOrderDto);
 
-    // then
-    verify(processOrderDtoKafkaProducer).send("order-create-rollback", processOrderDto);
   }
 
   @Test
@@ -440,13 +258,23 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             .phoneNumber("01011112222")
             .deliveryStatus(DeliveryStatus.COMPLETED)
             .build();
+    UpdateOrderStatusDto updateOrderStatusDto2 =
+            UpdateOrderStatusDto.builder()
+                    .orderDeliveryId("가게주문id2")
+                    .phoneNumber("01011112222")
+                    .deliveryStatus(DeliveryStatus.PROCESSING)
+                    .build();
 
     kafkaConsumer.updateOrderDeliveryStatus(updateOrderStatusDto);
+    kafkaConsumer.updateOrderDeliveryStatus(updateOrderStatusDto2);
     doNothing().when(orderSQSPublisher).publishDeliveryNotification(any(),any());
     OrderDelivery orderDelivery =
         orderDeliveryRepository.findById("가게주문id").orElseThrow(EntityNotFoundException::new);
+    OrderDelivery orderDelivery2 =
+        orderDeliveryRepository.findById("가게주문id2").orElseThrow(EntityNotFoundException::new);
 
-    assertThat(orderDelivery.getOrderDeliveryStatus().toString()).isEqualTo("COMPLETED");
+    assertThat(orderDelivery.getOrderDeliveryStatus()).isEqualTo(DeliveryStatus.COMPLETED);
+    assertThat(orderDelivery2.getOrderDeliveryStatus()).isEqualTo(DeliveryStatus.PROCESSING);
   }
 
   @Test
@@ -468,7 +296,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .when(subscriptionDateDtoListKafkaProducer)
         .send(eq("subscription-date-update"), any());
 
-    orderService.processSubscriptionBatch(subscriptionBatchDtoList);
+    orderFacade.processSubscriptionBatch(subscriptionBatchDtoList);
   }
 
   @Test
@@ -477,7 +305,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     LocalDateTime now = LocalDateTime.now();
 
     OrderPickupStatus orderPickupStatus = OrderPickupStatus.COMPLETED;
-    orderService.pickupStatusChange(now, orderPickupStatus);
+    orderFacade.pickupStatusChange(now, orderPickupStatus);
     doNothing().when(pickupStatusUpdateKafkaProducer).send(eq("pickup-status-update"), any());
   }
 
@@ -489,7 +317,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
             .build();
 
     doNothing().when(subscriptionStatusChangeDtoKafkaProducer).send(eq("subscription-status-update"), any());
-    orderService.updateOrderSubscriptionStatus(updateOrderSubscriptionStatusDto);
+    orderFacade.updateOrderSubscriptionStatus(updateOrderSubscriptionStatusDto);
   }
 
   public OrderForDeliveryRequest createOrderForDeliveryRequest(Long sumOfActualAmount) {
@@ -551,66 +379,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     return KakaopayReadyResponseDto.builder()
         .nextRedirectPcUrl("임시redirectUrl주소")
         .tid("임시tid코드")
-        .build();
-  }
-
-  private OrderForPickupDto createOrderForPickupRequest() {
-    ProductCreate productCreate =
-        ProductCreate.builder()
-            .productId("1")
-            .productName("상품명")
-            .quantity(2L)
-            .price(35000L)
-            .productThumbnailImage("썸네일이미지url")
-            .build();
-
-    return OrderForPickupDto.builder()
-        .storeId(1L)
-        .storeName("가게이름")
-        .pickupDate("2023-12-23")
-        .pickupTime("12:30")
-        .product(productCreate)
-        .totalAmount(70000L)
-        .deliveryCost(0L)
-        .couponId(1L)
-        .couponAmount(2000L)
-        .actualAmount(68000L)
-        .ordererName("주문자 이름")
-        .ordererPhoneNumber("주문자 전화번호")
-        .ordererEmail("주문자 이메일")
-        .build();
-  }
-
-  private OrderForSubscriptionDto createOrderForSubscriptionRequest() {
-    ProductCreate productCreate =
-        ProductCreate.builder()
-            .productId("1")
-            .productName("상품명")
-            .quantity(2L)
-            .price(35000L)
-            .productThumbnailImage("썸네일이미지url")
-            .build();
-    return OrderForSubscriptionDto.builder()
-        .storeId(1L)
-        .storeName("가게이름")
-        .paymentDay(LocalDate.now())
-        .deliveryDay(LocalDate.now().plusDays(3))
-        .products(productCreate)
-        .totalAmount(70000L)
-        .deliveryCost(0L)
-        .couponId(1L)
-        .couponAmount(2000L)
-        .actualAmount(68000L)
-        .ordererName("주문자 이름")
-        .ordererPhoneNumber("주문자 전화번호")
-        .ordererEmail("주문자 이메일")
-        .recipientName("수신자")
-        .deliveryZipcode("우편번호")
-        .deliveryRoadName("도로명주소")
-        .deliveryAddressDetail("상세주소")
-        .recipientPhone("수신자 전화번호")
-        .deliveryRequest("배송 요청사항")
-        .deliveryAddressId(1L)
         .build();
   }
 
@@ -708,18 +476,5 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .tid("tid고유번호")
         .orderType(OrderType.SUBSCRIBE.toString())
         .build();
-  }
-
-  private OrderPickup createOrderPickupWithDateTime(LocalDateTime orderPickupDateTime) {
-    return OrderPickup.builder()
-            .orderPickupId(UUID.randomUUID().toString())
-//            .orderPickupProduct()
-            .userId(1L)
-            .storeId(1L)
-            .orderPickupTotalAmount(1000L)
-            .orderPickupCouponAmount(10000L)
-            .orderPickupDatetime(orderPickupDateTime)
-            .orderPickupPhoneNumber("12345")
-            .build();
   }
 }

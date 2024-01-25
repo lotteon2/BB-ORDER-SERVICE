@@ -36,7 +36,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 public class OrderRestController {
-  private final OrderService orderService;
   private final OrderFacade orderFacade;
   private final OrderListService orderListService;
   private final OrderDetailsService orderDetailsService;
@@ -62,7 +61,7 @@ public class OrderRestController {
       @RequestParam("pg_token") String pgToken,
       HttpServletResponse httpServletResponse)
       throws IOException {
-    orderService.requestOrder(orderId, orderType, pgToken);
+    orderFacade.requestOrder(orderId, orderType, pgToken);
     httpServletResponse.sendRedirect(String.format("%s/payment/approve", FRONTEND_URL));
   }
 
