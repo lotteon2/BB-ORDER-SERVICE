@@ -58,16 +58,14 @@ import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.service.OrderManager;
 import kr.bb.order.service.OrderService;
 import kr.bb.order.util.OrderUtil;
+import kr.bb.order.util.RedisOperation;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class OrderFacade {
-  private final RedisTemplate<String, OrderInfo> redisTemplate;
-  private final RedisTemplate<String, PickupOrderInfo> redisTemplateForPickup;
-  private final RedisTemplate<String, SubscriptionOrderInfo> redisTemplateForSubscription;
+public class OrderFacade<T> {
+  private final RedisOperation redisOperation;
 
   private final FeignHandler feignHandler;
   private final OrderManager orderManager;
@@ -142,12 +140,12 @@ public class OrderFacade {
             orderType,
             orderMethod);
 
-    redisTemplate.opsForValue().set(tempOrderId, orderInfo);
+    redisOperation.saveIntoRedis(tempOrderId, orderInfo);
 
     return responseDto;
   }
 
-  // 픽업 주문 준비 단계
+// 픽업 주문 준비 단계
   public KakaopayReadyResponseDto readyForPickupOrder(
       Long userId, OrderForPickupDto requestDto, OrderType orderType) {
 
@@ -196,7 +194,7 @@ public class OrderFacade {
         PickupOrderInfo.convertToRedisDto(
             tempOrderId, userId, itemName, quantity, isSubscriptionPay, tid, requestDto, orderType);
 
-    redisTemplateForPickup.opsForValue().set(tempOrderId, pickupOrderInfo);
+    redisOperation.saveIntoRedis(tempOrderId, pickupOrderInfo);
 
     return responseDto;
   }
@@ -249,7 +247,7 @@ public class OrderFacade {
         SubscriptionOrderInfo.convertToRedisDto(
             tempOrderId, userId, itemName, quantity, isSubscriptionPay, tid, requestDto, orderType);
 
-    redisTemplateForSubscription.opsForValue().set(tempOrderId, subscriptionOrderInfo);
+    redisOperation.saveIntoRedis(tempOrderId, subscriptionOrderInfo);
 
     return responseDto;
   }
@@ -259,35 +257,35 @@ public class OrderFacade {
   public void requestOrder(String orderId, String orderType, String pgToken) {
     // redis에서 정보 가져오기 및 TTL 갱신
     if (orderType.equals(OrderType.DELIVERY.toString())) {
-      OrderInfo orderInfo = redisTemplate.opsForValue().get(orderId);
+      OrderInfo orderInfo = redisOperation.findFromRedis(orderId, OrderInfo.class);
       if (orderInfo == null) throw new PaymentExpiredException();
 
       orderInfo.setPgToken(pgToken);
-      redisTemplate.opsForValue().set(orderId, orderInfo);
-      redisTemplate.expire(orderId, 5, TimeUnit.MINUTES);
+      redisOperation.saveIntoRedis(orderId, orderInfo);
+      redisOperation.expire(orderId, 5, TimeUnit.MINUTES);
 
       ProcessOrderDto processOrderDto =
               OrderCommonMapper.toProcessOrderDto(orderId, orderType, orderInfo);
       processOrderDtoKafkaProducer.send("coupon-use", processOrderDto);
     } else if (orderType.equals(OrderType.PICKUP.toString())) {
-      PickupOrderInfo pickupOrderInfo = redisTemplateForPickup.opsForValue().get(orderId);
+      PickupOrderInfo pickupOrderInfo = redisOperation.findFromRedis(orderId, PickupOrderInfo.class);
       if (pickupOrderInfo == null) throw new PaymentExpiredException();
 
       pickupOrderInfo.setPgToken(pgToken);
-      redisTemplateForPickup.opsForValue().set(orderId, pickupOrderInfo);
-      redisTemplateForPickup.expire(orderId, 5, TimeUnit.MINUTES);
+      redisOperation.saveIntoRedis(orderId, pickupOrderInfo);
+      redisOperation.expire(orderId, 5, TimeUnit.MINUTES);
 
       ProcessOrderDto processOrderDto =
               OrderCommonMapper.toDtoForOrderPickup(orderId, pickupOrderInfo);
       processOrderDtoKafkaProducer.send("coupon-use", processOrderDto);
     } else {
       SubscriptionOrderInfo subscriptionOrderInfo =
-              redisTemplateForSubscription.opsForValue().get(orderId);
+              redisOperation.findFromRedis(orderId, SubscriptionOrderInfo.class);
       if (subscriptionOrderInfo == null) throw new PaymentExpiredException();
 
       subscriptionOrderInfo.setPgToken(pgToken);
-      redisTemplateForSubscription.opsForValue().set(orderId, subscriptionOrderInfo);
-      redisTemplateForSubscription.expire(orderId, 5, TimeUnit.MINUTES);
+      redisOperation.saveIntoRedis(orderId, subscriptionOrderInfo);
+      redisOperation.expire(orderId, 5, TimeUnit.MINUTES);
 
       ProcessOrderDto processOrderDto =
               OrderCommonMapper.toDtoForOrderSubscription(orderId, subscriptionOrderInfo);
@@ -300,7 +298,7 @@ public class OrderFacade {
     String orderMethod = processOrderDto.getOrderMethod();
     String orderType = processOrderDto.getOrderType();
     if (orderType.equals(OrderType.DELIVERY.toString())) {
-      OrderInfo orderInfo = redisTemplate.opsForValue().get(processOrderDto.getOrderId());
+      OrderInfo orderInfo = redisOperation.findFromRedis(processOrderDto.getOrderId(), OrderInfo.class);
       if (orderInfo == null) throw new PaymentExpiredException();
 
       // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
@@ -356,8 +354,7 @@ public class OrderFacade {
       orderSQSPublisher.publishOrderSuccess(orderInfo.getUserId(), orderInfo.getOrdererPhoneNumber());
     }
     else if (orderType.equals(OrderType.PICKUP.toString())) {
-      PickupOrderInfo pickupOrderInfo =
-              redisTemplateForPickup.opsForValue().get(processOrderDto.getOrderId());
+      PickupOrderInfo pickupOrderInfo = redisOperation.findFromRedis(processOrderDto.getOrderId(), PickupOrderInfo.class);
       if (pickupOrderInfo == null) throw new PaymentExpiredException();
 
       // payment-service 최종 결제 승인 요청
@@ -382,8 +379,7 @@ public class OrderFacade {
               pickupOrderInfo.getUserId(), pickupOrderInfo.getOrdererPhoneNumber());
     }
     else {
-      SubscriptionOrderInfo subscriptionOrderInfo =
-              redisTemplateForSubscription.opsForValue().get(processOrderDto.getOrderId());
+      SubscriptionOrderInfo subscriptionOrderInfo = redisOperation.findFromRedis(processOrderDto.getOrderId(), SubscriptionOrderInfo.class);
       if (subscriptionOrderInfo == null) throw new PaymentExpiredException();
 
       // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기

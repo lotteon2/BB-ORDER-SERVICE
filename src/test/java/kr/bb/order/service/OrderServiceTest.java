@@ -336,7 +336,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .build();
   }
 
-  public List<OrderInfoByStore> createOrderInfoByStores() {
+  public static List<OrderInfoByStore> createOrderInfoByStores() {
     List<ProductCreate> productList = createProductCreates();
     List<OrderInfoByStore> list = new ArrayList<>();
 
@@ -354,7 +354,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     return list;
   }
 
-  public List<ProductCreate> createProductCreates() {
+  public static List<ProductCreate> createProductCreates() {
     List<ProductCreate> list = new ArrayList<>();
     list.add(
         ProductCreate.builder()
@@ -382,7 +382,8 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .build();
   }
 
-  public OrderInfo createOrderInfo(String orderId, OrderType orderType, OrderMethod orderMethod) {
+  public static OrderInfo createOrderInfo(String orderId, OrderType orderType,
+          OrderMethod orderMethod) {
     return OrderInfo.builder()
         .tempOrderId(orderId)
         .userId(1L)
@@ -405,7 +406,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .build();
   }
 
-  public PickupOrderInfo createPickupOrderInfo(String orderId) {
+  public static PickupOrderInfo createPickupOrderInfo(String orderId) {
     ProductCreate productCreate =
         ProductCreate.builder()
             .productId("1")
@@ -439,7 +440,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
         .build();
   }
 
-  public SubscriptionOrderInfo createSubscriptionOrderInfo(String orderId) {
+  public static SubscriptionOrderInfo createSubscriptionOrderInfo(String orderId) {
     ProductCreate productCreate =
         ProductCreate.builder()
             .productId("1")
