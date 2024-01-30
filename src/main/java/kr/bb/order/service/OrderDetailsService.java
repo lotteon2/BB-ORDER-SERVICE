@@ -92,7 +92,7 @@ public class OrderDetailsService {
 
   public OrderInfoForStoreForSeller getOrderDetailsForSeller(String orderDeliveryId) {
     OrderDelivery orderDelivery =
-        orderDeliveryRepository.findById(orderDeliveryId).orElseThrow(EntityNotFoundException::new);
+        orderDeliveryRepository.findByOrderDeliveryId(orderDeliveryId).orElseThrow(EntityNotFoundException::new);
 
     // feign 요청
     List<String> productIds =

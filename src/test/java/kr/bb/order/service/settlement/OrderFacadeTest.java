@@ -28,6 +28,7 @@ import kr.bb.order.facade.OrderFacade;
 import kr.bb.order.feign.FeignHandler;
 import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.service.AbstractContainerBaseTest;
+import kr.bb.order.util.RedisOperation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,10 +41,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 public class OrderFacadeTest extends AbstractContainerBaseTest {
   @Autowired OrderFacade orderFacade;
   @MockBean private FeignHandler feignHandler;
+  @Autowired private RedisOperation redisOperation;
   @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
-  @Autowired private RedisTemplate<String, OrderInfo> redisTemplate;
-  @Autowired private RedisTemplate<String, PickupOrderInfo> redisTemplateForPickup;
-  @Autowired private RedisTemplate<String, SubscriptionOrderInfo> redisTemplateForSubscription;
   @MockBean private KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
 
   @Test
@@ -124,7 +123,7 @@ public class OrderFacadeTest extends AbstractContainerBaseTest {
     String pgToken = "임시pgToken";
 
     OrderInfo orderInfo = createOrderInfo(orderId, OrderType.valueOf(orderType), OrderMethod.CART);
-    redisTemplate.opsForValue().set(orderId, orderInfo);
+    redisOperation.saveIntoRedis(orderId, orderInfo);
 
     orderFacade.requestOrder(orderId, orderType, pgToken);
     processOrderDtoKafkaProducer = mock(KafkaProducer.class);
@@ -144,7 +143,7 @@ public class OrderFacadeTest extends AbstractContainerBaseTest {
     String pgToken = "임시pgToken";
 
     PickupOrderInfo pickupOrderInfo = createPickupOrderInfo(orderId);
-    redisTemplateForPickup.opsForValue().set(orderId, pickupOrderInfo);
+    redisOperation.saveIntoRedis(orderId, pickupOrderInfo);
 
     orderFacade.requestOrder(orderId, orderType, pgToken);
     processOrderDtoKafkaProducer = mock(KafkaProducer.class);
@@ -163,7 +162,7 @@ public class OrderFacadeTest extends AbstractContainerBaseTest {
     String pgToken = "임시pgToken";
 
     SubscriptionOrderInfo subscriptionOrderInfo = createSubscriptionOrderInfo(orderId);
-    redisTemplateForSubscription.opsForValue().set(orderId, subscriptionOrderInfo);
+    redisOperation.saveIntoRedis(orderId, subscriptionOrderInfo);
 
     orderFacade.requestOrder(orderId, orderType, pgToken);
     processOrderDtoKafkaProducer = mock(KafkaProducer.class);

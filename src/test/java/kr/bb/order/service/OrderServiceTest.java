@@ -43,14 +43,13 @@ import kr.bb.order.kafka.KafkaProducer;
 import kr.bb.order.kafka.SubscriptionDateDtoList;
 import kr.bb.order.mapper.OrderCommonMapper;
 import kr.bb.order.repository.*;
-import org.junit.jupiter.api.BeforeEach;
+import kr.bb.order.util.RedisOperation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -59,11 +58,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Transactional
 class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private OrderFacade orderFacade;
-  @Autowired private OrderService orderService;
   @MockBean private PaymentServiceClient paymentServiceClient;
-  @Autowired private RedisTemplate<String, OrderInfo> redisTemplate;
-  @Autowired private RedisTemplate<String, PickupOrderInfo> redisTemplateForPickup;
-  @Autowired private RedisTemplate<String, SubscriptionOrderInfo> redisTemplateForSubscription;
   @Autowired private OrderDeliveryRepository orderDeliveryRepository;
   @MockBean private KafkaProducer<ProcessOrderDto> processOrderDtoKafkaProducer;
   @MockBean private KafkaProducer<CartDeleteCommand> cartItemDeleteKafkaProducer;
@@ -72,9 +67,6 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @Autowired private KafkaConsumer<ProcessOrderDto> kafkaConsumer;
   @MockBean private KafkaProducer<SubscriptionDateDtoList> subscriptionDateDtoListKafkaProducer;
   @MockBean private KafkaProducer<SubscriptionStatusChangeDto> subscriptionStatusChangeDtoKafkaProducer;
-  @Autowired private OrderDeliveryProductRepository orderProductRepository;
-  @Autowired private OrderPickupProductRepository orderPickupProductRepository;
-  @Autowired private OrderGroupRepository orderGroupRepository;
   @Autowired private OrderPickupRepository orderPickupRepository;
   @Autowired private OrderSubscriptionRepository orderSubscriptionRepository;
   @MockBean private OrderSNSPublisher orderSNSPublisher;
@@ -82,19 +74,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   @MockBean private FeignHandler feignHandler;
   @MockBean private SimpleMessageListenerContainer simpleMessageListenerContainer;
   @MockBean private KafkaProducer<PickupStatusChangeDto> pickupStatusUpdateKafkaProducer;
-
-  @BeforeEach
-  void setup() {
-    orderService =
-        new OrderService(
-            orderDeliveryRepository,
-            orderProductRepository,
-            orderPickupProductRepository,
-            orderGroupRepository,
-            orderPickupRepository,
-            orderSubscriptionRepository
-        );
-  }
+  @Autowired private RedisOperation redisOperation;
 
   @Test
   @DisplayName("바로 주문하기 - 처리 및 저장 단계")
@@ -103,7 +83,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     String orderGroupId = "임시orderId";
 
     OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.DELIVERY, OrderMethod.DIRECT);
-    redisTemplate.opsForValue().set(orderGroupId, orderInfo);
+    redisOperation.saveIntoRedis(orderGroupId, orderInfo);
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
     when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
@@ -129,7 +109,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     OrderInfo orderInfo =
         createOrderInfo(orderGroupId, OrderType.valueOf(orderType), OrderMethod.DIRECT);
-    redisTemplate.opsForValue().set(orderGroupId, orderInfo);
+    redisOperation.saveIntoRedis(orderGroupId, orderInfo);
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
     when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
@@ -153,7 +133,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
     String orderGroupId = "임시orderId";
     OrderInfo orderInfo = createOrderInfo(orderGroupId, OrderType.DELIVERY, OrderMethod.CART);
 
-    redisTemplate.opsForValue().set(orderGroupId, orderInfo);
+    redisOperation.saveIntoRedis(orderGroupId, orderInfo);
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
     when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());
@@ -180,7 +160,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
 
     PickupOrderInfo pickupOrderInfo = createPickupOrderInfo(orderPickupId);
 
-    redisTemplateForPickup.opsForValue().set(orderPickupId, pickupOrderInfo);
+    redisOperation.saveIntoRedis(orderPickupId, pickupOrderInfo);
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
     when(paymentServiceClient.approve(any())).thenReturn(CommonResponse.success(null));
@@ -204,7 +184,7 @@ class OrderServiceTest extends AbstractContainerBaseTest {
   void processSubscriptionOrder() {
     String orderSubscriptionId = "임시orderId";
     SubscriptionOrderInfo subscriptionOrderInfo = createSubscriptionOrderInfo(orderSubscriptionId);
-    redisTemplateForSubscription.opsForValue().set(orderSubscriptionId, subscriptionOrderInfo);
+    redisOperation.saveIntoRedis(orderSubscriptionId, subscriptionOrderInfo);
 
     when(feignHandler.createDelivery(any())).thenReturn(List.of(1L));
     when(feignHandler.approve(any())).thenReturn(LocalDateTime.now());

@@ -1,24 +1,18 @@
 package kr.bb.order.repository;
 
 import bloomingblooms.domain.notification.delivery.DeliveryStatus;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import kr.bb.order.dto.WeeklySalesDto;
 import kr.bb.order.entity.delivery.OrderDelivery;
-import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.util.StoreIdAndTotalAmountProjection;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface OrderDeliveryRepository extends JpaRepository<OrderDelivery, String>, OrderDeliveryRepositoryCustom {
-  @Query("select od from OrderDelivery od where od.orderGroup in :orderGroups")
-  List<OrderDelivery> findAllByOrderGroups(List<OrderGroup> orderGroups);
-
-  @Query("select od from OrderDelivery od where od.orderGroup.orderGroupId = :orderGroupId")
+  @Query("select distinct od from OrderDelivery od join fetch od.orderDeliveryProducts where od.orderGroup.orderGroupId = :orderGroupId")
   List<OrderDelivery> findByOrderGroupId(String orderGroupId);
 
   @Query(
@@ -38,5 +32,8 @@ public interface OrderDeliveryRepository extends JpaRepository<OrderDelivery, St
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate,
       @Param("orderDeliveryStatus") DeliveryStatus deliveryStatus);
+
+  @Query("SELECT od FROM OrderDelivery od JOIN FETCH od.orderDeliveryProducts WHERE od.orderDeliveryId = :orderDeliveryId")
+  Optional<OrderDelivery> findByOrderDeliveryId(String orderDeliveryId);
 
 }
