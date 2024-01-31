@@ -41,6 +41,7 @@ import kr.bb.order.entity.delivery.OrderDelivery;
 import kr.bb.order.entity.delivery.OrderGroup;
 import kr.bb.order.entity.pickup.OrderPickup;
 import kr.bb.order.entity.pickup.OrderPickupStatus;
+import kr.bb.order.entity.redis.KakaoCommonInfo;
 import kr.bb.order.entity.redis.OrderInfo;
 import kr.bb.order.entity.redis.PickupOrderInfo;
 import kr.bb.order.entity.redis.SubscriptionOrderInfo;
@@ -252,9 +253,35 @@ public class OrderFacade<T> {
     return responseDto;
   }
 
+//  private void test(String orderId, Class<T> orderInstance, String orderType, String pgToken, String type){
+//    T fromRedis = redisOperation.findFromRedis(orderId, OrderInfo.class);
+//    KakaoCommonInfo common = (KakaoCommonInfo) fromRedis;
+//    if (common == null) throw new PaymentExpiredException();
+//
+//    common.setPgToken(pgToken);
+//    redisOperation.saveIntoRedis(orderId, common);
+//    redisOperation.expire(orderId, 5, TimeUnit.MINUTES);
+//
+//    ProcessOrderDto processOrderDto;
+//    if(type.equalsIgnoreCase(OrderType.DELIVERY.toString())){
+//      processOrderDto = OrderCommonMapper.toProcessOrderDto(orderId, orderType, (OrderInfo) fromRedis);
+//    }else if(type.equalsIgnoreCase(OrderType.PICKUP.toString())){
+//      processOrderDto = OrderCommonMapper.toDtoForOrderPickup(orderId, (PickupOrderInfo) fromRedis);
+//    }else{
+//      processOrderDto = OrderCommonMapper.toDtoForOrderSubscription(orderId, (SubscriptionOrderInfo) fromRedis);
+//    }
+//
+//    processOrderDtoKafkaProducer.send("coupon-use", processOrderDto);
+//  }
+
   // (바로주문, 장바구니 / 픽업주문 / 구독주문) 타 서비스로 kafka 주문 요청 처리 [쿠폰사용, 재고차감]
   // TODO: 추상화를 통해 코드를 줄일 수 없을까?
+  /* TODO: 1. 추상클래스로 공통 부분들을 빼고, 다른 부분들만 자식 클래스에 구현하여 상속받아 처리하기
+           2. if문으로 분기 처리하는걸 메서드 안에서 하도록 하기 (밖에서는 전체적인 흐름만 알수 있도록 하고 안에서 분기처리하도록 하면
+              가독성이 나아짐) => if, else if, ... 이런식으로 하면 계속 밖에서 else if를 이어나가야 해서 안 좋음.
+   */
   public void requestOrder(String orderId, String orderType, String pgToken) {
+
     // redis에서 정보 가져오기 및 TTL 갱신
     if (orderType.equals(OrderType.DELIVERY.toString())) {
       OrderInfo orderInfo = redisOperation.findFromRedis(orderId, OrderInfo.class);
@@ -297,23 +324,23 @@ public class OrderFacade<T> {
   public void processOrder(ProcessOrderDto processOrderDto){
     String orderMethod = processOrderDto.getOrderMethod();
     String orderType = processOrderDto.getOrderType();
-    if (orderType.equals(OrderType.DELIVERY.toString())) {
-      OrderInfo orderInfo = redisOperation.findFromRedis(processOrderDto.getOrderId(), OrderInfo.class);
-      if (orderInfo == null) throw new PaymentExpiredException();
+      if (orderType.equals(OrderType.DELIVERY.toString())) {
+        OrderInfo orderInfo = redisOperation.findFromRedis(processOrderDto.getOrderId(), OrderInfo.class);
+        if (orderInfo == null) throw new PaymentExpiredException();
 
-      // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
-      List<DeliveryInsertDto> dtoList = OrderCommonMapper.toDeliveryInsertDto(orderInfo);
-      List<Long> deliveryIds = feignHandler.createDelivery(dtoList);
+        // delivery-service로 delivery 정보 저장 및 deliveryId 알아내기
+        List<DeliveryInsertDto> dtoList = OrderCommonMapper.toDeliveryInsertDto(orderInfo);
+        List<Long> deliveryIds = feignHandler.createDelivery(dtoList);
 
-      // payment-service 최종 결제 승인 요청
-      KakaopayApproveRequestDto approveRequestDto = KakaopayMapper.toDtoFromOrderInfo(orderInfo);
-      LocalDateTime paymentDateTime = feignHandler.approve(approveRequestDto);
+        // payment-service 최종 결제 승인 요청
+        KakaopayApproveRequestDto approveRequestDto = KakaopayMapper.toDtoFromOrderInfo(orderInfo);
+        LocalDateTime paymentDateTime = feignHandler.approve(approveRequestDto);
 
-      // facade layer를 사용함으로써 기존 내부호출 문제 해결
-      OrderGroup orderGroup = orderService.createOrderDelivery(deliveryIds, processOrderDto, orderInfo);
+        // facade layer를 사용함으로써 기존 내부호출 문제 해결
+        OrderGroup orderGroup = orderService.createOrderDelivery(deliveryIds, processOrderDto, orderInfo);
 
-      // 장바구니에서 주문이면 장바구니에서 해당 상품들 비우는 kafka 요청
-      if (orderInfo.getOrderMethod().equals(OrderMethod.CART.toString())) {
+        // 장바구니에서 주문이면 장바구니에서 해당 상품들 비우는 kafka 요청
+        if (orderInfo.getOrderMethod().equals(OrderMethod.CART.toString())) {
         List<String> productIds =
                 orderInfo.getOrderInfoByStores().stream()
                         .flatMap(orderInfoByStore -> orderInfoByStore.getProducts().stream())
